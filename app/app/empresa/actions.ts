@@ -198,3 +198,24 @@ export async function salvarMeta(userId: string, mes: string, metaValor: number,
     return { ok: true };
   } catch (e) { return falha(e); }
 }
+
+export async function salvarMetas(f: FormData): Promise<ActionResult> {
+  try {
+    const { empresa } = await gestor();
+    const mes = String(f.get("mes") ?? "");
+    if (!/^\d{4}-\d{2}-01$/.test(mes)) return { ok: false, erro: "Mês inválido." };
+    const admin = (await import("@/lib/supabase/admin")).createAdminClient();
+    const userIds = (f.getAll("user_id") as string[]);
+    const metaValores = (f.getAll("meta_valor") as string[]);
+    const metaVendases = (f.getAll("meta_vendas") as string[]);
+    for (let i = 0; i < userIds.length; i++) {
+      const { error } = await admin.from("metas").upsert(
+        { org_id: empresa.id, user_id: userIds[i], mes, meta_valor: Math.max(0, Number(metaValores[i]) || 0), meta_vendas: Math.max(0, Math.round(Number(metaVendases[i]) || 0)) },
+        { onConflict: "org_id,user_id,mes" },
+      );
+      if (error) throw error;
+    }
+    revalidatePath("/app/gestor");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}

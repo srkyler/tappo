@@ -77,6 +77,13 @@ export function ConexaoWhats({ aberto, aoFechar, conexao }: { aberto: boolean; a
               <span className="block text-[12.5px] text-gray-500">Usa o agente ativo no admin. Em cada conversa você pode assumir e desligar a IA.</span>
             </span>
           </label>
+          <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
+            <input type="checkbox" name="distribuicao" defaultChecked={conexao?.distribuicao === "rodizio"} className="mt-1" />
+            <span>
+              <span className="block text-[14px] font-medium text-white">Rodízio de atendimento</span>
+              <span className="block text-[12.5px] text-gray-500">Distribui conversas novas automaticamente para quem tem menos atendimentos abertos.</span>
+            </span>
+          </label>
           <div>
             <Rotulo htmlFor="w-instr">Sobre o negócio (o que a IA deve saber)</Rotulo>
             <textarea id="w-instr" name="ia_instrucoes" rows={5} defaultValue={conexao?.ia_instrucoes ?? ""} placeholder="Ex.: Somos a Loja X. Horário: seg–sex 9h–18h. Frete grátis acima de R$ 200. Para orçamento, peça nome e cidade." className="campo" />

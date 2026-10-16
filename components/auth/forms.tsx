@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { entrar, cadastrar, recuperarSenha, redefinirSenha } from "@/app/auth/actions";
 import { Aviso, BotaoEnviar, Campo } from "./auth-ui";
+import { SEGMENTOS } from "@/lib/segmentos";
 
 const linkMini = "text-[12px] text-gray-400 hover:text-white hover:underline underline-offset-4";
 
@@ -39,6 +40,12 @@ export function FormCadastro() {
     <form action={acao} className="flex flex-col gap-5">
       <Campo label="Seu nome" name="nome" autoComplete="name" placeholder="Nome completo" />
       <Campo label="Empresa" name="empresa" autoComplete="organization" placeholder="Nome da empresa" required={false} />
+      <div>
+        <label htmlFor="cad-seg" className="mb-1.5 block text-[12px] font-medium text-gray-300">Segmento</label>
+        <select id="cad-seg" name="segmento" defaultValue="geral" className="campo w-full">
+          {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+        </select>
+      </div>
       <Campo label="E-mail" name="email" type="email" autoComplete="email" placeholder="seu@empresa.com.br" />
       <Campo label="Senha" name="senha" type="password" autoComplete="new-password" minLength={8} placeholder="mínimo 8 caracteres" />
       {estado?.erro && <Aviso tipo="erro">{estado.erro}</Aviso>}

@@ -2,26 +2,28 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound } from "lucide-react";
+import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
-import { atualizarConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
+import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
 import { ConexaoWhats } from "./conexao-whats";
 
 export type ConexaoTela = {
   base_url: string; sessao: string; status: string; numero: string | null;
   ia_ativa: boolean; ia_instrucoes: string; tem_chave: boolean; webhook: string;
+  distribuicao?: string | null;
 };
 export type ConversaTela = {
   id: string; chat_id: string; nome: string | null; telefone: string | null; lead_id: string | null;
   status: "aberta" | "pendente" | "resolvida"; ia_ativa: boolean; nao_lidas: number;
-  ultima_mensagem: string | null; ultima_em: string;
+  ultima_mensagem: string | null; ultima_em: string; atribuido_a: string | null;
   leads?: { nome: string; empresa: string; cod: string } | null;
 };
 type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string };
 
 const FILTROS = [
   { id: "ativas", rotulo: "Ativas" },
+  { id: "minhas", rotulo: "Minhas conversas" },
   { id: "pendente", rotulo: "Precisam de você" },
   { id: "resolvida", rotulo: "Resolvidas" },
 ] as const;
@@ -34,7 +36,7 @@ const hora = (iso: string) => {
 const titulo = (c: ConversaTela) => c.leads?.nome || c.nome || (c.telefone ? `+${c.telefone}` : "Contato");
 const AUTOR: Record<Msg["autor"], string> = { contato: "", humano: "Você", ia: "IA", celular: "Celular" };
 
-export function InboxView({ userId, conexao, conversasIniciais }: { userId: string; conexao: ConexaoTela | null; conversasIniciais: ConversaTela[] }) {
+export function InboxView({ userId, conexao, conversasIniciais, membros }: { userId: string; conexao: ConexaoTela | null; conversasIniciais: ConversaTela[]; membros: { user_id: string; nome: string; email: string | null; avatar_url: string | null; papel: string; ativo: boolean }[] }) {
   const sb = useMemo(() => createBrowserClient(), []);
   const [conversas, setConversas] = useState(conversasIniciais);
   const [selId, setSelId] = useState<string | null>(null);
@@ -91,11 +93,19 @@ export function InboxView({ userId, conexao, conversasIniciais }: { userId: stri
   const visiveis = useMemo(() => {
     const t = busca.trim().toLowerCase();
     return conversas.filter((c) => {
-      if (filtro === "ativas" ? c.status === "resolvida" : c.status !== filtro) return false;
+      let passa = true;
+      if (filtro === "ativas") passa = c.status !== "resolvida";
+      else if (filtro === "minhas") passa = c.atribuido_a === userId;
+      else passa = c.status === filtro;
+      if (!passa) return false;
       return !t || `${titulo(c)} ${c.telefone ?? ""} ${c.ultima_mensagem ?? ""}`.toLowerCase().includes(t);
     });
-  }, [conversas, filtro, busca]);
-  const contagem = (id: string) => conversas.filter((c) => (id === "ativas" ? c.status !== "resolvida" : c.status === id)).length;
+  }, [conversas, filtro, busca, userId]);
+  const contagem = (id: string) => conversas.filter((c) => {
+    if (id === "ativas") return c.status !== "resolvida";
+    if (id === "minhas") return c.atribuido_a === userId;
+    return c.status === id;
+  }).length;
 
   function mudar(m: { status?: ConversaTela["status"]; ia_ativa?: boolean }) {
     if (!sel) return;
@@ -159,6 +169,11 @@ export function InboxView({ userId, conexao, conversasIniciais }: { userId: stri
                       <span className="flex shrink-0 items-center gap-1">
                         {c.ia_ativa && conexao?.ia_ativa && <Bot size={12} className="text-gray-500" aria-label="IA ativa" />}
                         {c.status === "pendente" && <span className="h-2 w-2 rounded-full bg-amber-400" aria-label="Precisa de você" />}
+                        {c.atribuido_a && (
+                          <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                            <Users size={10} /> {membros.find((m) => m.user_id === c.atribuido_a)?.nome?.split(" ")[0] ?? "—"}
+                          </span>
+                        )}
                         {c.nao_lidas > 0 && <span className="rounded-full bg-white px-1.5 text-[11px] font-semibold text-black">{c.nao_lidas}</span>}
                       </span>
                     </span>
@@ -197,6 +212,17 @@ export function InboxView({ userId, conexao, conversasIniciais }: { userId: stri
                   <option value="pendente">Precisa de você</option>
                   <option value="resolvida">Resolvida</option>
                 </select>
+                <select value={sel.atribuido_a ?? ""} onChange={(e) => { iniciar(async () => { const r = await atribuirConversa(sel.id, e.target.value || null); if (!r.ok) setErro(r.erro); else setConversas((l) => l.map((c) => c.id === sel.id ? { ...c, atribuido_a: e.target.value || null } : c)); }); }} className="campo h-8 w-auto py-0 text-[13px]" aria-label="Responsável">
+                  <option value="">Não atribuído</option>
+                  {membros.filter((m) => m.ativo).map((m) => (
+                    <option key={m.user_id} value={m.user_id}>{m.nome}</option>
+                  ))}
+                </select>
+                {sel.atribuido_a && (
+                  <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                    <Users size={12} /> {membros.find((m) => m.user_id === sel.atribuido_a)?.nome ?? "—"}
+                  </span>
+                )}
               </header>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-5">

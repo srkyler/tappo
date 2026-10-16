@@ -54,6 +54,7 @@ export async function entrarComGoogle(form: FormData) {
 export async function cadastrar(_: EstadoAuth, form: FormData): Promise<EstadoAuth> {
   const nome = String(form.get("nome") ?? "").trim();
   const empresa = String(form.get("empresa") ?? "").trim();
+  const segmento = String(form.get("segmento") ?? "geral");
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const senha = String(form.get("senha") ?? "");
   if (senha.length < 8) return { erro: "A senha deve ter pelo menos 8 caracteres." };
@@ -64,7 +65,7 @@ export async function cadastrar(_: EstadoAuth, form: FormData): Promise<EstadoAu
     type: "signup",
     email,
     password: senha,
-    options: { data: { nome_completo: nome, empresa } },
+    options: { data: { nome_completo: nome, empresa, segmento } },
   });
   if (error) {
     const jaExiste = /already|registered|exists/i.test(error.message);

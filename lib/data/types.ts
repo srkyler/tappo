@@ -18,16 +18,6 @@ export type CampaignLeadStatus = (typeof CAMPAIGN_LEAD_STATUS)[number];
 export type ActivityTipo = (typeof ACTIVITY_TIPO)[number];
 export type StageTipo = "aberto" | "ganho" | "perdido";
 
-export type Profile = {
-  id: string;
-  nome_completo: string | null;
-  empresa: string | null;
-  cargo: string | null;
-  telefone: string | null;
-  avatar_url: string | null;
-  meta_reunioes_semana: number;
-};
-
 export type Lead = {
   id: string;
   cod: string;
@@ -104,5 +94,110 @@ export type Activity = {
   campaign_id: string | null;
   ocorreu_em: string;
 };
+
+export type Profile = {
+  id: string;
+  nome_completo: string | null;
+  email: string | null;
+  empresa: string | null;
+  cargo: string | null;
+  telefone: string | null;
+  avatar_url: string | null;
+  org_atual: string | null;
+  meta_reunioes_semana: number;
+};
+
+export type Empresa = {
+  id: string;
+  nome: string;
+  segmento: string;
+  plano: string;
+  teste_ate: string;
+  papel: Papel;
+  termos: Termos;
+};
+
+export type Membro = {
+  user_id: string;
+  nome: string;
+  email: string | null;
+  avatar_url: string | null;
+  papel: Papel;
+  ativo: boolean;
+};
+
+export type Convite = {
+  id: string;
+  email: string;
+  papel: string;
+  expira_em: string;
+};
+
+export type Tarefa = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  responsavel_id: string | null;
+  lead_id: string | null;
+  deal_id: string | null;
+  conversa_id: string | null;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  vence_em: string | null;
+  concluida_em: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Meta = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  mes: string;
+  meta_valor: number;
+  meta_vendas: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PainelGestor = {
+  ganho_valor: number;
+  ganho_qtd: number;
+  perdido_qtd: number;
+  aberto_valor: number;
+  previsao: number;
+  previsao_meses: { mes: string; ponderado: number; bruto: number; qtd: number }[];
+  funil: { etapa: string; tipo: string; qtd: number; valor: number }[];
+  inbox: {
+    abertas: number;
+    sem_responsavel: number;
+    aguardando: number;
+    aguardando_15m: number;
+    tempo_medio_seg: number | null;
+    novas: number;
+  };
+  equipe: {
+    user_id: string;
+    nome: string;
+    papel: string;
+    avatar_url: string | null;
+    ganho_valor: number;
+    ganho_qtd: number;
+    aberto_valor: number;
+    atividades: number;
+    tarefas_feitas: number;
+    tarefas_atrasadas: number;
+    conversas_abertas: number;
+    tempo_resposta_seg: number | null;
+    meta_valor: number | null;
+    ganho_mes: number;
+  }[];
+};
+
+export type Termos = { lead: string; leads: string; negocio: string; negocios: string };
+
+export type Papel = "dono" | "gestor" | "vendedor" | "atendente";
 
 export type ActionResult = { ok: true } | { ok: false; erro: string };

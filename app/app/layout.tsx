@@ -66,7 +66,8 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
           <Link href="/app"><Logo /></Link>
         </div>
 
-        <NavLateral />
+        {/* usePathname é dado de runtime: fora de Suspense o prerender quebra (Next 16) */}
+        <Suspense fallback={<div className="flex-1" />}><NavLateral /></Suspense>
         <Suspense fallback={null}><LinkAdmin /></Suspense>
 
         <div className="border-t border-gray-800 p-3">
@@ -99,7 +100,7 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">{children}</main>
       </div>
 
-      <NavInferior />
+      <Suspense fallback={null}><NavInferior /></Suspense>
       <PaletaComandos />
     </div>
   );

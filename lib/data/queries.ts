@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import type { Activity, Campaign, CampaignLead, CampaignStep, Deal, Lead, PipelineStage, Profile } from "./types";
+import type { Activity, Campaign, CampaignLead, CampaignStep, Deal, Lead, Meta, PainelGestor, PipelineStage, Profile, Tarefa } from "./types";
 
 /* Tappo — leituras do app (sempre com o cliente do usuário: RLS filtra por dono) */
 
@@ -16,7 +16,7 @@ export async function lerPerfil(): Promise<(Profile & { email: string | null }) 
   const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   return data ? { ...data, email: data.email ?? user.email ?? null } : {
     id: user.id, nome_completo: null, empresa: null, cargo: null, telefone: null,
-    avatar_url: null, meta_reunioes_semana: 5, email: user.email ?? null,
+    avatar_url: null, meta_reunioes_semana: 5, email: user.email ?? null, org_atual: null,
   };
 }
 
@@ -76,6 +76,30 @@ export async function lerResumo(dias = 30): Promise<Resumo | null> {
   const { data, error } = await supabase.rpc("analytics_resumo", { dias });
   if (error) return null;
   return data as Resumo;
+}
+
+export async function lerTarefas(): Promise<Tarefa[]> {
+  const { supabase } = await usuarioAtual();
+  const { data } = await supabase
+    .from("tarefas")
+    .select("*")
+    .order("vence_em", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  return (data ?? []) as Tarefa[];
+}
+
+export async function lerMetas(): Promise<Meta[]> {
+  const { supabase } = await usuarioAtual();
+  const { data } = await supabase.from("metas").select("*").order("mes", { ascending: false });
+  return (data ?? []) as Meta[];
+}
+
+export async function lerPainelGestor(dias = 30): Promise<PainelGestor | null> {
+  const { supabase } = await usuarioAtual();
+  const { data, error } = await supabase.rpc("painel_gestor", { dias });
+  if (error) return null;
+  return data as PainelGestor;
 }
 
 /** Erro "tabela não existe" → banco ainda não configurado */
