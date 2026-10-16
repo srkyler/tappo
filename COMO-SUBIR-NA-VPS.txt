@@ -1,0 +1,215 @@
+=====================================================================
+  TAPPO — COMO SUBIR NA VPS (passo a passo)
+=====================================================================
+
+O que vai rodar na VPS (tudo em Docker):
+  - app   -> o CRM (Next.js)
+  - waha  -> o WhatsApp
+  - caddy -> HTTPS automático (cadeado) no seu domínio
+O banco de dados continua no Supabase (não roda na VPS).
+
+
+---------------------------------------------------------------------
+ 0. ANTES DE COMEÇAR (o que você precisa ter)
+---------------------------------------------------------------------
+  [ ] Uma VPS Ubuntu 22.04 ou 24.04, com no mínimo 2 GB de RAM
+  [ ] O IP da VPS e a senha (ou chave) de root
+  [ ] Um domínio (ex.: suaempresa.com)
+  [ ] Chaves do Supabase: Dashboard > Project Settings > API
+        - Project URL
+        - anon public key
+        - service_role key (secreta!)
+  [ ] Chave da Anthropic (ANTHROPIC_API_KEY) — console.anthropic.com
+
+
+---------------------------------------------------------------------
+ 1. APONTAR O DOMÍNIO PARA A VPS
+---------------------------------------------------------------------
+No painel onde você comprou o domínio (Registro.br, Hostinger,
+Cloudflare...), crie dois registros do tipo A:
+
+    Nome: crm     Tipo: A    Valor: IP_DA_VPS
+    Nome: waha    Tipo: A    Valor: IP_DA_VPS
+
+Resultado: crm.suaempresa.com e waha.suaempresa.com apontam pra VPS.
+(Se usar Cloudflare, deixe a nuvem CINZA / "DNS only".)
+Pode levar de 5 minutos a algumas horas para propagar.
+
+
+---------------------------------------------------------------------
+ 2. ENTRAR NA VPS
+---------------------------------------------------------------------
+No seu computador (PowerShell ou terminal):
+
+    ssh root@IP_DA_VPS
+
+
+---------------------------------------------------------------------
+ 3. BAIXAR O PROJETO DO GITHUB
+---------------------------------------------------------------------
+    apt update && apt install -y git
+    git clone https://github.com/srkyler/tappo.git /opt/tappo
+
+Se o repositório for PRIVADO, o git vai pedir usuário e senha:
+  - Usuário: seu usuário do GitHub
+  - Senha: um TOKEN (não é a senha da conta). Crie em:
+    GitHub > Settings > Developer settings > Personal access tokens
+    > Fine-grained > acesso de leitura ao repositório "tappo".
+
+
+---------------------------------------------------------------------
+ 4. RODAR O INSTALADOR
+---------------------------------------------------------------------
+    bash /opt/tappo/deploy/install.sh
+
+Ele instala o Docker, libera as portas 80 e 443 no firewall e cria o
+arquivo /opt/tappo/.env já com estes segredos gerados:
+  AI_KEYS_SECRET, WAHA_API_KEY e WAHA_DASHBOARD_PASSWORD
+
+
+---------------------------------------------------------------------
+ 5. PREENCHER O .env
+---------------------------------------------------------------------
+    nano /opt/tappo/.env
+
+Preencha (sem espaços antes/depois do "="):
+
+    DOMAIN=crm.suaempresa.com
+    WAHA_DOMAIN=waha.suaempresa.com
+    NEXT_PUBLIC_APP_URL=https://crm.suaempresa.com
+
+    NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+    SUPABASE_SERVICE_ROLE_KEY=...
+
+    ANTHROPIC_API_KEY=...
+    ADMIN_EMAILS=seuemail@gmail.com
+
+    RESEND_API_KEY=...            (opcional, para e-mails)
+    RESEND_FROM=Tappo <no-reply@suaempresa.com>
+
+NÃO mexa em AI_KEYS_SECRET depois de salvar chaves no /admin
+(se trocar, as chaves salvas param de funcionar).
+
+Para salvar no nano: Ctrl+O, Enter, Ctrl+X.
+
+
+---------------------------------------------------------------------
+ 6. SUBIR O SISTEMA
+---------------------------------------------------------------------
+    cd /opt/tappo
+    docker compose up -d --build
+
+O primeiro build demora uns 3 a 8 minutos. Para conferir:
+
+    docker compose ps            (os 3 devem estar "running"/"healthy")
+    docker compose logs -f app   (Ctrl+C para sair)
+
+Abra no navegador: https://crm.suaempresa.com
+
+
+---------------------------------------------------------------------
+ 7. SUPABASE: AJUSTAR O LOGIN PARA O DOMÍNIO NOVO
+---------------------------------------------------------------------
+Supabase > Authentication > URL Configuration:
+  - Site URL:      https://crm.suaempresa.com
+  - Redirect URLs: https://crm.suaempresa.com/**
+
+Se usar login com Google, adicione também o domínio novo no
+Google Cloud Console (Authorized redirect URIs continuam sendo a
+URL do Supabase: https://SEU-PROJETO.supabase.co/auth/v1/callback).
+
+
+---------------------------------------------------------------------
+ 8. CONECTAR O WHATSAPP
+---------------------------------------------------------------------
+1. Entre no CRM com o e-mail que está em ADMIN_EMAILS.
+2. Vá em /admin e confira se há um agente de IA ATIVO.
+   (Para WhatsApp prefira o modelo claude-haiku-5-5 ou claude-sonnet-5-5:
+    mais rápido e bem mais barato.)
+3. Vá em Inbox > ícone de engrenagem e preencha:
+     URL do WAHA:  http://waha:3000
+     API key:      o valor de WAHA_API_KEY do .env
+                   (veja com: grep WAHA_API_KEY /opt/tappo/.env)
+     Sessão:       default
+     [x] IA responde os clientes
+     Sobre o negócio: horários, produtos, preços, regras...
+4. Salvar > Conectar > escaneie o QR code com o celular:
+   WhatsApp > Aparelhos conectados > Conectar um aparelho.
+
+Painel do WAHA (opcional): https://waha.suaempresa.com
+  usuário: admin | senha: WAHA_DASHBOARD_PASSWORD do .env
+
+
+---------------------------------------------------------------------
+ 9. DEPLOY AUTOMÁTICO (cada push no GitHub atualiza a VPS)
+---------------------------------------------------------------------
+Na VPS, gere uma chave só para o deploy:
+
+    ssh-keygen -t ed25519 -f ~/.ssh/tappo_deploy -N ""
+    cat ~/.ssh/tappo_deploy.pub >> ~/.ssh/authorized_keys
+    cat ~/.ssh/tappo_deploy          (copie TUDO, incluindo BEGIN/END)
+
+No GitHub: repositório tappo > Settings > Secrets and variables >
+Actions > New repository secret. Crie:
+
+    VPS_HOST      = IP_DA_VPS
+    VPS_USER      = root
+    VPS_SSH_KEY   = (a chave privada copiada acima)
+    VPS_PORT      = 22   (opcional)
+
+Se o repositório for privado, a VPS precisa conseguir dar "git fetch"
+sozinha. Salve o token uma vez:
+
+    cd /opt/tappo
+    git config credential.helper store
+    git pull      (digite usuário + token; fica salvo)
+
+Pronto: todo push na branch main roda os testes e, se passarem,
+atualiza a VPS. Para rodar na mão: GitHub > Actions > Deploy >
+Run workflow.
+
+
+---------------------------------------------------------------------
+ 10. COMANDOS DO DIA A DIA
+---------------------------------------------------------------------
+    cd /opt/tappo
+    docker compose ps                     status dos serviços
+    docker compose logs -f app            logs do CRM
+    docker compose logs -f waha           logs do WhatsApp
+    docker compose restart app            reiniciar o CRM
+    git pull && docker compose up -d --build     atualizar na mão
+    docker compose pull waha && docker compose up -d waha   atualizar WAHA
+
+
+---------------------------------------------------------------------
+ 11. PROBLEMAS COMUNS
+---------------------------------------------------------------------
+ * Site não abre / sem HTTPS
+     -> DNS ainda não propagou ou aponta para IP errado.
+        Teste: ping crm.suaempresa.com
+     -> Portas fechadas no painel da VPS (libere 80 e 443).
+     -> docker compose logs caddy
+
+ * "Banco não configurado" no CRM
+     -> Rode supabase/setup_completo.sql no SQL Editor do Supabase.
+
+ * Login volta para a tela de login
+     -> Passo 7 (Site URL / Redirect URLs no Supabase).
+
+ * Agente de IA não responde
+     -> ANTHROPIC_API_KEY vazia no .env, ou nenhum agente ativo no /admin.
+        Depois de mudar o .env:  docker compose up -d app
+
+ * WhatsApp não recebe mensagens
+     -> NEXT_PUBLIC_APP_URL precisa ser o https do seu domínio.
+        Mudou? Rode: docker compose up -d --build
+        e clique em "Conectar" de novo no Inbox (reconfigura o webhook).
+
+ * Build falha por falta de memória (VPS de 1 GB)
+     -> Crie swap:
+        fallocate -l 2G /swapfile && chmod 600 /swapfile
+        mkswap /swapfile && swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+=====================================================================
