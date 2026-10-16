@@ -6,6 +6,8 @@ import { cifrar } from "@/lib/ai/cofre";
 import { enviarERegistrar } from "@/lib/whatsapp/atendimento";
 import { chatDoTelefone, desconectar, iniciarSessao, lerQr, lerSessao, marcarLida, type Conexao } from "@/lib/whatsapp/waha";
 import type { ActionResult } from "@/lib/data/types";
+import { empresaAtual } from "@/lib/data/empresa";
+import { ehGestor } from "@/lib/segmentos";
 
 /* Inbox do WhatsApp — tudo pelo cliente do usuário (RLS = dono). */
 
@@ -33,20 +35,24 @@ async function minhaConexao(): Promise<Conexao> {
 export async function salvarConexao(f: FormData): Promise<ActionResult> {
   try {
     const { supabase, user } = await cliente();
+    const empresa = await empresaAtual();
+    if (!empresa || !ehGestor(empresa.papel)) return { ok: false, erro: "Só o dono ou um gestor pode configurar o WhatsApp." };
     const base_url = String(f.get("base_url") ?? "").trim().replace(/\/+$/, "");
     if (!/^https?:\/\/\S+$/.test(base_url)) return { ok: false, erro: "Informe a URL do WAHA (ex.: https://waha.suaempresa.com)." };
     const sessao = String(f.get("sessao") ?? "default").trim() || "default";
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessao)) return { ok: false, erro: "Nome da sessão: só letras, números, _ e -." };
     const chave = String(f.get("api_key") ?? "").trim();
     const { error } = await supabase.from("wa_conexoes").upsert({
+      org_id: empresa.id,
       user_id: user.id,
+      distribuicao: f.get("distribuicao") === "rodizio" ? "rodizio" : "manual",
       base_url,
       sessao,
       ia_ativa: f.get("ia_ativa") === "on",
       ia_instrucoes: String(f.get("ia_instrucoes") ?? "").slice(0, 6000),
       ...(chave ? { api_key_cifrada: cifrar(chave) } : {}),
       ...(f.get("remover_chave") === "on" ? { api_key_cifrada: null } : {}),
-    }, { onConflict: "user_id" });
+    }, { onConflict: "org_id" });
     if (error) throw error;
     revalidatePath("/app/inbox");
     return { ok: true };
@@ -97,11 +103,13 @@ export async function enviarMensagem(conversaId: string, texto: string): Promise
     const t = texto.trim();
     if (!t) return { ok: false, erro: "Mensagem vazia." };
     if (t.length > 4000) return { ok: false, erro: "Mensagem longa demais (máx. 4000 caracteres)." };
-    const { supabase } = await cliente();
-    const { data: conversa } = await supabase.from("wa_conversas").select("id, chat_id, status").eq("id", conversaId).single();
+    const { supabase, user } = await cliente();
+    const { data: conversa } = await supabase.from("wa_conversas").select("id, chat_id, status, aguardando_desde, atribuido_a").eq("id", conversaId).single();
     if (!conversa) return { ok: false, erro: "Conversa não encontrada." };
-    await enviarERegistrar(supabase, await minhaConexao(), conversa, t, "humano");
-    if (conversa.status === "resolvida") await supabase.from("wa_conversas").update({ status: "aberta" }).eq("id", conversaId);
+    await enviarERegistrar(supabase, await minhaConexao(), conversa, t, "humano", user.id);
+    // Quem responde uma conversa sem dono passa a ser o responsável
+    const mudanca = { ...(conversa.status === "resolvida" ? { status: "aberta" } : {}), ...(!conversa.atribuido_a ? { atribuido_a: user.id } : {}) };
+    if (Object.keys(mudanca).length) await supabase.from("wa_conversas").update(mudanca).eq("id", conversaId);
     return { ok: true };
   } catch (e) { return falha(e); }
 }
@@ -121,6 +129,18 @@ export async function atualizarConversa(conversaId: string, mudanca: { status?: 
     if (mudanca.status && ["aberta", "pendente", "resolvida"].includes(mudanca.status)) campos.status = mudanca.status;
     if (typeof mudanca.ia_ativa === "boolean") campos.ia_ativa = mudanca.ia_ativa;
     const { error } = await supabase.from("wa_conversas").update(campos).eq("id", conversaId);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function atribuirConversa(conversaId: string, userId: string | null): Promise<ActionResult> {
+  try {
+    const { supabase, user } = await cliente();
+    const empresa = await empresaAtual();
+    // Vendedor/atendente só pode puxar para si; gestor distribui para qualquer um
+    if (userId && userId !== user.id && !ehGestor(empresa?.papel)) return { ok: false, erro: "Só gestores podem atribuir conversas a outras pessoas." };
+    const { error } = await supabase.from("wa_conversas").update({ atribuido_a: userId }).eq("id", conversaId);
     if (error) throw error;
     return { ok: true };
   } catch (e) { return falha(e); }
@@ -154,11 +174,13 @@ export async function novaConversa(telefone: string, texto: string): Promise<{ o
     const chatId = chatDoTelefone(telefone);
     if (!chatId) return { ok: false, erro: "Telefone inválido. Use DDD + número." };
     const { supabase, user } = await cliente();
+    const empresa = await empresaAtual();
+    if (!empresa) return { ok: false, erro: "Empresa não encontrada." };
     const { data: conversa, error } = await supabase.from("wa_conversas")
-      .upsert({ user_id: user.id, chat_id: chatId, telefone: chatId.split("@")[0], ia_ativa: false }, { onConflict: "user_id,chat_id", ignoreDuplicates: false })
-      .select("id, chat_id").single();
+      .upsert({ org_id: empresa.id, user_id: user.id, chat_id: chatId, telefone: chatId.split("@")[0], ia_ativa: false, atribuido_a: user.id }, { onConflict: "org_id,chat_id", ignoreDuplicates: false })
+      .select("id, chat_id, aguardando_desde").single();
     if (error) throw error;
-    if (texto.trim()) await enviarERegistrar(supabase, await minhaConexao(), conversa, texto.trim(), "humano");
+    if (texto.trim()) await enviarERegistrar(supabase, await minhaConexao(), conversa, texto.trim(), "humano", user.id);
     return { ok: true, id: conversa.id };
   } catch (e) { return falha(e); }
 }

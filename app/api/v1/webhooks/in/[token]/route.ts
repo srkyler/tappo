@@ -75,13 +75,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (!permitido(token)) return resposta(429, { ok: false, erro: "Muitas requisições. Tente em 1 minuto." });
 
   const db = createAdminClient();
-  const { data: fonte } = await db.from("lead_sources").select("id, user_id, nome, origem, status_inicial, ativo, recebidos").eq("token", token).maybeSingle();
+  const { data: fonte } = await db.from("lead_sources").select("id, org_id, user_id, nome, origem, status_inicial, ativo, recebidos").eq("token", token).maybeSingle();
   if (!fonte || !fonte.ativo) return resposta(404, { ok: false, erro: "Fonte não encontrada ou pausada." });
 
   const dados = await lerCorpo(req);
   const payload = !dados ? null : JSON.stringify(dados).length <= 4000 ? dados : { truncado: true, campos: Object.keys(dados).slice(0, 50) };
   const registrar = (ok: boolean, resultado: string) =>
-    db.from("webhook_log").insert({ user_id: fonte.user_id, source_id: fonte.id, ok, resultado, payload });
+    db.from("webhook_log").insert({ org_id: fonte.org_id, user_id: fonte.user_id, source_id: fonte.id, ok, resultado, payload });
 
   if (!dados || typeof dados !== "object") {
     await registrar(false, "Corpo inválido (envie JSON ou formulário).");
@@ -101,9 +101,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   // Mesmo e-mail já na base: não duplica, registra o novo contato no histórico
   if (email) {
-    const { data: existente } = await db.from("leads").select("id, cod, nome").eq("user_id", fonte.user_id).ilike("email", email).maybeSingle();
+    const { data: existente } = await db.from("leads").select("id, cod, nome").eq("org_id", fonte.org_id).ilike("email", email).maybeSingle();
     if (existente) {
-      await db.from("activities").insert({ user_id: fonte.user_id, lead_id: existente.id, tipo: "outro", descricao: `${existente.nome} chegou de novo por "${fonte.nome}"${pegar(dados, "notas", 300) ? `: ${pegar(dados, "notas", 300)}` : ""}` });
+      await db.from("activities").insert({ org_id: fonte.org_id, user_id: fonte.user_id, lead_id: existente.id, tipo: "outro", descricao: `${existente.nome} chegou de novo por "${fonte.nome}"${pegar(dados, "notas", 300) ? `: ${pegar(dados, "notas", 300)}` : ""}` });
       await db.from("lead_sources").update({ recebidos: fonte.recebidos + 1, ultimo_em: new Date().toISOString() }).eq("id", fonte.id);
       await registrar(true, `Lead já existia (${existente.cod}) — contato registrado.`);
       return resposta(200, { ok: true, duplicado: true, cod: existente.cod });
@@ -111,6 +111,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
 
   const { data: lead, error } = await db.from("leads").insert({
+    org_id: fonte.org_id,
     user_id: fonte.user_id,
     nome,
     empresa,

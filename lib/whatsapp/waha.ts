@@ -8,7 +8,9 @@ import { decifrar } from "@/lib/ai/cofre";
 
 export type Conexao = {
   id: string;
+  org_id: string;
   user_id: string;
+  distribuicao: "manual" | "rodizio";
   base_url: string;
   api_key_cifrada: string | null;
   sessao: string;

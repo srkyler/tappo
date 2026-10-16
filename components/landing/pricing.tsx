@@ -65,9 +65,9 @@ export function Pricing() {
           transition={{ duration: 0.7, ease }}
           className="mx-auto max-w-2xl text-center"
         >
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white">Preços</p>
-          <h2 className="mt-5 text-4xl font-bold text-white lg:text-5xl">Planos simples, sem surpresa</h2>
-          <p className="mt-5 text-lg leading-relaxed text-gray-400">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-texto">Preços</p>
+          <h2 className="mt-5 text-4xl font-bold text-texto lg:text-5xl">Planos simples, sem surpresa</h2>
+          <p className="mt-5 text-lg leading-relaxed text-mudo">
             Comece grátis, cresça quando o volume pedir. Sem fidelidade e sem taxa de setup.
           </p>
         </motion.div>
@@ -82,31 +82,31 @@ export function Pricing() {
                 transition={{ duration: 0.6, delay: i * 0.1, ease }}
                 className={
                   p.destaque
-                    ? "relative flex h-full flex-col rounded-3xl border-2 border-white bg-[#141414] p-8 shadow-2xl shadow-white/10"
-                    : "relative flex h-full flex-col rounded-3xl border border-gray-800 bg-[#0A0A0A] p-8 transition-all duration-300 hover:border-gray-600"
+                    ? "relative flex h-full flex-col rounded-3xl border-2 border-acento bg-superficie-2 p-8 shadow-2xl shadow-acento/10"
+                    : "relative flex h-full flex-col rounded-3xl border border-borda bg-superficie p-8 transition-all duration-300 hover:border-borda-2"
                 }
               >
                 {p.destaque && (
-                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-black">
+                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-acento px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-acento-texto">
                     Mais popular
                   </span>
                 )}
 
-                <h4 className="text-xl font-bold text-white">{p.nome}</h4>
+                <h4 className="text-xl font-bold text-texto">{p.nome}</h4>
 
                 <div className="mt-4 flex items-baseline gap-1.5">
-                  <span className={p.destaque ? "text-5xl font-bold tracking-tight text-white" : "text-4xl font-bold tracking-tight text-white"}>
+                  <span className={p.destaque ? "text-5xl font-bold tracking-tight text-texto" : "text-4xl font-bold tracking-tight text-texto"}>
                     {p.preco}
                   </span>
-                  {p.periodo && <span className="text-sm font-medium text-gray-400">{p.periodo}</span>}
+                  {p.periodo && <span className="text-sm font-medium text-mudo">{p.periodo}</span>}
                 </div>
 
-                <p className="mt-3 text-sm leading-relaxed text-gray-400">{p.resumo}</p>
+                <p className="mt-3 text-sm leading-relaxed text-mudo">{p.resumo}</p>
 
-                <ul className="mt-7 flex-1 space-y-3 border-t border-gray-800 pt-7">
+                <ul className="mt-7 flex-1 space-y-3 border-t border-borda pt-7">
                   {p.itens.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm text-gray-300">
-                      <Check size={16} className="mt-0.5 shrink-0 text-white" strokeWidth={2} />
+                    <li key={item} className="flex items-start gap-3 text-sm text-suave">
+                      <Check size={16} className="mt-0.5 shrink-0 text-texto" strokeWidth={2} />
                       {item}
                     </li>
                   ))}
@@ -116,8 +116,8 @@ export function Pricing() {
                   href={p.cta.href}
                   className={
                     p.destaque
-                      ? "mt-8 inline-flex w-full items-center justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-black transition-all duration-300 hover:scale-105 hover:bg-gray-200"
-                      : "mt-8 inline-flex w-full items-center justify-center rounded-md border border-gray-700 px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:scale-105 hover:border-white"
+                      ? "mt-8 inline-flex w-full items-center justify-center rounded-md bg-acento px-6 py-3 text-sm font-semibold text-acento-texto transition-all duration-300 hover:scale-105 hover:bg-acento-hover"
+                      : "mt-8 inline-flex w-full items-center justify-center rounded-md border border-borda-2 px-6 py-3 text-sm font-semibold text-texto transition-all duration-300 hover:scale-105 hover:border-acento"
                   }
                 >
                   {p.cta.texto}
@@ -127,7 +127,7 @@ export function Pricing() {
           ))}
         </div>
 
-        <p className="mt-8 text-center text-[11px] uppercase tracking-[0.14em] text-gray-600">
+        <p className="mt-8 text-center text-[11px] uppercase tracking-[0.14em] text-apagado">
           Valores ilustrativos de demonstração · plano comercial em definição
         </p>
       </div>

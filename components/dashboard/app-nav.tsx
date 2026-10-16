@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
+  BarChart3, Building2, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
   Settings, Sparkles, Users, Webhook, Zap, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
@@ -35,6 +35,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
     itens: [
       { href: "/app/respostas", label: "Respostas rápidas", Icone: Zap },
       { href: "/app/captacao", label: "Captação", Icone: Webhook },
+      { href: "/app/empresa", label: "Empresa e equipe", Icone: Building2 },
     ],
   },
 ];

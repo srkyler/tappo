@@ -29,7 +29,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR" className={`h-full ${geist.variable} ${geistMono.variable}`}>
+    <html lang="pt-BR" data-tema="escuro" className={`h-full ${geist.variable} ${geistMono.variable}`}>
+      <head>
+        {/* Aplica o tema salvo antes da hidratação (sem flash) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("tappo-tema");if(t==="claro"||t==="escuro"){document.documentElement.setAttribute("data-tema",t);}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="flex min-h-full flex-col font-sans antialiased"><MotionProvider>{children}</MotionProvider></body>
     </html>
   );

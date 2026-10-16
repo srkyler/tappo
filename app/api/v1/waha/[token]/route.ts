@@ -59,11 +59,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (!m.id || !chatId || !/@(c\.us|s\.whatsapp\.net|lid)$/.test(chatId)) return ok();
 
   const nome = m.fromMe ? null : (m._data?.notifyName || m._data?.pushName || null);
-  const conversa = await conversaDo(db, c.user_id, chatId, nome);
+  const conversa = await conversaDo(db, c, chatId, nome);
   const tipo = tipoDa(m);
   const corpo = m.body?.trim() || null;
 
   const { data: msg, error } = await db.from("wa_mensagens").upsert({
+    org_id: c.org_id,
     user_id: c.user_id,
     conversa_id: conversa.id,
     waha_id: m.id,
@@ -72,7 +73,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     tipo,
     corpo,
     midia_url: m.media?.url ?? null,
-  }, { onConflict: "user_id,waha_id", ignoreDuplicates: true }).select("id").maybeSingle();
+  }, { onConflict: "org_id,waha_id", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) {
     console.error("[waha]", error.message);
     return Response.json({ ok: false }, { status: 500 });
@@ -83,7 +84,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   await db.from("wa_conversas").update({
     ultima_mensagem: previa.replace(/\s+/g, " ").slice(0, 140),
     ultima_em: new Date().toISOString(),
-    ...(m.fromMe ? {} : { nao_lidas: conversa.nao_lidas + 1, ...(conversa.status === "resolvida" ? { status: "aberta" } : {}) }),
+    // Fila: cliente falou e ninguém respondeu ainda → começa a contar o tempo de espera
+    ...(m.fromMe
+      ? { aguardando_desde: null }
+      : {
+          nao_lidas: conversa.nao_lidas + 1,
+          aguardando_desde: conversa.aguardando_desde ?? new Date().toISOString(),
+          ...(conversa.status === "resolvida" ? { status: "aberta" } : {}),
+        }),
   }).eq("id", conversa.id);
 
   if (!m.fromMe && c.ia_ativa && conversa.ia_ativa && tipo === "texto" && corpo) {

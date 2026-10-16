@@ -275,3 +275,34 @@
   .prosa strong { color: #FAFAFA; font-weight: 600; }
   .prosa code { font-family: var(--font-mono); font-size: 0.9em; background: #1F1F1F; padding: 1px 5px; border-radius: 4px; }
 }
+
+/* ============================================================
+   Tema claro/escuro — ajustes específicos da landing
+   ============================================================ */
+
+/* Cross-fade de cores enquanto a fumaça cobre a tela */
+@media (prefers-reduced-motion: no-preference) {
+  html.tema-transicao,
+  html.tema-transicao *,
+  html.tema-transicao *::before,
+  html.tema-transicao *::after {
+    transition:
+      background-color 0.5s ease,
+      border-color 0.5s ease,
+      color 0.5s ease,
+      fill 0.5s ease !important;
+  }
+}
+
+/* Grade do hero: linhas claras no escuro, escuras no claro */
+[data-tema="claro"] .grade {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+}
+
+/* Vídeo do hero: mix-blend-screen some com o fundo só no preto.
+   No tema claro vira foto editorial com máscara suave. */
+[data-tema="claro"] .video-hero {
+  mix-blend-mode: normal;
+}

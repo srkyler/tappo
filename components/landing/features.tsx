@@ -32,7 +32,7 @@ export function Features() {
   return (
     <section className="relative z-10 -mt-6 lg:-mt-14">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="rounded-3xl border border-gray-800 bg-[#141414] p-7 sm:p-8 md:p-10">
+        <div className="rounded-3xl border border-borda bg-superficie-2 p-7 sm:p-8 md:p-10">
           <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
             {ITENS.map(({ Icone, titulo, texto }, i) => (
               <motion.li
@@ -43,13 +43,13 @@ export function Features() {
                 transition={{ duration: 0.6, delay: i * 0.08, ease }}
                 className="group"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-700/70 bg-black/40 text-gray-400 transition-all duration-300 group-hover:scale-110 group-hover:border-white group-hover:text-white">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-borda-2 bg-fundo/40 text-mudo transition-all duration-300 group-hover:scale-110 group-hover:border-acento group-hover:text-texto">
                   <Icone size={20} strokeWidth={1.6} />
                 </div>
-                <h4 className="mt-5 text-xl font-bold text-gray-300 transition-colors duration-300 group-hover:text-white">
+                <h4 className="mt-5 text-xl font-bold text-suave transition-colors duration-300 group-hover:text-texto">
                   {titulo}
                 </h4>
-                <p className="mt-2.5 text-sm leading-relaxed text-gray-400">{texto}</p>
+                <p className="mt-2.5 text-sm leading-relaxed text-mudo">{texto}</p>
               </motion.li>
             ))}
           </ul>

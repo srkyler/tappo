@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Todo envio é registrado em public.email_log (service role).
  */
 
-type TipoEmail = "confirmacao" | "boas_vindas" | "recuperar_senha";
+type TipoEmail = "confirmacao" | "boas_vindas" | "recuperar_senha" | "convite";
 
 const FROM = process.env.RESEND_FROM ?? "Tappo <onboarding@resend.dev>";
 
@@ -45,6 +45,14 @@ const templates: Record<TipoEmail, (p: { nome?: string; url?: string }) => { sub
       `Bem-vindo${nome ? `, ${esc(nome)}` : ""}!`,
       "Sua conta está ativa. Comece importando seus primeiros leads e montando uma cadência.",
       { texto: "Abrir o Tappo", url: `${process.env.NEXT_PUBLIC_APP_URL}/app` }
+    ),
+  }),
+  convite: ({ nome, url }) => ({
+    subject: `Convite para a equipe${nome ? ` ${nome}` : ""} no Tappo`,
+    html: layout(
+      "Você foi convidado",
+      `Você foi convidado para entrar na equipe${nome ? ` <b>${esc(nome)}</b>` : ""} no Tappo. Crie sua conta (ou entre) com este e-mail. O convite expira em 7 dias.`,
+      { texto: "Aceitar convite", url: url! }
     ),
   }),
   recuperar_senha: ({ url }) => ({

@@ -38,44 +38,44 @@ export function About() {
         <div className="relative order-2 lg:order-1">
           <div
             aria-hidden="true"
-            className="absolute -inset-4 rotate-6 rounded-[2.5rem] bg-gradient-to-tr from-white/10 to-transparent blur-2xl"
+            className="absolute -inset-4 rotate-6 rounded-[2.5rem] bg-gradient-to-tr from-acento/10 to-transparent blur-2xl"
           />
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-12% 0px" }}
             transition={{ duration: 0.8, ease }}
-            className="relative rounded-3xl border border-gray-800 bg-[#0A0A0A] p-7 sm:p-8"
+            className="relative rounded-3xl border border-borda bg-superficie p-7 sm:p-8"
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-400">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-mudo">
               Resultados reais
             </p>
 
             <ul className="mt-6 space-y-3">
               {PILARES.map(({ Icone, titulo, texto }) => (
-                <li key={titulo} className="group flex items-start gap-4 rounded-xl bg-[#141414] p-4 transition-colors duration-300 hover:border hover:border-gray-700">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-700/70 bg-black/40 text-gray-400 transition-all duration-300 group-hover:scale-110 group-hover:border-white group-hover:text-white">
+                <li key={titulo} className="group flex items-start gap-4 rounded-xl bg-superficie-2 p-4 transition-colors duration-300 hover:border hover:border-borda-2">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-borda-2 bg-fundo/40 text-mudo transition-all duration-300 group-hover:scale-110 group-hover:border-acento group-hover:text-texto">
                     <Icone size={18} strokeWidth={1.6} />
                   </span>
                   <span>
-                    <span className="block text-[15px] font-semibold text-white">{titulo}</span>
-                    <span className="mt-1 block text-sm leading-relaxed text-gray-400">{texto}</span>
+                    <span className="block text-[15px] font-semibold text-texto">{titulo}</span>
+                    <span className="mt-1 block text-sm leading-relaxed text-mudo">{texto}</span>
                   </span>
                 </li>
               ))}
             </ul>
 
-            <ul className="mt-7 grid grid-cols-3 divide-x divide-gray-800 border-y border-gray-800">
+            <ul className="mt-7 grid grid-cols-3 divide-x divide-borda border-y border-borda">
               {PLACAS.map((p) => (
                 <li key={p.r} className="px-3 py-4 first:pl-0 sm:px-5">
-                  <div className="text-[22px] font-semibold tracking-[-0.02em] text-white tabular">
+                  <div className="text-[22px] font-semibold tracking-[-0.02em] text-texto tabular">
                     <Contador valor={p.v} atraso={0.2} />
                   </div>
-                  <div className="mt-1 text-[11.5px] leading-snug text-gray-500">{p.r}</div>
+                  <div className="mt-1 text-[11.5px] leading-snug text-apagado">{p.r}</div>
                 </li>
               ))}
             </ul>
-            <p className="mt-3 font-mono text-[10.5px] uppercase tracking-[0.14em] text-gray-600">
+            <p className="mt-3 font-mono text-[10.5px] uppercase tracking-[0.14em] text-apagado">
               Dados de demonstração · números ilustrativos
             </p>
           </motion.div>
@@ -89,22 +89,22 @@ export function About() {
             viewport={{ once: true, margin: "-12% 0px" }}
             transition={{ duration: 0.7, ease }}
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white">Sobre nós</p>
-            <h2 className="mt-5 text-4xl font-bold text-white lg:text-5xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-texto">Sobre nós</p>
+            <h2 className="mt-5 text-4xl font-bold text-texto lg:text-5xl">
               Sua operação comercial inteira em um só lugar
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-gray-400">
+            <p className="mt-6 text-lg leading-relaxed text-mudo">
               O Tappo nasceu da rotina de quem prospecta em volume: leads espalhados em planilhas,
               cadências em ferramentas separadas e pipeline que ninguém atualiza. Aqui, o ciclo
               inteiro — do primeiro contato ao contrato assinado — conversa entre si.
             </p>
-            <p className="mt-4 text-lg leading-relaxed text-gray-400">
+            <p className="mt-4 text-lg leading-relaxed text-mudo">
               E um agente de IA lê a sua base, aponta quem chamar hoje e escreve a mensagem,
               enquanto o time cuida das conversas que realmente fecham negócios.
             </p>
             <a
               href="#servicos"
-              className="mt-8 inline-flex items-center gap-2 rounded-md border border-gray-700 px-7 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:scale-105 hover:border-white"
+              className="mt-8 inline-flex items-center gap-2 rounded-md border border-borda-2 px-7 py-3.5 text-sm font-semibold text-texto transition-all duration-300 hover:scale-105 hover:border-acento"
             >
               Ver recursos
             </a>

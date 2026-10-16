@@ -11,7 +11,7 @@ export default function LandingPage() {
   return (
     <>
       <Navbar />
-      <main className="bg-black text-white">
+      <main className="min-h-screen bg-fundo text-texto">
         <Hero />
         <Features />
         <About />

@@ -55,7 +55,7 @@ export function InboxView({ userId, conexao, conversasIniciais }: { userId: stri
   // Lista ao vivo
   useEffect(() => {
     const canal = sb.channel(`wa-conversas-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversas", filter: `user_id=eq.${userId}` }, (p) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversas" }, (p) => {
         if (p.eventType === "DELETE") { setConversas((l) => l.filter((c) => c.id !== (p.old as { id: string }).id)); return; }
         const n = p.new as ConversaTela;
         setConversas((l) => {
