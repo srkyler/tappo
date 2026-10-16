@@ -49,6 +49,7 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
   const [config, setConfig] = useState(!conexao);
   const [nova, setNova] = useState(false);
   const [pendente, iniciar] = useTransition();
+  const [templates, setTemplates] = useState<{ id: string; titulo: string; corpo: string }[]>([]);
   const fim = useRef<HTMLDivElement>(null);
 
   const sel = conversas.find((c) => c.id === selId) ?? null;
@@ -69,6 +70,19 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
       .subscribe();
     return () => { sb.removeChannel(canal); };
   }, [sb, userId]);
+
+  // Respostas rápidas (templates da empresa)
+  useEffect(() => {
+    let vivo = true;
+    sb.from("templates").select("id, titulo, corpo").order("titulo").then(({ data }) => {
+      if (vivo) setTemplates((data ?? []) as { id: string; titulo: string; corpo: string }[]);
+    });
+    return () => { vivo = false; };
+  }, [sb]);
+
+  const inserirRapida = (corpo: string) => {
+    setTexto((t) => (t ? `${t}\n${corpo}` : corpo));
+  };
 
   // Mensagens da conversa aberta
   useEffect(() => {
@@ -246,6 +260,17 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
               <form onSubmit={enviar} className="border-t border-gray-800 p-3">
                 {erro && <p role="alert" className="mb-2 text-[12.5px] text-red-400">{erro}</p>}
                 <div className="flex items-end gap-2">
+                  {templates.length > 0 && (
+                    <select
+                      onChange={(e) => { if (e.target.value) inserirRapida(e.target.value); e.target.value = ""; }}
+                      defaultValue=""
+                      className="campo h-8 w-auto py-0 text-[12px] shrink-0"
+                      aria-label="Resposta rápida"
+                    >
+                      <option value="">⚡ Resposta rápida</option>
+                      {templates.map((t) => <option key={t.id} value={t.corpo}>{t.titulo}</option>)}
+                    </select>
+                  )}
                   <textarea
                     value={texto}
                     onChange={(e) => setTexto(e.target.value)}

@@ -1471,3 +1471,55 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.tarefas;
   END IF;
 END $$;
+
+-- -------------------------------------------------------------
+-- Tags de lead / contato (Deskcomm: tags para segmentação rápida)
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.lead_tags (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      uuid NOT NULL REFERENCES public.organizacoes(id) ON DELETE CASCADE,
+  nome        text NOT NULL CHECK (length(trim(nome)) > 0),
+  cor         text NOT NULL DEFAULT '#6B7280',
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_lead_tags_org ON public.lead_tags (org_id);
+
+CREATE TABLE IF NOT EXISTS public.lead_tag_rel (
+  lead_id uuid NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+  tag_id  uuid NOT NULL REFERENCES public.lead_tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (lead_id, tag_id)
+);
+
+-- -------------------------------------------------------------
+-- Propostas / orçamentos (Pipedrive / Kommo)
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.propostas (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        uuid NOT NULL REFERENCES public.organizacoes(id) ON DELETE CASCADE,
+  lead_id       uuid REFERENCES public.leads(id) ON DELETE SET NULL,
+  deal_id       uuid REFERENCES public.deals(id) ON DELETE SET NULL,
+  titulo        text NOT NULL,
+  valor         numeric(15,2) NOT NULL DEFAULT 0 CHECK (valor >= 0),
+  status        text NOT NULL DEFAULT 'rascunho' CHECK (status IN ('rascunho','enviado','visualizado','aceito','rejeitado','expirado')),
+  pdf_url       text,
+  enviado_em    timestamptz,
+  criado_em     timestamptz NOT NULL DEFAULT now(),
+  atualizado_em timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_propostas_org ON public.propostas (org_id);
+CREATE INDEX IF NOT EXISTS idx_propostas_lead ON public.propostas (lead_id);
+
+ALTER TABLE public.propostas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY propostas_org ON public.propostas FOR ALL TO authenticated
+  USING (org_id = (SELECT public.org_atual()))
+  WITH CHECK (org_id = (SELECT public.org_atual()));
+
+ALTER TABLE public.lead_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY lead_tags_org ON public.lead_tags FOR ALL TO authenticated
+  USING (org_id = (SELECT public.org_atual()))
+  WITH CHECK (org_id = (SELECT public.org_atual()));
+
+ALTER TABLE public.lead_tag_rel ENABLE ROW LEVEL SECURITY;
+CREATE POLICY lead_tag_rel_org ON public.lead_tag_rel FOR ALL TO authenticated
+  USING (org_id = (SELECT public.org_atual()))
+  WITH CHECK (org_id = (SELECT public.org_atual()));

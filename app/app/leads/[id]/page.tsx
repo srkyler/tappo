@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { Cabecalho, Pagina, Vazio, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
+import { lerTags } from "@/lib/data/tags";
+import { toggleTagLead } from "@/app/app/tags/actions";
 import { formatBRL, formatData, tempoRelativo } from "@/lib/data/format";
 
 async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +18,12 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
     supabase.from("tarefas").select("*").eq("lead_id", id).order("vence_em", { ascending: true, nullsFirst: false }),
     supabase.from("wa_conversas").select("*").eq("lead_id", id).order("ultima_em", { ascending: false }),
   ]);
+
+  const [tagsDisponiveis, tagsLead] = await Promise.all([
+    lerTags(),
+    supabase.from("lead_tag_rel").select("tag_id").eq("lead_id", id),
+  ]);
+  const tagIdsDoLead = new Set((tagsLead.data ?? []).map((t) => t.tag_id));
 
   type DealView = { id: string; titulo: string; valor: number; pipeline_stages: { nome: string; tipo: string } | null };
   type ConversaView = { id: string; nome: string | null; telefone: string | null; status: string; ultima_mensagem: string | null; ultima_em: string };
@@ -137,6 +145,27 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
       <section className="painel p-5">
         <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Notas do lead</h3>
         <p className="text-[13px] text-gray-400">{lead.notas ?? "Sem notas ainda."}</p>
+      </section>
+
+      <section className="painel p-5">
+        <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3 mb-3">
+          <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide">Tags</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {tagsDisponiveis.map((t) => {
+            const ativo = tagIdsDoLead.has(t.id);
+            return (
+              <form key={t.id} action={async (f) => { await toggleTagLead(id, f.get("tag_id") as string); }} className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5" style={{ borderColor: ativo ? "#FAFAFA" : "#333" }}>
+                <label className="flex items-center gap-1 cursor-pointer select-none text-[12px]">
+                  <input type="checkbox" name="tag_id" value={t.id} defaultChecked={ativo} className="w-4 h-4 rounded border-gray-600 text-emerald-500 accent-emerald-500" />
+                  <span style={{ color: t.cor }} className="font-bold">{t.nome}</span>
+                </label>
+                <input type="hidden" name="tag_id" value={t.id} />
+              </form>
+            );
+          })}
+          {tagsDisponiveis.length === 0 && <p className="text-[12px] text-gray-500">Nenhuma tag cadastrada. Vá em Configurações &gt; Tags.</p>}
+        </div>
       </section>
     </div>
   );

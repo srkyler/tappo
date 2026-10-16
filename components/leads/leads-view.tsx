@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-react";
+import { Download, Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Status, Vazio, cn } from "@/components/ui/base";
 import { excluirLead, importarLeads, mudarStatusLead, salvarLead } from "@/app/app/actions";
 import { LEAD_ORIGEM, LEAD_STATUS, type Lead, type LeadStatus } from "@/lib/data/types";
+import { segmentoPorId } from "@/lib/segmentos";
 import { formatData } from "@/lib/data/format";
 
 type Filtro = "Todos" | LeadStatus;
@@ -19,6 +20,7 @@ export function LeadsView({ leads }: { leads: Lead[] }) {
   const [editando, setEditando] = useState<Lead | null>(null);
   const [novo, setNovo] = useState(params.get("novo") === "1");
   const [importar, setImportar] = useState(false);
+  const [filtroSegmento, setFiltroSegmento] = useState<string>("todos");
   const [pendente, iniciar] = useTransition();
 
   const contagem = useMemo(() => {
@@ -27,13 +29,38 @@ export function LeadsView({ leads }: { leads: Lead[] }) {
     return c;
   }, [leads]);
 
+  const segmentosUnicos = useMemo(() => {
+    const s = new Set<string>();
+    for (const l of leads) if (l.segmento) s.add(l.segmento);
+    return [...s];
+  }, [leads]);
+
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return leads.filter((l) =>
       (filtro === "Todos" || l.status === filtro) &&
+      (filtroSegmento === "todos" || l.segmento === filtroSegmento) &&
       (!q || [l.nome, l.empresa, l.cargo, l.email, l.cod, l.segmento].some((v) => v?.toLowerCase().includes(q))),
     );
-  }, [leads, filtro, busca]);
+  }, [leads, filtro, busca, filtroSegmento]);
+
+  function exportarCSV() {
+    const linhas = ["nome,empresa,cargo,email,telefone,segmento,origem,status,cod,proximo_contato_em"];
+    for (const l of filtrados) {
+      linhas.push([
+        l.nome, l.empresa, l.cargo ?? "", l.email ?? "", l.telefone ?? "", l.segmento ?? "",
+        l.origem, l.status, l.cod, l.proximo_contato_em ?? "",
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    }
+    const csv = linhas.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads-tappo-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function fechar() {
     setEditando(null);
@@ -50,6 +77,7 @@ export function LeadsView({ leads }: { leads: Lead[] }) {
         </div>
         <div className="flex gap-2">
           <button onClick={() => setImportar(true)} className="btn btn-secundario btn-sm"><Upload size={14} /> Importar CSV</button>
+          <button onClick={exportarCSV} className="btn btn-secundario btn-sm"><Download size={14} /> Exportar CSV</button>
           <button onClick={() => setNovo(true)} className="btn btn-primario btn-sm"><Plus size={15} /> Novo lead</button>
         </div>
       </div>
@@ -67,6 +95,19 @@ export function LeadsView({ leads }: { leads: Lead[] }) {
             {f} <span className={cn("tabular text-[11px]", filtro === f ? "text-gray-600" : "text-gray-600")}>{contagem[f] ?? 0}</span>
           </button>
         ))}
+        {segmentosUnicos.length > 0 && (
+          <>
+            <p className="mt-3 mb-1 text-[11px] uppercase tracking-wide text-gray-500">Segmento</p>
+            <div className="flex gap-1.5 overflow-x-auto">
+              <button onClick={() => setFiltroSegmento("todos")} className={cn("flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] transition-colors", filtroSegmento === "todos" ? "border-white bg-white text-black" : "border-gray-800 text-gray-400 hover:text-white")}>Todos</button>
+              {segmentosUnicos.map((s) => (
+                <button key={s} onClick={() => setFiltroSegmento(s)} className={cn("flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] transition-colors", filtroSegmento === s ? "border-white bg-white text-black" : "border-gray-800 text-gray-400 hover:text-white")}>
+                  {segmentoPorId(s).nome}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {filtrados.length === 0 ? (

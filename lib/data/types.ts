@@ -200,4 +200,26 @@ export type Termos = { lead: string; leads: string; negocio: string; negocios: s
 
 export type Papel = "dono" | "gestor" | "vendedor" | "atendente";
 
+export type LeadTag = {
+  id: string;
+  org_id: string;
+  nome: string;
+  cor: string;
+  created_at: string;
+};
+
+export type Proposta = {
+  id: string;
+  org_id: string;
+  lead_id: string | null;
+  deal_id: string | null;
+  titulo: string;
+  valor: number;
+  status: string;
+  pdf_url: string | null;
+  enviado_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
 export type ActionResult = { ok: true } | { ok: false; erro: string };
