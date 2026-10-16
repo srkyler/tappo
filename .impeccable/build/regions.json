@@ -1,0 +1,18 @@
+{
+  "regions": [
+    { "id": "nav", "kind": "chrome", "grid": "A0:J0", "note": "barra de navegação sobre nogueira: logo TAPPO em latão à esquerda; links Como funciona / Recursos / Planos / Entrar; botão Assinar com moldura de latão" },
+    { "id": "kicker", "kind": "text", "grid": "A1:D1", "note": "eyebrow datilografado em latão: FICHÁRIO DE PROSPECÇÃO · GAVETA 01/24" },
+    { "id": "headline", "kind": "text", "snap": false, "box": { "x": 0.04, "y": 0.184, "w": 0.326, "h": 0.074 }, "note": "título datilografado linha 1: Toda empresa — Courier Prime Bold, tracking aberto" },
+    { "id": "headline-2", "kind": "text", "grid": "A3:F3", "note": "título datilografado linha 2: tem um garimpo. — sublinhado carmim sob a palavra garimpo" },
+    { "id": "sub", "kind": "text", "grid": "A4:E4", "note": "parágrafo de apoio em serifa Literata, três linhas, texto creme sobre nogueira" },
+    { "id": "cta", "kind": "control", "grid": "A5:C5", "note": "selo carimbado ABRIR MEU FICHÁRIO em carmim com moldura dupla e leve rotação; ao lado link VER COMO FUNCIONA ↓" },
+    { "id": "counters", "kind": "control", "grid": "A6:E6", "note": "três placas de latão com contadores honestos: 1.247 leads garimpados / 12 campanhas na mesa / 86 reuniões marcadas" },
+    { "id": "demo-note", "kind": "text", "box": { "x": 0.044, "y": 0.653, "w": 0.239, "h": 0.024 }, "note": "nota de rodapé datilografada: PLACA DE DEMONSTRAÇÃO — DADOS SINTÉTICOS" },
+    { "id": "drawer-shell", "kind": "chrome", "container": true, "grid": "A7:J9", "note": "gaveta de arquivo aberta: corpo de nogueira com moldura de latão, puxador central de latão, rótulo GAVETA 03 · QUALIFICADOS em placa creme; abaixo fichas em leque e a linha datilografada CADA FICHA, UM CONTATO REAL E DATADO" },
+    { "id": "ficha-helena", "kind": "text", "grid": "B9:D9", "note": "ficha pautada: HELENA DUARTE / Diretora de Compras / Indústria Moreno / GAR-0241 / carimbo azul CONTATADO" },
+    { "id": "ficha-rafael", "kind": "text", "grid": "D9:E9", "note": "ficha pautada: RAFAEL NUNES / CEO · Nunes Log / GAR-0244 / carimbo carmim REUNIÃO 3ª" },
+    { "id": "ficha-marina", "kind": "text", "grid": "E9:G9", "note": "ficha central pautada maior: MARINA PACHECO / Dir. de Operações / Metalúrgica Andrade / GAR-0247 / indicado por cliente / carimbo verde QUALIFICADO" },
+    { "id": "ficha-carlos", "kind": "text", "snap": false, "box": { "x": 0.578, "y": 0.9, "w": 0.075, "h": 0.1 }, "note": "ficha pautada quase encoberta: CARLOS BETIM / Comercial / Betim & Filhos / GAR-0252 — visível em fatia estreita entre marina e julia" },
+    { "id": "ficha-julia", "kind": "text", "grid": "H9:J9", "note": "ficha pautada: JÚLIA SAMPAIO / Sócia · Sampaio Odonto / GAR-0256 / carimbo azul FOLLOW-UP" }
+  ]
+}

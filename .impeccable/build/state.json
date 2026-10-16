@@ -1,0 +1,214 @@
+{
+  "tool": "build-phase",
+  "version": 2,
+  "startedAt": "2026-10-15T13:30:18.857Z",
+  "comp": ".impeccable\\mocks\\comp-a.png",
+  "direction": "fa7b9f5e",
+  "breakpoint": "1440x900",
+  "artifact": null,
+  "phase": "hero",
+  "phases": {
+    "comps": {
+      "status": "closed",
+      "openedAt": "2026-10-15T13:30:18.857Z",
+      "closedAt": "2026-10-15T13:43:33.091Z",
+      "attempts": 4,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "3 comps, 1 approved",
+        "approved": ".impeccable\\mocks\\comp-a.png",
+        "at": "2026-10-15T13:43:33.091Z"
+      },
+      "forced": null
+    },
+    "spec": {
+      "status": "closed",
+      "openedAt": "2026-10-15T13:43:33.146Z",
+      "closedAt": "2026-10-15T14:05:10.156Z",
+      "attempts": 3,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "14 regions, 0 plates, 10 text regions measured",
+        "at": "2026-10-15T14:05:10.156Z"
+      },
+      "forced": null
+    },
+    "plates": {
+      "status": "closed",
+      "openedAt": "2026-10-15T14:05:10.156Z",
+      "closedAt": "2026-10-16T10:27:03.711Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no plates owed",
+        "at": "2026-10-16T10:27:03.710Z"
+      },
+      "forced": null
+    },
+    "hero": {
+      "status": "open",
+      "openedAt": "2026-10-16T10:27:03.711Z",
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": {
+        "ok": false,
+        "reasons": [
+          "hero overall 38.4% < 72% (structure 67%, color 36%, detail 0%)",
+          "the palette is not the comp's (color intersection 0%): comp #291e15 #f5e6d6 #c5b9a9 vs build #181818 #f8f8f8. Use the spec's sampled palette values, not a rendition of them.",
+          "region nav is missing (detail 0%, structure 77%): the comp shows material the build does not",
+          "region kicker is missing (detail 0%, structure 71%): the comp shows material the build does not",
+          "region headline is missing (detail 0%, structure 38%): the comp shows material the build does not",
+          "region headline-2 is missing (detail 0%, structure 45%): the comp shows material the build does not",
+          "region sub is missing (detail 0%, structure 83%): the comp shows material the build does not",
+          "region cta is missing (detail 0%, structure 75%): the comp shows material the build does not",
+          "region counters is missing (detail 0%, structure 72%): the comp shows material the build does not",
+          "region demo-note is missing (detail 0%, structure 84%): the comp shows material the build does not",
+          "region drawer-shell is missing (detail 8%, structure 52%): the comp shows material the build does not",
+          "region ficha-helena is missing (detail 8%, structure 33%): the comp shows material the build does not",
+          "region ficha-rafael is missing (detail 0%, structure 38%): the comp shows material the build does not",
+          "region ficha-marina is missing (detail 6%, structure 39%): the comp shows material the build does not",
+          "region ficha-carlos is missing (detail 11%, structure 34%): the comp shows material the build does not",
+          "region ficha-julia is missing (detail 0%, structure 38%): the comp shows material the build does not",
+          "the build carries ink in 4 grid cells where the comp is calm (A9, B9, I9, J9); nothing exists on the page that the comp does not show (a kicker, an extra nav item, a divider, a second row of controls); remove it or name it in a stated decision after the hero passes"
+        ],
+        "summary": "hero 38% (missing)",
+        "score": 0.3836,
+        "verdict": "missing",
+        "report": ".impeccable\\review\\diff\\hero\\report.json",
+        "sideBySide": ".impeccable\\review\\diff\\hero\\side-by-side.png",
+        "worst": [
+          "ficha-helena missing 26%",
+          "ficha-carlos missing 27%",
+          "ficha-rafael missing 27%"
+        ],
+        "worstIds": [
+          "ficha-helena",
+          "ficha-carlos",
+          "ficha-rafael"
+        ],
+        "worstCrops": [
+          {
+            "id": "ficha-helena",
+            "verdict": "missing",
+            "score": {
+              "overall": 0.2619,
+              "structure": 0.3288,
+              "color": 0.34,
+              "colorIntersection": 0,
+              "paletteMatch": 0.5231,
+              "detail": 0.0831,
+              "detailRaw": 0.1091,
+              "detailAdded": 0.0521,
+              "bands": 0
+            },
+            "file": ".impeccable\\review\\diff\\hero\\regions\\ficha-helena.png"
+          },
+          {
+            "id": "ficha-carlos",
+            "verdict": "missing",
+            "score": {
+              "overall": 0.2721,
+              "structure": 0.3387,
+              "color": 0.3428,
+              "colorIntersection": 0,
+              "paletteMatch": 0.5274,
+              "detail": 0.1136,
+              "detailRaw": 0.1397,
+              "detailAdded": 0.0521,
+              "bands": 0
+            },
+            "file": ".impeccable\\review\\diff\\hero\\regions\\ficha-carlos.png"
+          },
+          {
+            "id": "ficha-rafael",
+            "verdict": "missing",
+            "score": {
+              "overall": 0.2742,
+              "structure": 0.3768,
+              "color": 0.343,
+              "colorIntersection": 0,
+              "paletteMatch": 0.5277,
+              "detail": 0,
+              "detailRaw": 0.0638,
+              "detailAdded": 0.1458,
+              "bands": 0
+            },
+            "file": ".impeccable\\review\\diff\\hero\\regions\\ficha-rafael.png"
+          }
+        ],
+        "advisories": [
+          "(advisory, unchanged for 3+ attempts) text ficha-julia: ink is #181818 in the build, #f7e7d7 in the comp; use the comp's colour",
+          "(advisory, unchanged for 3+ attempts) chrome drawer-shell: its rule sits 9px into the box in the comp and 213px in the build (+204px), so the strip is taller than the comp's; match the height, not only the position"
+        ],
+        "regionVerdicts": {
+          "nav": "missing",
+          "kicker": "missing",
+          "headline": "missing",
+          "headline-2": "missing",
+          "sub": "missing",
+          "cta": "missing",
+          "counters": "missing",
+          "demo-note": "missing",
+          "drawer-shell": "missing",
+          "ficha-helena": "missing",
+          "ficha-rafael": "missing",
+          "ficha-marina": "missing",
+          "ficha-carlos": "missing",
+          "ficha-julia": "missing"
+        },
+        "at": "2026-10-15T15:03:46.018Z"
+      },
+      "forced": null,
+      "readingsSeen": {
+        "text ficha-julia: ink is #181818 in the build, #f7e7d7 in the comp; use the comp's colour": 4,
+        "chrome drawer-shell: its rule sits 9px into the box in the comp and 213px in the build (+204px), so the strip is taller than the comp's; match the height, not only the position": 4
+      },
+      "records": 4
+    },
+    "sections": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "motion": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "responsive": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "review": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    }
+  },
+  "finish": null,
+  "plates": {}
+}

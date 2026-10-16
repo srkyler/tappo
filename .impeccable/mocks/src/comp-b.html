@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+:root{--feltro:#1F2E26;--feltro2:#16221C;--ficha:#F2E8D5;--ficha2:#E7D9BE;--latao:#C1934E;--carimbo:#A8322C;--tinta:#274B6D;--verde:#4E6E4E}
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:radial-gradient(90% 80% at 78% 6%,rgba(255,236,190,.16) 0%,transparent 42%),linear-gradient(180deg,var(--feltro) 0%,var(--feltro2) 100%);font-family:"Courier Prime",monospace;color:var(--ficha);position:relative}
+.feltro{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1.4px);background-size:5px 5px;pointer-events:none}
+.costura{position:absolute;inset:22px;border:2px dashed rgba(193,147,78,.4);border-radius:10px;pointer-events:none}
+nav{display:flex;align-items:center;gap:34px;padding:34px 64px}
+.logo{font-weight:700;letter-spacing:.3em;font-size:19px}.logo b{color:var(--latao)}
+nav .sp{flex:1}nav a{color:rgba(242,232,213,.7);text-decoration:none;font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+nav .assinar{border:1px solid var(--latao);color:var(--latao);padding:9px 18px;font-size:11px}
+.palco{display:grid;grid-template-columns:520px 1fr;gap:56px;padding:8px 64px 0}
+.bigcard{background:linear-gradient(180deg,var(--ficha),var(--ficha2));background-color:var(--ficha);color:#33301f;padding:34px 36px 30px;border-radius:3px;box-shadow:14px 16px 0 rgba(0,0,0,.35),0 30px 60px rgba(0,0,0,.4);position:relative;transform:rotate(-1.2deg);background-image:repeating-linear-gradient(0deg,rgba(59,42,27,.09) 0 1px,transparent 1px 27px)}
+.furo{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:16px;height:16px;border-radius:50%;background:var(--feltro);box-shadow:inset 0 2px 4px rgba(0,0,0,.7)}
+.bigcard .tipo{font-size:11px;letter-spacing:.3em;color:#8A6734;text-transform:uppercase;margin-bottom:14px}
+.bigcard h1{font-size:52px;line-height:1.06;font-weight:700}
+.bigcard .sub{font-family:"Literata",serif;font-size:16.5px;line-height:1.62;color:#4A4433;margin-top:18px}
+.bigcard .selo{display:inline-block;margin-top:24px;border:3px double var(--carimbo);color:var(--carimbo);font-weight:700;letter-spacing:.14em;padding:12px 24px;transform:rotate(-2deg);font-size:15px;border-radius:4px;background:rgba(168,50,44,.05)}
+.bigcard .meta{display:flex;gap:26px;margin-top:22px;border-top:1px solid #C4B18B;padding-top:14px;font-size:12px}
+.bigcard .meta b{color:var(--tinta)} .bigcard .meta span{color:#6E654C}
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-content:start;padding-top:10px}
+.mini{background:var(--ficha);color:#3B2A1B;border-radius:2px;padding:16px 16px 14px;box-shadow:6px 7px 0 rgba(0,0,0,.3);background-image:repeating-linear-gradient(0deg,rgba(59,42,27,.08) 0 1px,transparent 1px 20px);position:relative;min-height:128px}
+.mini h3{font-size:13px;letter-spacing:.2em;text-transform:uppercase;border-bottom:1px solid #B7A480;padding-bottom:8px;margin-bottom:9px}
+.mini p{font-family:"Literata",serif;font-size:12.5px;line-height:1.5;color:#574F39}
+.mini .carimbo{position:absolute;right:9px;bottom:7px;border:2px solid var(--carimbo);color:var(--carimbo);font-size:8.5px;font-weight:700;letter-spacing:.12em;padding:2px 6px;transform:rotate(-5deg)}
+.mini .carimbo.azul{border-color:var(--tinta);color:var(--tinta);transform:rotate(3deg)}
+.mini .carimbo.verde{border-color:var(--verde);color:var(--verde)}
+.rodape{position:absolute;left:64px;right:64px;bottom:26px;display:flex;justify-content:space-between;font-size:11px;letter-spacing:.2em;color:rgba(242,232,213,.45);text-transform:uppercase}
+.lampada{position:absolute;top:-40px;right:140px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,232,178,.5),transparent 65%);pointer-events:none}
+</style></head>
+<body><div class="feltro"></div><div class="costura"></div><div class="lampada"></div>
+<nav><div class="logo">TA<b>PP</b>O</div><span class="sp"></span><a>Como funciona</a><a>Recursos</a><a>Planos</a><a>Entrar</a><a class="assinar">Assinar</a></nav>
+<div class="palco">
+<div class="bigcard"><div class="furo"></div>
+<div class="tipo">Ficha de abertura · Nº GAR-0001</div>
+<h1>Toda empresa tem um garimpo.</h1>
+<p class="sub">O Tappo peneira seu mercado, arquiva cada contato numa ficha com código, carimba cada etapa e soma o resultado na mesa. Abra a gaveta do dia sabendo quem chamar.</p>
+<span class="selo">ABRIR MEU FICHÁRIO</span>
+<div class="meta"><span><b>1.247</b> leads</span><span><b>12</b> campanhas</span><span><b>86</b> reuniões</span><span><b>31%</b> conversão</span></div>
+</div>
+<div class="grade">
+<div class="mini"><h3>Garimpo</h3><p>Peneire o mercado por setor, porte e cidade. Cada contato entra no fichário com código e origem.</p><span class="carimbo">NOVO</span></div>
+<div class="mini"><h3>Cadências</h3><p>Ligue, escreva, siga. A cadência da semana fica na mesa em ordem, sem planilha.</p><span class="carimbo azul">EM CURSO</span></div>
+<div class="mini"><h3>Gavetas</h3><p>Cada etapa é uma gaveta. Mover a ficha é carimbar o avanço — e o time inteiro vê.</p><span class="carimbo verde">QUALIFICADO</span></div>
+<div class="mini"><h3>Relatórios</h3><p>Reuniões, conversão e resposta por campanha, contados a partir das fichas reais.</p><span class="carimbo">7 DIAS</span></div>
+</div>
+</div>
+<div class="rodape"><span>Placa de demonstração — dados sintéticos</span><span>▾ mesa do time · atualizada agora ▾</span></div>
+</body></html>

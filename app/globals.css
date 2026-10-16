@@ -1,0 +1,277 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TAPPO — Design Tokens · Monocromático (black & white)
+   Os nomes antigos do mundo "fichário" (latao, carmim, tinta…)
+   foram remapeados para tons neutros: nada colorido sobra.
+   ============================================================ */
+
+@theme inline {
+  --color-black:       #000000; /* true black — body/spec */
+  --color-white:       #FFFFFF;
+  --color-gray-50:     #F5F5F5;
+  --color-gray-100:    #EDEDED;
+  --color-gray-200:    #D4D4D4;
+  --color-gray-300:    #B5B5B5;
+  --color-gray-400:    #9A9A9A; /* texto secundário: 7.3:1 sobre #0A0A0A */
+  --color-gray-500:    #7A7A7A; /* texto terciário: 4.7:1 */
+  --color-gray-600:    #555555;
+  --color-gray-700:    #333333;
+  --color-gray-800:    #1F1F1F;
+  --color-gray-900:    #141414;
+
+  /* Aliases legados → neutros */
+  --color-nogueira:    #000000;
+  --color-latao:       #FFFFFF;
+  --color-latao-fundo: #555555;
+  --color-creme:       #FFFFFF;
+  --color-carmim:      #FFFFFF;
+  --color-tinta:       #B5B5B5;
+  --color-musgo:       #D4D4D4;
+
+  --ease-gaveta: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Tipografia: Geist (texto/títulos) + Geist Mono (rótulos/dados) */
+  --font-sans:     var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:     var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+  --font-datilo:   var(--font-geist-mono), ui-monospace, monospace;
+  --font-corpo:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-courier:  var(--font-geist-mono), ui-monospace, monospace;
+  --font-literata: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--color-black);
+  --color-foreground: var(--color-white);
+  --color-border:     var(--color-gray-800);
+  --color-surface:    var(--color-gray-900);
+
+  --animate-surgir: surgir 0.5s var(--ease-gaveta) both;
+  --animate-pulsar: pulsar 1.4s ease-in-out infinite;
+}
+
+/* ============================================================
+   Tokens SEMÂNTICOS da landing — flippam com [data-tema].
+   Fora do @theme inline de propósito: os utilities precisam
+   resolver via var(--color-*) para o override do tema valer.
+   ============================================================ */
+@theme {
+  --color-fundo:         #000000;
+  --color-fundo-2:       #050505;
+  --color-superficie:    #0A0A0A;
+  --color-superficie-2:  #141414;
+  --color-borda:         #1F1F1F;
+  --color-borda-2:       #333333;
+  --color-texto:         #FFFFFF;
+  --color-suave:         #B5B5B5;
+  --color-mudo:          #9A9A9A;
+  --color-apagado:       #7A7A7A;
+  --color-acento:        #FFFFFF;
+  --color-acento-texto:  #000000;
+  --color-acento-hover:  #D4D4D4;
+}
+
+[data-tema="claro"] {
+  --color-fundo:         #FFFFFF;
+  --color-fundo-2:       #F7F7F8;
+  --color-superficie:    #FFFFFF;
+  --color-superficie-2:  #F4F4F5;
+  --color-borda:         #E5E5E7;
+  --color-borda-2:       #CFCFD4;
+  --color-texto:         #0A0A0A;
+  --color-suave:         #3F3F46;
+  --color-mudo:          #52525B;
+  --color-apagado:       #71717A;
+  --color-acento:        #0A0A0A;
+  --color-acento-texto:  #FFFFFF;
+  --color-acento-hover:  #26262A;
+}
+
+@keyframes surgir {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulsar {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+@layer base {
+  html { height: 100%; color-scheme: dark; scroll-behavior: smooth; }
+
+  body {
+    min-height: 100%;
+    background-color: var(--color-black);
+    color: var(--color-white);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: var(--color-acento); color: var(--color-acento-texto); }
+
+  :focus-visible {
+    outline: 2px solid var(--color-white);
+    outline-offset: 2px;
+  }
+
+  a { text-underline-offset: 0.25em; }
+
+  .tabular, table { font-variant-numeric: tabular-nums; }
+
+  * { scrollbar-width: thin; scrollbar-color: #333 transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Grade sutil de fundo (landing / auth) */
+  .grade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  /* Granulado — mantido por compatibilidade, agora neutro */
+  .grao {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,0.08) 3px 4px);
+  }
+
+  /* Ficha: cartão de papel branco com pauta fina (lead na landing) */
+  .ficha-card {
+    background-color: #FAFAFA;
+    color: #0A0A0A;
+    border: 1px solid #D4D4D4;
+    font-family: var(--font-mono);
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0 1px, transparent 1px 22px);
+  }
+
+  /* Carimbo de status — contorno, sem cor */
+  .carimbo {
+    display: inline-block;
+    border: 1.5px solid currentColor;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    padding: 3px 7px;
+    transform: rotate(-5deg);
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Botão primário: branco sólido */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.15s var(--ease-gaveta);
+    cursor: pointer;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-primario { background: #FAFAFA; color: #0A0A0A; }
+  .btn-primario:hover { background: #D4D4D4; }
+  .btn-secundario { background: transparent; color: #FAFAFA; border: 1px solid #333; }
+  .btn-secundario:hover { border-color: #FAFAFA; }
+  .btn-fantasma { background: transparent; color: #B5B5B5; }
+  .btn-fantasma:hover { color: #FAFAFA; background: #141414; }
+  .btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+  .btn-lg { height: 48px; padding: 0 26px; font-size: 15px; }
+
+  /* Selo CTA legado → botão primário grande */
+  .selo-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    padding: 0 26px;
+    border-radius: 999px;
+    background: #FAFAFA;
+    color: #0A0A0A;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background-color 0.2s, transform 0.15s var(--ease-gaveta);
+  }
+  .selo-cta:hover { background: #D4D4D4; }
+  .selo-cta:active { transform: scale(0.97); }
+
+  /* Campos */
+  .campo {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    background: #0F0F0F;
+    border: 1px solid #2A2A2A;
+    border-radius: 10px;
+    color: #FAFAFA;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  textarea.campo { height: auto; padding: 10px 12px; resize: vertical; min-height: 88px; }
+  select.campo { appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+  .campo::placeholder { color: #5A5A5A; }
+  .campo:hover { border-color: #3A3A3A; }
+  .campo:focus { border-color: #FAFAFA; box-shadow: 0 0 0 3px rgba(250,250,250,0.08); }
+  .campo:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Cartão / painel */
+  .painel {
+    background: #0F0F0F;
+    border: 1px solid #1F1F1F;
+    border-radius: 16px;
+  }
+
+  /* Rótulo mono em caixa alta */
+  .rotulo {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7A7A7A;
+  }
+
+  /* Skeleton */
+  .esqueleto {
+    background: linear-gradient(90deg, #141414 0%, #1F1F1F 50%, #141414 100%);
+    background-size: 200% 100%;
+    animation: brilho 1.4s ease-in-out infinite;
+    border-radius: 8px;
+  }
+  @keyframes brilho { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+  /* Texto do agente (markdown leve) */
+  .prosa p + p { margin-top: 0.75em; }
+  .prosa ul { list-style: disc; padding-left: 1.2em; margin: 0.5em 0; }
+  .prosa ol { list-style: decimal; padding-left: 1.2em; margin: 0.5em 0; }
+  .prosa li + li { margin-top: 0.25em; }
+  .prosa strong { color: #FAFAFA; font-weight: 600; }
+  .prosa code { font-family: var(--font-mono); font-size: 0.9em; background: #1F1F1F; padding: 1px 5px; border-radius: 4px; }
+}

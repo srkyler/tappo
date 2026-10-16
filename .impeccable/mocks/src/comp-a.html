@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+:root{--noz:#241A12;--madeira:#33251A;--madeira2:#2B1F15;--ficha:#F2E8D5;--ficha2:#E9DCC3;--latao:#C1934E;--latao2:#9A7440;--carimbo:#A8322C;--tinta:#274B6D;--verde:#4E6E4E}
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#3A2A1C 0%,var(--noz) 55%,#1B130D 100%);font-family:"Courier Prime",monospace;color:var(--ficha);position:relative}
+.grao{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.06) 3px 4px);pointer-events:none}
+nav{display:flex;align-items:center;gap:36px;padding:26px 56px;border-bottom:1px solid rgba(193,147,78,.35)}
+.logo{font-weight:700;letter-spacing:.28em;font-size:19px}
+.logo b{color:var(--latao)}
+nav .sp{flex:1}
+nav a{color:rgba(242,232,213,.72);text-decoration:none;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+nav .assinar{border:1px solid var(--latao);color:var(--latao);padding:9px 18px;letter-spacing:.18em;font-size:12px}
+header{padding:54px 56px 0;display:grid;grid-template-columns:1fr 430px;gap:40px}
+.kicker{font-size:12px;letter-spacing:.3em;color:var(--latao);text-transform:uppercase;margin-bottom:18px}
+h1{font-size:64px;line-height:1.04;font-weight:700;letter-spacing:.01em}
+h1 .risca{border-bottom:3px solid var(--carimbo)}
+.sub{font-family:"Literata",Georgia,serif;font-size:18px;line-height:1.6;color:rgba(242,232,213,.78);margin-top:22px;max-width:560px}
+.acoes{display:flex;align-items:center;gap:22px;margin-top:30px}
+.selo{border:2.5px solid var(--carimbo);color:var(--carimbo);font-weight:700;letter-spacing:.12em;font-size:15px;padding:14px 26px;transform:rotate(-2deg);box-shadow:0 0 0 2px rgba(168,50,44,.25) inset;border-radius:4px;background:rgba(168,50,44,.06)}
+.vermais{color:var(--ficha);font-size:13px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--latao2);padding-bottom:4px}
+.contadores{display:flex;gap:14px;margin-top:34px}
+.placa{border:1px solid var(--latao2);background:linear-gradient(180deg,rgba(193,147,78,.14),rgba(193,147,78,.05));padding:10px 16px;font-size:12px;letter-spacing:.06em}
+.placa b{display:block;font-size:20px;color:var(--latao)}
+.placa i{font-style:normal;color:rgba(242,232,213,.62);text-transform:uppercase;letter-spacing:.14em}
+.demo{font-size:10px;letter-spacing:.22em;color:rgba(242,232,213,.4);text-transform:uppercase;margin-top:10px}
+.gaveteiro{position:absolute;left:0;right:0;bottom:0;height:330px}
+.gaveta{position:absolute;left:120px;right:120px;bottom:-40px;height:300px;background:linear-gradient(180deg,var(--madeira) 0%,var(--madeira2) 100%);border:1px solid rgba(193,147,78,.55);border-bottom:none;border-radius:6px 6px 0 0;box-shadow:0 -18px 60px rgba(0,0,0,.55),inset 0 2px 0 rgba(193,147,78,.25)}
+.puxador{position:absolute;top:34px;left:50%;transform:translateX(-50%);width:150px;height:26px;border:3px solid var(--latao);border-radius:14px;background:linear-gradient(180deg,#D8AF64,#8A6734);box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.rotulo{position:absolute;top:90px;left:50%;transform:translateX(-50%);border:2px solid var(--latao2);background:var(--ficha2);color:#3B2A1B;padding:8px 22px;font-weight:700;letter-spacing:.22em;font-size:13px}
+.cartoes{position:absolute;bottom:66px;left:50%;transform:translateX(-50%);display:flex;align-items:flex-end}
+.ficha{width:196px;height:118px;background:linear-gradient(180deg,var(--ficha) 0%,var(--ficha2) 100%);border:1px solid #C9B78F;box-shadow:0 10px 24px rgba(0,0,0,.45);margin-left:-52px;padding:14px 16px;color:#3B2A1B;font-size:11px;line-height:1.5;position:relative;background-color:var(--ficha);background-image:repeating-linear-gradient(0deg,rgba(59,42,27,.10) 0 1px,transparent 1px 22px)}
+.ficha:first-child{margin-left:0}
+.f1{transform:rotate(-7deg) translateY(26px)}
+.f2{transform:rotate(-3deg) translateY(6px)}
+.f3{transform:rotate(0) translateY(0);z-index:3;height:150px;width:230px}
+.f4{transform:rotate(3deg) translateY(8px)}
+.f5{transform:rotate(7deg) translateY(28px)}
+.ficha .cod{font-weight:700;color:var(--tinta);letter-spacing:.08em}
+.ficha .nome{border-bottom:1px solid #B7A480;padding-bottom:6px;margin-bottom:6px}
+.carimbo{position:absolute;right:10px;bottom:8px;border:2px solid var(--carimbo);color:var(--carimbo);font-weight:700;font-size:9px;letter-spacing:.14em;padding:3px 7px;transform:rotate(-6deg);border-radius:3px}
+.carimbo.azul{border-color:var(--tinta);color:var(--tinta);transform:rotate(4deg)}
+.carimbo.verde{border-color:var(--verde);color:var(--verde)}
+.setas{position:absolute;right:56px;bottom:24px;font-size:11px;color:rgba(193,147,78,.6);letter-spacing:.2em}
+</style></head>
+<body><div class="grao"></div>
+<nav><div class="logo">TA<b>PP</b>O</div><span class="sp"></span><a>Como funciona</a><a>Recursos</a><a>Planos</a><a>Entrar</a><a class="assinar">Assinar</a></nav>
+<header>
+<div>
+<div class="kicker">Fichário de prospecção · Gaveta 01/24</div>
+<h1>Toda empresa<br>tem um <span class="risca">garimpo</span>.</h1>
+<p class="sub">O Tappo peneira seu mercado, arquiva cada lead numa ficha e carimba cada avanço. Você abre a gaveta do dia e sabe exatamente quem chamar.</p>
+<div class="acoes"><span class="selo">ABRIR MEU FICHÁRIO</span><a class="vermais">Ver como funciona ↓</a></div>
+<div class="contadores">
+<div class="placa"><b>1.247</b><i>leads garimpados</i></div>
+<div class="placa"><b>12</b><i>campanhas na mesa</i></div>
+<div class="placa"><b>86</b><i>reuniões marcadas</i></div>
+</div>
+<div class="demo">placa de demonstração — dados sintéticos</div>
+</div>
+<div></div>
+</header>
+<div class="gaveteiro">
+<div class="gaveta">
+<div class="puxador"></div><div class="rotulo">GAVETA 03 · QUALIFICADOS</div>
+<div class="cartoes">
+<div class="ficha f1"><div class="nome">HELENA DUARTE</div>Diretora de Compras<br>Indústria Moreno<br><span class="cod">GAR-0241</span><span class="carimbo azul">CONTATADO</span></div>
+<div class="ficha f2"><div class="nome">RAFAEL NUNES</div>CEO · Nunes Log<br><span class="cod">GAR-0244</span><span class="carimbo">REUNIÃO 3ª</span></div>
+<div class="ficha f3"><div class="nome">MARINA PACHECO</div>Dir. de Operações<br>Metalúrgica Andrade<br><span class="cod">GAR-0247</span><br>indicado por cliente<br><span class="carimbo verde">QUALIFICADO</span></div>
+<div class="ficha f4"><div class="nome">CARLOS BETIM</div>Head Comercial<br>Betim &amp; Filhos<br><span class="cod">GAR-0252</span><span class="carimbo">NOVA</span></div>
+<div class="ficha f5"><div class="nome">JÚLIA SAMPAIO</div>Sócia · Sampaio Odonto<br><span class="cod">GAR-0256</span><span class="carimbo azul">FOLLOW-UP</span></div>
+</div>
+</div>
+<div class="setas">▾ CADA FICHA, UM CONTATO REAL E DATADO ▾</div>
+</div>
+</body></html>

@@ -1,0 +1,56 @@
+# Tappo na VPS: app + WAHA (WhatsApp) + Caddy (HTTPS automático)
+# Uso: cp .env.example .env && (edite) && docker compose up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+    image: tappo-app:latest
+    restart: unless-stopped
+    env_file: .env
+    expose: ["3000"]
+    networks: [tappo]
+
+  waha:
+    image: devlikeapro/waha:latest
+    restart: unless-stopped
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      WHATSAPP_SWAGGER_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WHATSAPP_SWAGGER_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      WHATSAPP_DEFAULT_ENGINE: ${WAHA_ENGINE:-WEBJS}
+      TZ: America/Sao_Paulo
+    volumes:
+      - waha_sessions:/app/.sessions
+      - waha_media:/app/.media
+    expose: ["3000"]
+    networks: [tappo]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      WAHA_DOMAIN: ${WAHA_DOMAIN:-waha.localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [tappo]
+
+networks:
+  tappo:
+
+volumes:
+  waha_sessions:
+  waha_media:
+  caddy_data:
+  caddy_config:

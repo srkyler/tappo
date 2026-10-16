@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+:root{--noz:#241A12;--madeira:#35261A;--madeira2:#2A1E14;--ficha:#F2E8D5;--latao:#C1934E;--latao2:#8F6C3A;--carimbo:#A8322C;--verde:#4E6E4E;--tinta:#274B6D}
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:var(--noz);font-family:"Courier Prime",monospace;color:var(--ficha);position:relative}
+nav{display:flex;align-items:center;gap:40px;padding:30px 58px;border-bottom:3px double var(--latao2)}
+.logo{font-weight:700;letter-spacing:.3em;font-size:20px}.logo b{color:var(--latao)}
+nav .sp{flex:1}nav a{color:rgba(242,232,213,.7);font-size:12px;letter-spacing:.18em;text-transform:uppercase;text-decoration:none}
+nav .assinar{border:1px solid var(--latao);color:var(--latao);padding:9px 20px;font-size:11px}
+h1{font-size:34px;letter-spacing:.16em;text-align:center;padding:26px 0 8px;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--latao);border-bottom:3px solid var(--carimbo)}
+.sub{font-family:"Literata",serif;text-align:center;color:rgba(242,232,213,.72);font-size:16px;max-width:820px;margin:0 auto;padding-bottom:26px}
+.parede{display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:132px 132px 132px;gap:12px;padding:0 58px;position:relative}
+.g{background:linear-gradient(180deg,var(--madeira) 0%,var(--madeira2) 100%);border:1px solid rgba(193,147,78,.5);border-radius:3px;position:relative;box-shadow:inset 0 2px 0 rgba(193,147,78,.18),0 6px 16px rgba(0,0,0,.35)}
+.g .pux{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:84px;height:16px;border:2.5px solid var(--latao2);border-radius:9px;background:linear-gradient(180deg,#D0A75E,#845F30)}
+.g .rot{position:absolute;left:10px;top:10px;border:1.5px solid var(--latao2);background:#E7D9BE;color:#3B2A1B;font-size:9.5px;font-weight:700;letter-spacing:.18em;padding:4px 8px}
+.aberta{grid-column:3/5;grid-row:1/2;background:linear-gradient(180deg,#F7EFDD 0%,#DCCCA8 100%);border:2px solid var(--latao);box-shadow:0 0 0 3px rgba(193,147,78,.25),0 22px 60px rgba(255,222,150,.28)}
+.ficha{position:absolute;background:linear-gradient(180deg,var(--ficha),#E4D5B6);background-color:var(--ficha);color:#3B2A1B;border:1px solid #C9B78F;box-shadow:0 10px 22px rgba(0,0,0,.35);padding:10px 12px;font-size:10px;line-height:1.45;background-image:repeating-linear-gradient(0deg,rgba(59,42,27,.09) 0 1px,transparent 1px 18px)}
+.ficha b{letter-spacing:.06em}.ficha .cod{color:var(--tinta);font-weight:700}
+.carimbo{position:absolute;right:8px;bottom:6px;border:2px solid var(--carimbo);color:var(--carimbo);font-weight:700;font-size:8.5px;letter-spacing:.12em;padding:2px 6px;transform:rotate(-6deg);border-radius:3px}
+.carimbo.verde{border-color:var(--verde);color:var(--verde);transform:rotate(4deg)}
+.carimbo.azul{border-color:var(--tinta);color:var(--tinta)}
+.faixa{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 58px 0}
+.cel{border-left:2px solid var(--latao);padding:6px 0 6px 14px}
+.cel b{display:block;font-size:21px;color:var(--latao)}
+.cel i{font-style:normal;font-size:10.5px;letter-spacing:.16em;color:rgba(242,232,213,.6);text-transform:uppercase}
+.rodape{position:absolute;bottom:20px;left:58px;right:58px;display:flex;justify-content:space-between;align-items:center}
+.selo{border:3px double var(--carimbo);color:var(--carimbo);font-weight:700;letter-spacing:.16em;font-size:14px;padding:11px 24px;transform:rotate(-1.5deg);border-radius:4px;background:rgba(168,50,44,.07)}
+.rodape .dev{display:flex;gap:24px;font-size:11px;letter-spacing:.2em;color:rgba(242,232,213,.45);text-transform:uppercase}
+</style></head>
+<body>
+<nav><div class="logo">TA<b>PP</b>O</div><span class="sp"></span><a>Como funciona</a><a>Recursos</a><a>Planos</a><a>Entrar</a><a class="assinar">Assinar</a></nav>
+<h1>Toda empresa tem um <em>garimpo</em>.</h1>
+<p class="sub">Um fichário inteiro para a sua prospecção: cada gaveta é uma etapa, cada ficha tem código e carimbo, e a mesa soma o resultado em números reais.</p>
+<div class="parede">
+<div class="g"><span class="rot">NOVOS</span><span class="pux"></span></div>
+<div class="g"><span class="rot">CONTATADOS</span><span class="pux"></span></div>
+<div class="g aberta">
+  <div class="ficha" style="left:12px;top:14px;width:150px;transform:rotate(-4deg)"><b>MARINA PACHECO</b><br>Dir. Operações · Andrade<br><span class="cod">GAR-0247</span><span class="carimbo">PRONTA</span></div>
+  <div class="ficha" style="left:150px;top:34px;width:158px;transform:rotate(2deg);z-index:3"><b>RAFAEL NUNES</b><br>CEO · Nunes Log<br><span class="cod">GAR-0244</span><span class="carimbo verde">REUNIÃO</span></div>
+  <div class="ficha" style="left:300px;top:20px;width:150px;transform:rotate(5deg)"><b>HELENA DUARTE</b><br>Compras · Moreno<br><span class="cod">GAR-0241</span><span class="carimbo azul">EM CURSO</span></div>
+</div>
+<div class="g"><span class="rot">QUALIFICADOS</span><span class="pux"></span></div>
+<div class="g"><span class="rot">REUNIÕES</span><span class="pux"></span></div>
+<div class="g"><span class="rot">GANHOS</span><span class="pux"></span></div>
+<div class="g"><span class="rot">CAMPANHA · INDÚSTRIA SP</span><span class="pux"></span></div>
+<div class="g"><span class="rot">CADÊNCIA D-1</span><span class="pux"></span></div>
+<div class="g"><span class="rot">CADÊNCIA D-3</span><span class="pux"></span></div>
+<div class="g"><span class="rot">CADÊNCIA D-7</span><span class="pux"></span></div>
+<div class="g"><span class="rot">RETORNO</span><span class="pux"></span></div>
+<div class="g"><span class="rot">PERDIDOS</span><span class="pux"></span></div>
+<div class="g"><span class="rot">ARQUIVO MORTO</span><span class="pux"></span></div>
+<div class="g"><span class="rot">ORIGEM · INDICAÇÃO</span><span class="pux"></span></div>
+<div class="g"><span class="rot">ORIGEM · SITE</span><span class="pux"></span></div>
+<div class="g"><span class="rot">ORIGEM · LISTA</span><span class="pux"></span></div>
+<div class="g"><span class="rot">ENCERRADOS</span><span class="pux"></span></div>
+</div>
+<div class="faixa">
+<div class="cel"><b>1.247</b><i>leads garimpados</i></div>
+<div class="cel"><b>12</b><i>campanhas na mesa</i></div>
+<div class="cel"><b>86</b><i>reuniões marcadas</i></div>
+<div class="cel"><b>31%</b><i>conversão em reunião</i></div>
+</div>
+<div class="rodape"><span class="selo">ABRIR MEU FICHÁRIO</span><span class="dev"><span>Placa de demonstração — dados sintéticos</span><span>▾ atualizado agora ▾</span></span></div>
+</body></html>

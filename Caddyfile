@@ -1,0 +1,11 @@
+# HTTPS automático (Let's Encrypt). Aponte o DNS dos domínios para o IP da VPS.
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# Painel do WAHA (opcional). Protegido por usuário/senha do próprio WAHA.
+{$WAHA_DOMAIN} {
+	reverse_proxy waha:3000
+}
