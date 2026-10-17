@@ -1981,6 +1981,29 @@ BEGIN
 EXCEPTION WHEN others THEN NULL; END $$;
 
 -- -------------------------------------------------------------
+-- Automações (gatilhos e ações)
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.automacoes (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        uuid NOT NULL REFERENCES public.organizacoes(id) ON DELETE CASCADE,
+  nome          text NOT NULL CHECK (length(trim(nome)) > 0),
+  ativo         boolean NOT NULL DEFAULT true,
+  gatilho       text NOT NULL DEFAULT 'lead_mudou_status' CHECK (gatilho IN ('lead_mudou_status','lead_entrou_campanha','deal_mudou_etapa','tag_adicionada')),
+  gatilho_valor text,
+  acao          text NOT NULL DEFAULT 'mover_etapa' CHECK (acao IN ('mover_etapa','adicionar_tag','atribuir_responsavel','criar_tarefa')),
+  acao_valor    text,
+  execucoes     int NOT NULL DEFAULT 0 CHECK (execucoes >= 0),
+  criado_em     timestamptz NOT NULL DEFAULT now(),
+  atualizado_em timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_automacoes_org ON public.automacoes (org_id);
+
+ALTER TABLE public.automacoes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY automacoes_org ON public.automacoes FOR ALL TO authenticated
+  USING (org_id = (SELECT public.org_atual()))
+  WITH CHECK (org_id = (SELECT public.org_atual()));
+
+-- -------------------------------------------------------------
 -- Prioridade nas conversas e status do atendente
 -- -------------------------------------------------------------
 ALTER TABLE public.wa_conversas ADD COLUMN IF NOT EXISTS prioridade text NOT NULL DEFAULT 'media' CHECK (prioridade IN ('baixa','media','alta','urgente'));

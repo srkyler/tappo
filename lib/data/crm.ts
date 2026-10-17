@@ -212,3 +212,41 @@ export async function lerSlaConfig(): Promise<SlaConfig | null> {
   const { data } = await supabase.from("sla_config").select("*").maybeSingle();
   return data ? (data as SlaConfig) : null;
 }
+
+/* ---------- Automações ---------- */
+
+export async function lerAutomacoes(): Promise<Automacao[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("automacoes").select("*").order("criado_em", { ascending: false });
+  return (data ?? []) as Automacao[];
+}
+
+export async function salvarAutomacao(f: FormData): Promise<{ ok: boolean; erro?: string }> {
+  const supabase = await createClient();
+  const id = String(f.get("id") ?? "");
+  const nome = String(f.get("nome") ?? "").trim();
+  if (!nome) return { ok: false, erro: "Nome é obrigatório." };
+  const payload = {
+    nome,
+    ativo: f.get("ativo") === "on",
+    gatilho: String(f.get("gatilho") ?? "lead_mudou_status"),
+    gatilho_valor: String(f.get("gatilho_valor") ?? "") || null,
+    acao: String(f.get("acao") ?? "mover_etapa"),
+    acao_valor: String(f.get("acao_valor") ?? "") || null,
+  };
+  if (!id) {
+    const { error } = await supabase.from("automacoes").insert(payload);
+    if (error) return { ok: false, erro: error.message };
+  } else {
+    const { error } = await supabase.from("automacoes").update(payload).eq("id", id);
+    if (error) return { ok: false, erro: error.message };
+  }
+  return { ok: true };
+}
+
+export async function excluirAutomacao(id: string): Promise<{ ok: boolean; erro?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("automacoes").delete().eq("id", id);
+  if (error) return { ok: false, erro: error.message };
+  return { ok: true };
+}
