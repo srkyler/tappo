@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Cabecalho, Kpi, Logo, Pagina } from "@/components/ui/base";
 import { AgentesAdmin } from "@/components/admin/agentes-admin";
-import { exigirAdmin } from "@/lib/admin/guard";
+import { Administradores, type MembroPlataforma } from "@/components/admin/administradores";
+import { ehSuperAdmin, exigirAdmin } from "@/lib/admin/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { semSegredo, type Agente } from "@/lib/ai/agentes";
 import { formatNum, isoDiasAtras } from "@/lib/data/format";
@@ -11,7 +12,7 @@ import { formatNum, isoDiasAtras } from "@/lib/data/format";
 export const metadata = { title: "Admin — Tappo", robots: { index: false } };
 
 async function Conteudo() {
-  await exigirAdmin();
+  const user = await exigirAdmin();
   const db = createAdminClient();
   const desde = isoDiasAtras(30);
   const [{ data: agentes, error }, { data: usos }, { count: membros }] = await Promise.all([
@@ -19,6 +20,10 @@ async function Conteudo() {
     db.from("ai_uso").select("agent_id, tokens_entrada, tokens_cache, tokens_saida").gte("created_at", desde).limit(20000),
     db.from("profiles").select("id", { count: "exact", head: true }),
   ]);
+  const souSuperAdmin = ehSuperAdmin(user);
+  const { data: todosMembros } = souSuperAdmin
+    ? await db.from("profiles").select("id, email, nome_completo, papel").order("created_at")
+    : { data: null };
 
   if (error) {
     return (
@@ -48,6 +53,11 @@ async function Conteudo() {
         <Kpi rotulo="Tokens · 30d" valor={formatNum(totalTokens)} detalhe="entrada + saída (sem cache)" />
       </div>
       <AgentesAdmin agentes={(agentes as Agente[]).map(semSegredo)} uso={uso} />
+      {souSuperAdmin && (
+        <div className="mt-8">
+          <Administradores membros={(todosMembros ?? []) as MembroPlataforma[]} euId={user.id} />
+        </div>
+      )}
     </>
   );
 }

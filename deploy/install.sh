@@ -89,6 +89,7 @@ perguntar NEXT_PUBLIC_SUPABASE_ANON_KEY "Supabase anon public key"
 perguntar SUPABASE_SERVICE_ROLE_KEY "Supabase service_role key (secreta)"
 perguntar ANTHROPIC_API_KEY "ANTHROPIC_API_KEY (console.anthropic.com)" false
 perguntar ADMIN_EMAILS "E-mail do administrador (quem vê /admin)"
+perguntar SUPER_ADMIN_EMAIL "Mesmo e-mail (ou outro) que vai decidir quem mais pode ser admin"
 perguntar SUPABASE_DB_URL "Connection string do Supabase — Session pooler (opcional, aplica o schema sozinho)" false
 
 DOMAIN="$(env_get DOMAIN)"

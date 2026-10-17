@@ -116,6 +116,11 @@ Preencha (sem espaços antes/depois do "="):
 
     ANTHROPIC_API_KEY=...
     ADMIN_EMAILS=seuemail@gmail.com
+    SUPER_ADMIN_EMAIL=seuemail@gmail.com
+
+  SUPER_ADMIN_EMAIL é o único e-mail que pode tornar outras pessoas
+  admin pela tela (seção "Administradores" em /admin) — nem outro
+  admin, nem a própria pessoa, conseguem se promover.
 
     RESEND_API_KEY=...            (opcional, para e-mails)
     RESEND_FROM=Tappo <no-reply@suaempresa.com>

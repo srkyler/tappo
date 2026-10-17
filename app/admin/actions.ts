@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { exigirAdmin } from "@/lib/admin/guard";
+import { exigirAdmin, exigirSuperAdmin } from "@/lib/admin/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cifrar, finalDaChave } from "@/lib/ai/cofre";
 import { presetPorId } from "@/lib/ai/provedores";
@@ -99,6 +99,16 @@ export async function duplicarAgente(id: string): Promise<ActionResult> {
   const { id: _id, created_at: _c, updated_at: _u, ativo: _a, ...resto } = data as Agente;
   const { error: e2 } = await db.from("ai_agents").insert({ ...resto, nome: `${resto.nome} (cópia)`, ativo: false, created_by: user.id });
   if (e2) return erro(e2);
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/** Só o super admin (SUPER_ADMIN_EMAIL) pode tornar — ou deixar de ser — outra pessoa admin. */
+export async function definirAdmin(userId: string, tornarAdmin: boolean): Promise<ActionResult> {
+  const user = await exigirSuperAdmin();
+  if (userId === user.id) return { ok: false, erro: "Você já é o super admin — não precisa (e não pode) mudar isso em si mesmo." };
+  const { error } = await createAdminClient().from("profiles").update({ papel: tornarAdmin ? "admin" : "membro" }).eq("id", userId);
+  if (error) return erro(error);
   revalidatePath("/admin");
   return { ok: true };
 }
