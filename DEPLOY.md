@@ -47,3 +47,18 @@ docker compose logs -f waha      # logs do WhatsApp
 docker compose restart app
 docker compose pull waha && docker compose up -d waha   # atualizar o WAHA
 ```
+
+## Scripts de operação (`deploy/`)
+
+| Script | Função |
+|---|---|
+| `install.sh` | Instala/reinstala tudo. Idempotente, valida cada credencial contra a API do Supabase antes de seguir, detecta proxy reverso já existente nas portas 80/443, aplica `supabase/setup_completo.sql` sozinho se `SUPABASE_DB_URL` estiver no `.env`, e pode criar a primeira conta de login via Supabase Admin API. |
+| `update.sh` | `git pull` + rebuild, com backup antes e **rollback automático** pra imagem anterior se o healthcheck falhar depois. |
+| `healthcheck.sh` | Diagnóstico read-only: containers, DNS/HTTPS, Supabase, WAHA. |
+| `backup.sh` | `pg_dump` do banco (via `SUPABASE_DB_URL`) + tar do volume de sessões do WhatsApp. Agende no cron — o plano grátis do Supabase não faz backup sozinho. |
+| `reset-password.sh <email> <senha>` | Redefine a senha de alguém direto pela Supabase Admin API, sem precisar do fluxo de e-mail. |
+
+Reinstalar do zero (não apaga nada do Supabase, só os containers):
+```bash
+cd /opt/tappo && docker compose down && git pull && bash deploy/install.sh --yes
+```

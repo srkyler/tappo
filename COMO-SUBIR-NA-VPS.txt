@@ -2,6 +2,24 @@
   TAPPO — COMO SUBIR NA VPS (passo a passo)
 =====================================================================
 
+  NOTA (correção aplicada): o supabase/setup_completo.sql tinha SQL
+  colada à mão (tags, propostas) com um bug que travava o script no
+  meio (política da tabela lead_tag_rel sem a coluna org_id) e campos
+  obrigatórios sem valor padrão. Isso foi corrigido e movido para uma
+  migração própria (supabase/migrations/20261016160000_bloco2_schema.sql).
+  O arquivo setup_completo.sql já foi regenerado — pode rodar o passo
+  11 (SQL Editor do Supabase) sem erro.
+
+  NOVO: o instalador (deploy/install.sh) agora é bem mais completo —
+  valida cada campo que você digita antes de seguir (chave errada do
+  Supabase é recusada na hora, não 5 minutos depois no build), detecta
+  se já existe outro site/proxy nas portas 80/443 desta VPS, pode
+  aplicar o supabase/setup_completo.sql sozinho (se você preencher
+  SUPABASE_DB_URL) e pode criar a primeira conta de login sozinho.
+  Também tem agora: deploy/update.sh (atualiza com backup automático e
+  volta sozinho se quebrar), deploy/healthcheck.sh (diagnóstico
+  completo sem alterar nada), deploy/backup.sh e deploy/reset-password.sh.
+
 O que vai rodar na VPS (tudo em Docker):
   - app   -> o CRM (Next.js)
   - waha  -> o WhatsApp
@@ -178,8 +196,31 @@ Run workflow.
     docker compose logs -f app            logs do CRM
     docker compose logs -f waha           logs do WhatsApp
     docker compose restart app            reiniciar o CRM
-    git pull && docker compose up -d --build     atualizar na mão
+    bash deploy/update.sh                 atualizar (backup + rollback automático)
+    bash deploy/healthcheck.sh            diagnóstico completo (não altera nada)
+    bash deploy/backup.sh                 backup do banco + sessões do WhatsApp
+    bash deploy/reset-password.sh email@empresa.com "nova senha"
     docker compose pull waha && docker compose up -d waha   atualizar WAHA
+
+  Dica: agende o backup diário no cron —
+    (crontab -l 2>/dev/null; echo "0 3 * * * cd /opt/tappo && bash deploy/backup.sh >> /var/log/tappo-backup.log 2>&1") | crontab -
+
+---------------------------------------------------------------------
+ 10b. REINSTALAR / REINICIAR TUDO NA VPS DO ZERO
+---------------------------------------------------------------------
+Isso NÃO apaga dados do Supabase (o banco não mora nesta VPS) — só
+recria os containers Docker. A sessão do WhatsApp conectada é perdida
+(vai precisar escanear o QR code de novo).
+
+    cd /opt/tappo
+    docker compose down                   # para tudo
+    git pull                              # traz este instalador novo
+    bash deploy/install.sh --yes          # reaplica com o .env que já existe
+    bash deploy/healthcheck.sh            # confirma que subiu certo
+
+Se quiser preencher os campos de novo (trocar domínio, chaves etc.),
+apague só as linhas que quer trocar do /opt/tappo/.env antes do
+install.sh — ele só pergunta o que estiver vazio.
 
 
 ---------------------------------------------------------------------
@@ -205,6 +246,11 @@ Run workflow.
      -> NEXT_PUBLIC_APP_URL precisa ser o https do seu domínio.
         Mudou? Rode: docker compose up -d --build
         e clique em "Conectar" de novo no Inbox (reconfigura o webhook).
+
+ * Qualquer problema, comece por aqui
+     -> bash deploy/healthcheck.sh
+        Ele confere containers, DNS, HTTPS, Supabase e WAHA de uma vez
+        e diz exatamente o que está errado.
 
  * Build falha por falta de memória (VPS de 1 GB)
      -> Crie swap:
