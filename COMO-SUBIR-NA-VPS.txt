@@ -51,7 +51,10 @@ O banco de dados continua no Supabase (não roda na VPS).
         - Project URL
         - anon public key
         - service_role key (secreta!)
-  [ ] Chave da Anthropic (ANTHROPIC_API_KEY) — console.anthropic.com
+  [ ] Chave de IA (OPCIONAL, pode pular e configurar depois pela tela) —
+      Anthropic (console.anthropic.com), OpenAI, NVIDIA, Groq, OpenRouter
+      e outros são aceitos, cada agente tem seu próprio provedor/chave,
+      sem precisar tocar na VPS depois (Admin → Agentes de IA)
 
 
 ---------------------------------------------------------------------

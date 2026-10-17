@@ -87,7 +87,7 @@ fi
 perguntar NEXT_PUBLIC_SUPABASE_URL "URL do projeto Supabase (https://xxxx.supabase.co)"
 perguntar NEXT_PUBLIC_SUPABASE_ANON_KEY "Supabase anon public key"
 perguntar SUPABASE_SERVICE_ROLE_KEY "Supabase service_role key (secreta)"
-perguntar ANTHROPIC_API_KEY "ANTHROPIC_API_KEY (console.anthropic.com)" false
+perguntar ANTHROPIC_API_KEY "Chave da Anthropic/Claude (console.anthropic.com) — Enter pula: cadastre qualquer provedor de IA depois pela tela, em Admin → Agentes de IA (aceita Anthropic, OpenAI, NVIDIA, Groq, OpenRouter e outros)" false
 perguntar ADMIN_EMAILS "E-mail do administrador (quem vê /admin)"
 perguntar SUPER_ADMIN_EMAIL "Mesmo e-mail (ou outro) que vai decidir quem mais pode ser admin"
 perguntar SUPABASE_DB_URL "Connection string do Supabase — Session pooler (opcional, aplica o schema sozinho)" false
@@ -160,3 +160,10 @@ echo
 c_verde "Pronto. Acesse: https://$DOMAIN"
 echo "Comandos úteis: docker compose -f $DIR/docker-compose.yml ps | logs -f app | restart app"
 echo "Diagnóstico completo: bash $DIR/deploy/healthcheck.sh"
+
+if [ -z "$(env_get ANTHROPIC_API_KEY)" ]; then
+  echo
+  c_amarelo "Pendência opcional: nenhuma IA configurada ainda. O CRM funciona sem isso —"
+  c_amarelo "quando quiser, cadastre um agente (Anthropic, OpenAI, NVIDIA, Groq, OpenRouter...)"
+  c_amarelo "em https://$DOMAIN/admin → Agentes de IA, com a chave do provedor que preferir."
+fi
