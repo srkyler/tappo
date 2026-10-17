@@ -1916,3 +1916,40 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+
+-- -------------------------------------------------------------
+-- Histórico automático de alterações em leads (trigger)
+-- Registra sempre que um lead é criado ou seus campos principais mudam
+-- -------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.registrar_historico_lead()
+RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE
+  campos text[] := ARRAY['nome', 'empresa', 'cargo', 'email', 'telefone', 'segmento', 'origem', 'status', 'notas'];
+  i int;
+  campo_nome text;
+  valor_antigo text;
+  valor_novo text;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.lead_historico (org_id, lead_id, usuario_id, campo, valor_antigo, valor_novo, alterado_em)
+    VALUES (NEW.org_id, NEW.id, NEW.user_id, 'criacao', NULL, 'lead criado', now());
+    RETURN NEW;
+  ELSIF TG_OP = 'UPDATE' THEN
+    FOREACH i IN ARRAY 1..array_length(campos, 1) LOOP
+      campo_nome := campos[i];
+      EXECUTE format('SELECT OLD.%I', campo_nome) INTO valor_antigo;
+      EXECUTE format('SELECT NEW.%I', campo_nome) INTO valor_novo;
+      IF valor_antigo IS DISTINCT FROM valor_novo THEN
+        INSERT INTO public.lead_historico (org_id, lead_id, usuario_id, campo, valor_antigo, valor_novo, alterado_em)
+        VALUES (NEW.org_id, NEW.id, COALESCE(NEW.user_id, OLD.user_id), campo_nome, valor_antigo, valor_novo, now());
+      END IF;
+    END LOOP;
+    RETURN NEW;
+  END IF;
+  RETURN NULL;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_historico_lead ON public.leads;
+CREATE TRIGGER trg_historico_lead
+  AFTER INSERT OR UPDATE ON public.leads
+  FOR EACH ROW EXECUTE FUNCTION public.registrar_historico_lead();
