@@ -1,10 +1,11 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Cabecalho, Pagina, Vazio, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
 import { lerTags } from "@/lib/data/tags";
-import { lerHistoricoLead, lerScoreLead } from "@/lib/data/crm";
+import { lerHistoricoLead, lerScoreLead, calcularScoreLead } from "@/lib/data/crm";
 import { toggleTagLead } from "@/app/app/tags/actions";
+import { calcularScoreLeadAction } from "@/app/app/crm/actions";
 import { formatBRL, formatData, tempoRelativo } from "@/lib/data/format";
 
 async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +32,8 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
   type DealView = { id: string; titulo: string; valor: number; pipeline_stages: { nome: string; tipo: string } | null };
   type ConversaView = { id: string; nome: string | null; telefone: string | null; status: string; ultima_mensagem: string | null; ultima_em: string };
   type LinhaTimeline = { id: string; tipoItem: "atividade" | "tarefa"; titulo?: string; descricao?: string; tipo?: string; prioridade?: string; concluida_em: string | null; ocorreu_em: string | null; vence_em: string | null; created_at: string };
+
+  const [calculandoScore, setCalculandoScore] = useState(false);
 
   if (!lead) return <div className="text-[14px] text-gray-500">Lead não encontrado.</div>;
 
@@ -66,9 +69,18 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
         </div>
         <div className="painel p-5">
           <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Score</p>
-          <p className={`text-[24px] font-bold tabular ${score ? classificacaoCor[score.classificacao] : "text-gray-500"}`}>
-            {score ? score.score : "—"}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className={`text-[24px] font-bold tabular ${score ? classificacaoCor[score.classificacao] : "text-gray-500"}`}>
+              {score ? score.score : "—"}
+            </p>
+            <button
+              onClick={() => { setCalculandoScore(true); calcularScoreLeadAction(id).then((r) => { setCalculandoScore(false); if (r.ok) { score = { id: "", org_id: lead.org_id, lead_id: lead.id, score: r.score!, classificacao: r.classificacao!, fatores: {}, calculado_em: "" } as any; } }); }}}
+              disabled={calculandoScore}
+              className="btn btn-fantasma btn-sm text-[11px] px-2"
+            >
+              {calculandoScore ? "…" : "Recalcular"}
+            </button>
+          </div>
           <p className="text-[11px] text-gray-500">{score?.classificacao ?? "—"}</p>
         </div>
       </div>

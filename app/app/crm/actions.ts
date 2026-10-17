@@ -158,6 +158,17 @@ export async function salvarPessoa(f: FormData): Promise<{ ok: boolean; erro?: s
   } catch (e) { return erro(e); }
 }
 
+/* ---------- Lead Score ---------- */
+
+export async function calcularScoreLeadAction(leadId: string): Promise<{ ok: boolean; erro?: string; score?: number; classificacao?: string }> {
+  try {
+    const score = await (await import("@/lib/data/crm")).calcularScoreLead(leadId);
+    if (!score) return { ok: false, erro: "Lead não encontrado." };
+    revalidatePath("/app/leads");
+    return { ok: true, score: score.score, classificacao: score.classificacao };
+  } catch (e) { return erro(e); }
+}
+
 /* ---------- SLA ---------- */
 
 /** sla_config é 1 linha por empresa (índice único em org_id) — upsert em vez de rastrear id. */

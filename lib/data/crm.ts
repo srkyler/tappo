@@ -65,6 +65,81 @@ export async function lerScoreLead(leadId: string): Promise<LeadScore | null> {
   return data ? (data as LeadScore) : null;
 }
 
+export async function calcularScoreLead(leadId: string): Promise<LeadScore | null> {
+  const supabase = await createClient();
+  const { data: lead } = await supabase.from("leads").select("*").eq("id", leadId).single();
+  if (!lead) return null;
+
+  let score = 0;
+  const fatores: Record<string, unknown> = {};
+
+  const origemPontos: Record<string, number> = {
+    "Indicação": 25, "Site": 20, "LinkedIn": 15, "Evento": 15, "Prospecção": 10, "Outro": 5,
+  };
+  const ptsOrigem = origemPontos[lead.origem] ?? 5;
+  score += ptsOrigem;
+  fatores.origem = { pontos: ptsOrigem, origem: lead.origem };
+
+  const temTelefone = !!lead.telefone;
+  if (temTelefone) { score += 15; fatores.telefone = { pontos: 15, tem: true }; }
+  else { fatores.telefone = { pontos: 0, tem: false }; }
+
+  const temEmail = !!lead.email;
+  if (temEmail) { score += 10; fatores.email = { pontos: 10, tem: true }; }
+  else { fatores.email = { pontos: 0, tem: false }; }
+
+  const { data: atividades } = await supabase
+    .from("activities")
+    .select("id, tipo, ocorreu_em")
+    .eq("lead_id", leadId)
+    .order("ocorreu_em", { ascending: false })
+    .limit(20);
+  const ptsAtividades = Math.min((atividades?.length ?? 0) * 2, 30);
+  score += ptsAtividades;
+  fatores.atividades = { pontos: ptsAtividades, total: atividades?.length ?? 0 };
+
+  const { data: tags } = await supabase
+    .from("lead_tag_rel")
+    .select("tag_id")
+    .eq("lead_id", leadId);
+  const ptsTags = Math.min((tags?.length ?? 0) * 5, 20);
+  score += ptsTags;
+  fatores.tags = { pontos: ptsTags, total: tags?.length ?? 0 };
+
+  const { data: tarefas } = await supabase
+    .from("tarefas")
+    .select("id, concluida_em")
+    .eq("lead_id", leadId);
+  const tarefasConcluidas = (tarefas ?? []).filter((t: any) => t.concluida_em).length;
+  const ptsTarefas = Math.min(tarefasConcluidas * 3, 15);
+  score += ptsTarefas;
+  fatores.tarefas_concluidas = { pontos: ptsTarefas, total: tarefasConcluidas };
+
+  score = Math.min(100, score);
+
+  let classificacao: "frio" | "morno" | "quente" | "qualificado" = "frio";
+  if (score >= 76) classificacao = "qualificado";
+  else if (score >= 51) classificacao = "quente";
+  else if (score >= 26) classificacao = "morno";
+
+  const { data: existente } = await supabase
+    .from("lead_score")
+    .select("id")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+
+  if (existente) {
+    await supabase.from("lead_score")
+      .update({ score, classificacao, fatores, calculado_em: new Date().toISOString() })
+      .eq("lead_id", leadId);
+  } else {
+    await supabase.from("lead_score")
+      .insert({ org_id: lead.org_id, lead_id: lead.id, score, classificacao, fatores });
+  }
+
+  return { id: existente?.id || "", org_id: lead.org_id, lead_id: lead.id, score, classificacao, fatores, calculado_em: new Date().toISOString() };
+}
+
 /* ---------- Comissões ---------- */
 
 export async function lerComissoes(): Promise<ComissaoComUsuario[]> {
