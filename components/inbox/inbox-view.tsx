@@ -11,12 +11,13 @@ import { responderEmail } from "@/app/app/inbox/email-actions";
 import { ConexaoWhats } from "./conexao-whats";
 import { ConexaoTelegram } from "./conexao-telegram";
 import { ConexaoEmail, type EmailConexaoTela } from "./conexao-email";
-import { lerSlaConfig } from "@/lib/data/crm";
 
 export type ConexaoTela = {
+  id: string;
   base_url: string; sessao: string; status: string; numero: string | null;
   ia_ativa: boolean; ia_instrucoes: string; tem_chave: boolean; webhook: string;
   distribuicao?: string | null;
+  apelido?: string | null;
 };
 export type ConexaoTelegramTela = {
   status: string; username: string | null; ia_ativa: boolean; ia_instrucoes: string;
@@ -46,7 +47,7 @@ const hora = (iso: string) => {
 const titulo = (c: ConversaTela) => c.leads?.nome || c.nome || (c.telefone ? `+${c.telefone}` : "Contato");
 const AUTOR: Record<Msg["autor"], string> = { contato: "", humano: "Você", ia: "IA", celular: "Celular" };
 
-export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conversasIniciais, membros }: { userId: string; conexao: ConexaoTela | null; conexaoTelegram: ConexaoTelegramTela | null; emailConexao: EmailConexaoTela | null; conversasIniciais: ConversaTela[]; membros: { user_id: string; nome: string; email: string | null; avatar_url: string | null; papel: string; ativo: boolean }[] }) {
+export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, conversasIniciais, membros, slaConfig }: { userId: string; conexoes: ConexaoTela[]; conexaoTelegram: ConexaoTelegramTela | null; emailConexao: EmailConexaoTela | null; conversasIniciais: ConversaTela[]; membros: { user_id: string; nome: string; email: string | null; avatar_url: string | null; papel: string; ativo: boolean }[]; slaConfig: { tempo_resposta_min: number; ativo: boolean } | null }) {
   const sb = useMemo(() => createBrowserClient(), []);
   const [conversas, setConversas] = useState(conversasIniciais);
   const [selId, setSelId] = useState<string | null>(null);
@@ -56,14 +57,23 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
   const [busca, setBusca] = useState("");
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [config, setConfig] = useState(!conexao);
+  const [config, setConfig] = useState(!conexoes.length);
   const [configTelegram, setConfigTelegram] = useState(false);
   const [configEmail, setConfigEmail] = useState(false);
   const [nova, setNova] = useState(false);
   const [pendente, iniciar] = useTransition();
   const [templates, setTemplates] = useState<{ id: string; titulo: string; corpo: string }[]>([]);
-  const [slaConfig, setSlaConfig] = useState<{ tempo_resposta_min: number; ativo: boolean } | null>(null);
+  const [slaConfigLocal, setSlaConfigLocal] = useState<{ tempo_resposta_min: number; ativo: boolean } | null>(null);
+  const [conexaoAtiva, setConexaoAtiva] = useState<ConexaoTela | null>(conexoes.length ? conexoes[0] : null);
   const fim = useRef<HTMLDivElement>(null);
+
+  // "Agora" pro cálculo de SLA — nunca Date.now() direto no corpo do componente
+  // (não é puro). Atualiza a cada minuto, o suficiente pro alerta de SLA.
+  const [agora, setAgora] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   const sel = conversas.find((c) => c.id === selId) ?? null;
   const abrir = (id: string) => { if (id === selId) return; setMsgs([]); setCarregando(true); setSelId(id); };
@@ -93,15 +103,6 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
     return () => { vivo = false; };
   }, [sb]);
 
-  // Configuração SLA de resposta
-  useEffect(() => {
-    let vivo = true;
-    lerSlaConfig().then((sla) => {
-      if (vivo) setSlaConfig(sla ? { tempo_resposta_min: sla.tempo_resposta_min, ativo: sla.ativo } : null);
-    });
-    return () => { vivo = false; };
-  }, []);
-
   const inserirRapida = (corpo: string) => {
     setTexto((t) => (t ? `${t}\n${corpo}` : corpo));
   };
@@ -126,22 +127,22 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
 
   useEffect(() => { fim.current?.scrollIntoView({ block: "end" }); }, [msgs.length, selId]);
 
-  const visiveis = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    const slaMin = slaConfig?.ativo ? slaConfig.tempo_resposta_min : null;
-    const limiteSla = slaMin ? new Date(Date.now() - slaMin * 60000) : null;
-    return conversas.filter((c) => {
-      let passa = true;
-      if (filtro === "ativas") passa = c.status !== "resolvida";
-      else if (filtro === "minhas") passa = c.atribuido_a === userId;
-      else passa = c.status === filtro;
-      if (!passa) return false;
-      return !t || `${titulo(c)} ${c.telefone ?? ""} ${c.ultima_mensagem ?? ""}`.toLowerCase().includes(t);
-    }).map((c) => ({
-      ...c,
-      acimaSla: !!limiteSla && c.status !== "resolvida" && new Date(c.ultima_em) < limiteSla,
-    }));
-  }, [conversas, filtro, busca, userId, slaConfig]);
+  // Sem useMemo de propósito: depende de Date.now(), que não é uma dependência
+  // estável — memoizar isso deixaria "acima do SLA" congelado entre re-renders.
+  const t = busca.trim().toLowerCase();
+  const slaMin = slaConfig?.ativo ? slaConfig.tempo_resposta_min : null;
+  const limiteSla = slaMin ? new Date(agora - slaMin * 60000) : null;
+  const visiveis = conversas.filter((c) => {
+    let passa = true;
+    if (filtro === "ativas") passa = c.status !== "resolvida";
+    else if (filtro === "minhas") passa = c.atribuido_a === userId;
+    else passa = c.status === filtro;
+    if (!passa) return false;
+    return !t || `${titulo(c)} ${c.telefone ?? ""} ${c.ultima_mensagem ?? ""}`.toLowerCase().includes(t);
+  }).map((c) => ({
+    ...c,
+    acimaSla: !!limiteSla && c.status !== "resolvida" && new Date(c.ultima_em) < limiteSla,
+  }));
   const contagem = (id: string) => conversas.filter((c) => {
     if (id === "ativas") return c.status !== "resolvida";
     if (id === "minhas") return c.atribuido_a === userId;
@@ -175,9 +176,9 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
 
   return (
     <>
-      {conexao && !conectado && (
+      {conexaoAtiva && !conectado && (
         <button onClick={() => setConfig(true)} className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-left text-[13px] text-amber-300">
-          <Smartphone size={15} /> WhatsApp não conectado ({conexao.status}). Clique para conectar.
+          <Smartphone size={15} /> WhatsApp não conectado ({conexaoAtiva?.status}). Clique para conectar.
         </button>
       )}
       <div className="painel grid h-[calc(100svh-230px)] min-h-[480px] overflow-hidden md:grid-cols-[320px_1fr]">
@@ -223,7 +224,7 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-[12.5px] text-gray-500">{c.ultima_mensagem ?? "—"}</span>
                       <span className="flex shrink-0 items-center gap-1">
-                        {c.ia_ativa && conexao?.ia_ativa && <Bot size={12} className="text-gray-500" aria-label="IA ativa" />}
+                        {c.ia_ativa && conexaoAtiva?.ia_ativa && <Bot size={12} className="text-gray-500" aria-label="IA ativa" />}
                         {c.status === "pendente" && <span className="h-2 w-2 rounded-full bg-amber-400" aria-label="Precisa de você" />}
                         {c.atribuido_a && (
                           <span className="flex items-center gap-1 text-[11px] text-gray-400">
@@ -256,7 +257,7 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
                     {sel.leads && <> · <Link href={`/app/leads?q=${encodeURIComponent(sel.leads.cod)}`} className="underline underline-offset-2 hover:text-white">{sel.leads.cod} · {sel.leads.empresa}</Link></>}
                   </p>
                 </div>
-                {conexao?.ia_ativa && (
+                {conexaoAtiva?.ia_ativa && (
                   <button onClick={() => mudar({ ia_ativa: !sel.ia_ativa })} className={cn("btn btn-sm", sel.ia_ativa ? "btn-secundario" : "btn-fantasma")} title={sel.ia_ativa ? "A IA está respondendo. Clique para assumir." : "Você está atendendo. Clique para devolver à IA."}>
                     {sel.ia_ativa ? <><Bot size={14} /> IA atendendo</> : <><UserRound size={14} /> Você atendendo</>}
                   </button>
@@ -332,7 +333,7 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
         </section>
       </div>
 
-      <ConexaoWhats aberto={config} aoFechar={() => setConfig(false)} conexao={conexao} />
+      <ConexaoWhats abertas={conexoes} aberta={config} aoFechar={() => setConfig(false)} conexaoAtiva={conexaoAtiva} setConexaoAtiva={setConexaoAtiva} />
       <ConexaoTelegram aberto={configTelegram} aoFechar={() => setConfigTelegram(false)} conexao={conexaoTelegram} />
       <ConexaoEmail aberto={configEmail} aoFechar={() => setConfigEmail(false)} conexao={emailConexao} />
       {nova && <NovaConversa aoFechar={() => setNova(false)} aoCriar={(id) => { setNova(false); abrir(id); }} />}

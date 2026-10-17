@@ -65,22 +65,16 @@ export async function salvarLead(id: string | null, fd: FormData): Promise<Actio
       for (const l of (em ?? [])) duplicados.push({ campo: "email", valor: l.email!, lead_id: l.id, lead_nome: l.nome });
     }
 
-    const { error } = id
-      ? await supabase.from("leads").update(dados).eq("id", id)
+    const { data: resultado, error } = id
+      ? await supabase.from("leads").update(dados).eq("id", id).select("id").single()
       : await supabase.from("leads").insert(dados).select("id").single();
     if (error) return falha(error);
 
-    // Registrar duplicados encontrados na tabela de duplicados
-    const novoId = typeof (error as any) === "undefined" && !id ? (error as any) : null;
-    const leadInseridoId = id ?? (error as any)?.new?.id ?? null;
-
-    // Se houver duplicados, registrar na tabela lead_duplicados
-    if (duplicados.length > 0 && leadInseridoId) {
-      const { data: perfil } = await supabase.from("profiles").select("org_atual").eq("id", (await supabase.auth.getUser()).data.user!.id).single();
+    // Registrar duplicados encontrados (org_id tem DEFAULT public.org_atual())
+    if (duplicados.length > 0 && resultado?.id) {
       for (const d of duplicados) {
         await supabase.from("lead_duplicados").insert({
-          org_id: perfil?.org_atual,
-          lead_id: leadInseridoId,
+          lead_id: resultado.id,
           duplicado_de: d.lead_id,
           campo: d.campo,
           valor: d.valor,

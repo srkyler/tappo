@@ -42,17 +42,18 @@ export async function salvarConexao(f: FormData): Promise<ActionResult> {
     const sessao = String(f.get("sessao") ?? "default").trim() || "default";
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessao)) return { ok: false, erro: "Nome da sessão: só letras, números, _ e -." };
     const chave = String(f.get("api_key") ?? "").trim();
-    const { error } = await supabase.from("wa_conexoes").upsert({
+    const apelido = String(f.get("apelido") ?? "").trim() || "Conexão WhatsApp";
+    const { error } = await supabase.from("wa_conexoes").insert({
       org_id: empresa.id,
       user_id: user.id,
+      apelido,
       distribuicao: f.get("distribuicao") === "rodizio" ? "rodizio" : "manual",
       base_url,
       sessao,
       ia_ativa: f.get("ia_ativa") === "on",
       ia_instrucoes: String(f.get("ia_instrucoes") ?? "").slice(0, 6000),
       ...(chave ? { api_key_cifrada: cifrar(chave) } : {}),
-      ...(f.get("remover_chave") === "on" ? { api_key_cifrada: null } : {}),
-    }, { onConflict: "org_id" });
+    });
     if (error) throw error;
     revalidatePath("/app/inbox");
     return { ok: true };
@@ -61,9 +62,10 @@ export async function salvarConexao(f: FormData): Promise<ActionResult> {
 
 export type EstadoWhats = { ok: true; status: string; numero: string | null; qr: string | null } | { ok: false; erro: string };
 
-export async function estadoWhatsApp(): Promise<EstadoWhats> {
+export async function estadoWhatsApp(conexaoId?: string): Promise<EstadoWhats> {
   try {
-    const c = await minhaConexao();
+    const c = conexaoId ? await conexaoPorId(conexaoId) : await minhaConexao();
+    if (!c) return { ok: false, erro: "Conexão não encontrada." };
     const s = await lerSessao(c);
     const numero = s.me?.id?.split("@")[0] ?? null;
     const qr = s.status === "SCAN_QR_CODE" ? await lerQr(c).catch(() => null) : null;
@@ -78,19 +80,38 @@ export async function estadoWhatsApp(): Promise<EstadoWhats> {
   }
 }
 
-export async function conectarWhatsApp(): Promise<ActionResult> {
+async function conexaoPorId(id: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("wa_conexoes").select("*").eq("id", id).maybeSingle();
+  return data as any;
+}
+
+export async function conectarWhatsApp(conexaoId?: string): Promise<ActionResult> {
   try {
-    await iniciarSessao(await minhaConexao());
+    const c = conexaoId ? await conexaoPorId(conexaoId) : await minhaConexao();
+    if (!c) return { ok: false, erro: "Conexão não encontrada." };
+    await iniciarSessao(c);
     return { ok: true };
   } catch (e) { return falha(e); }
 }
 
-export async function desconectarWhatsApp(): Promise<ActionResult> {
+export async function desconectarWhatsApp(conexaoId?: string): Promise<ActionResult> {
   try {
-    const c = await minhaConexao();
+    const c = conexaoId ? await conexaoPorId(conexaoId) : await minhaConexao();
+    if (!c) return { ok: false, erro: "Conexão não encontrada." };
     await desconectar(c);
     const { supabase } = await cliente();
     await supabase.from("wa_conexoes").update({ status: "STOPPED", numero: null }).eq("id", c.id);
+    revalidatePath("/app/inbox");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function excluirConexao(id: string): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from("wa_conexoes").delete().eq("id", id);
+    if (error) throw error;
     revalidatePath("/app/inbox");
     return { ok: true };
   } catch (e) { return falha(e); }
