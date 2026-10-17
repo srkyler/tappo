@@ -3,7 +3,7 @@ import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
 import { lerPropostas } from "@/lib/data/tags";
-import { salvarProposta, excluirProposta, enviarProposta } from "@/app/app/propostas/actions";
+import { salvarProposta, excluirProposta, enviarProposta, gerarPdfProposta } from "@/app/app/propostas/actions-pdf";
 import { formatBRL } from "@/lib/data/format";
 
 export const metadata = { title: "Propostas — Tappo" };
@@ -37,6 +37,14 @@ async function Conteudo() {
                         <input type="hidden" name="id" value={p.id} />
                         <button disabled={p.status !== "rascunho"} className={`text-[10px] px-2 py-1 rounded ${p.status === "rascunho" ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-600"}`} title="Enviar">Enviar</button>
                       </form>
+                      {p.pdf_url ? (
+                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="text-[10px] text-emerald-400 hover:bg-emerald-500/10 px-2 py-1 rounded" title="Abrir PDF">PDF</a>
+                      ) : (
+                        <form action={async (f) => { await gerarPdfProposta(f.get("id") as string); }} className="flex" style={{ display: "contents" }}>
+                          <input type="hidden" name="id" value={p.id} />
+                          <button disabled={p.status !== "rascunho"} className="text-[10px] px-2 py-1 rounded text-blue-400 hover:bg-blue-500/10" title="Gerar PDF">Gerar PDF</button>
+                        </form>
+                      )}
                       <form action={async (f) => { await excluirProposta(f.get("id") as string); }} className="flex" style={{ display: "contents" }}>
                         <input type="hidden" name="id" value={p.id} />
                         <button className="text-[10px] text-red-400 hover:bg-red-500/10 px-2 py-1 rounded" title="Excluir">Excluir</button>

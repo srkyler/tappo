@@ -1953,3 +1953,29 @@ DROP TRIGGER IF EXISTS trg_historico_lead ON public.leads;
 CREATE TRIGGER trg_historico_lead
   AFTER INSERT OR UPDATE ON public.leads
   FOR EACH ROW EXECUTE FUNCTION public.registrar_historico_lead();
+
+-- -------------------------------------------------------------
+-- Storage bucket para propostas PDF
+-- -------------------------------------------------------------
+DO $$
+BEGIN
+  INSERT INTO storage.buckets (id, name, public)
+  VALUES ('propostas', 'propostas', true)
+  ON CONFLICT (id) DO NOTHING;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+-- Política para upload (authenticated)
+DO $$
+BEGIN
+  CREATE POLICY propostas_upload ON storage.objects
+    FOR INSERT TO authenticated
+    WITH CHECK (bucket_id = 'propostas' AND auth.uid() IS NOT NULL);
+EXCEPTION WHEN others THEN NULL; END $$;
+
+-- Política para leitura pública
+DO $$
+BEGIN
+  CREATE POLICY propostas_public_read ON storage.objects
+    FOR SELECT TO public
+    USING (bucket_id = 'propostas');
+EXCEPTION WHEN others THEN NULL; END $$;
