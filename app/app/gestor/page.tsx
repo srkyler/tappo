@@ -207,10 +207,17 @@ async function Conteudo() {
         )}
       </div>
     </section>
+
+    <section className="painel">
+      <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3">
+        <h2 className="text-[13px] font-medium text-white">Atendimento por Atendente</h2>
+      </div>
+      <div className="px-5 py-3 space-y-2">
+        <p className="text-[12px] text-gray-500">Métricas de atendimento por membro da equipe (conversas atribuídas, tempo de resposta).</p>
+      </div>
+    </section>
   );
 }
-
-export default function GestorPage() {
   return (
     <Pagina>
       <Cabecalho rotulo="Gestão" titulo="Painel do gestor" descricao="Previsão de receita, funil, ranking da equipe e tempo de resposta. Somente donos e gestores." />
