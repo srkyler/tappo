@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { Cabecalho, Pagina } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
-import { InboxView, type ConexaoTela, type ConversaTela } from "@/components/inbox/inbox-view";
+import { InboxView, type ConexaoTela, type ConexaoTelegramTela, type ConversaTela } from "@/components/inbox/inbox-view";
+import type { EmailConexaoTela } from "@/components/inbox/conexao-email";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
 import { urlWebhook } from "@/lib/whatsapp/waha";
 import { membrosDaEmpresa } from "@/lib/data/empresa";
@@ -11,10 +12,12 @@ export const metadata = { title: "Inbox — Tappo" };
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
   const { supabase, user } = await usuarioAtual();
-  const [conexao, conversas, membros] = await Promise.all([
+  const [conexao, conexaoTelegram, emailConexao, conversas, membros] = await Promise.all([
     supabase.from("wa_conexoes").select("base_url, sessao, token, status, numero, ia_ativa, ia_instrucoes, distribuicao, api_key_cifrada").maybeSingle(),
+    supabase.from("telegram_conexoes").select("status, bot_username, ia_ativa, ia_instrucoes, distribuicao, bot_token_cifrada").maybeSingle(),
+    supabase.from("email_conexoes").select("endereco_recebe, endereco_envia, ia_ativa, ia_instrucoes, webhook_secret").maybeSingle(),
     supabase.from("wa_conversas")
-      .select("id, chat_id, nome, telefone, lead_id, status, ia_ativa, nao_lidas, ultima_mensagem, ultima_em, atribuido_a, leads(nome, empresa, cod)")
+      .select("id, chat_id, nome, telefone, lead_id, status, ia_ativa, nao_lidas, ultima_mensagem, ultima_em, atribuido_a, canal, leads(nome, empresa, cod)")
       .order("ultima_em", { ascending: false }).limit(300),
     membrosDaEmpresa(),
   ]);
@@ -27,7 +30,19 @@ async function Conteudo() {
     distribuicao: c.distribuicao,
   } : null;
 
-  return <InboxView userId={user!.id} conexao={tela} conversasIniciais={(conversas.data ?? []) as unknown as ConversaTela[]} membros={membros} />;
+  const t = conexaoTelegram.data;
+  const telaTelegram: ConexaoTelegramTela | null = t ? {
+    status: t.status, username: t.bot_username, ia_ativa: t.ia_ativa, ia_instrucoes: t.ia_instrucoes, tem_token: !!t.bot_token_cifrada, distribuicao: t.distribuicao,
+  } : null;
+
+  const ec = emailConexao.data;
+  const telaEmail: EmailConexaoTela | null = ec ? {
+    endereco_recebe: ec.endereco_recebe, endereco_envia: ec.endereco_envia,
+    ia_ativa: ec.ia_ativa, ia_instrucoes: ec.ia_instrucoes,
+    webhook: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/v1/email/inbound/${ec.webhook_secret}`,
+  } : null;
+
+  return <InboxView userId={user!.id} conexao={tela} conexaoTelegram={telaTelegram} emailConexao={telaEmail} conversasIniciais={(conversas.data ?? []) as unknown as ConversaTela[]} membros={membros} />;
 }
 
 export default function InboxPage() {

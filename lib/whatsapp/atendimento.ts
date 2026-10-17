@@ -10,6 +10,7 @@ export type Conversa = {
   id: string;
   org_id: string;
   chat_id: string;
+  canal?: string;
   nome: string | null;
   telefone: string | null;
   lead_id: string | null;
@@ -30,15 +31,18 @@ async function acharLead(db: SupabaseClient, orgId: string, fone: string | null)
   return data?.find((l) => so(l.telefone).endsWith(fim))?.id ?? null;
 }
 
+/** Forma mínima que qualquer canal (WAHA, Telegram…) precisa ter pra usar distribuir()/conversaDo(). */
+export type ConexaoInbox = Pick<Conexao, "org_id" | "user_id" | "distribuicao" | "ia_ativa">;
+
 /** Rodízio: atendente com menos conversas abertas. */
-export async function distribuir(db: SupabaseClient, c: Conexao): Promise<string | null> {
+export async function distribuir(db: SupabaseClient, c: ConexaoInbox): Promise<string | null> {
   if (c.distribuicao !== "rodizio") return null;
   const { data } = await db.rpc("proximo_atendente", { org: c.org_id });
   return (data as string | null) ?? null;
 }
 
-/** Busca ou cria a conversa do contato (service role). */
-export async function conversaDo(db: SupabaseClient, c: Conexao, chatId: string, nome: string | null): Promise<Conversa> {
+/** Busca ou cria a conversa do contato (service role). canal: 'whatsapp' (default) | 'telegram' | … */
+export async function conversaDo(db: SupabaseClient, c: ConexaoInbox, chatId: string, nome: string | null, canal: string = "whatsapp"): Promise<Conversa> {
   const { data: atual } = await db.from("wa_conversas").select("*").eq("org_id", c.org_id).eq("chat_id", chatId).maybeSingle();
   if (atual) {
     if (nome && !atual.nome) await db.from("wa_conversas").update({ nome }).eq("id", atual.id);
@@ -48,7 +52,7 @@ export async function conversaDo(db: SupabaseClient, c: Conexao, chatId: string,
   // Com IA ligada, a conversa só vai para alguém quando a IA passar o bastão
   const atribuido_a = c.ia_ativa ? null : await distribuir(db, c);
   const { data, error } = await db.from("wa_conversas")
-    .upsert({ org_id: c.org_id, user_id: c.user_id, chat_id: chatId, nome, telefone, atribuido_a, lead_id: await acharLead(db, c.org_id, telefone) }, { onConflict: "org_id,chat_id" })
+    .upsert({ org_id: c.org_id, user_id: c.user_id, chat_id: chatId, canal, nome, telefone, atribuido_a, lead_id: await acharLead(db, c.org_id, telefone) }, { onConflict: "org_id,chat_id" })
     .select("*").single();
   if (error) throw error;
   return data as Conversa;

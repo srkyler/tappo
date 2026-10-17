@@ -2,21 +2,30 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
 import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
+import { enviarMensagemTelegram } from "@/app/app/inbox/telegram-actions";
+import { responderEmail } from "@/app/app/inbox/email-actions";
 import { ConexaoWhats } from "./conexao-whats";
+import { ConexaoTelegram } from "./conexao-telegram";
+import { ConexaoEmail, type EmailConexaoTela } from "./conexao-email";
 
 export type ConexaoTela = {
   base_url: string; sessao: string; status: string; numero: string | null;
   ia_ativa: boolean; ia_instrucoes: string; tem_chave: boolean; webhook: string;
   distribuicao?: string | null;
 };
+export type ConexaoTelegramTela = {
+  status: string; username: string | null; ia_ativa: boolean; ia_instrucoes: string;
+  tem_token: boolean; distribuicao?: string | null;
+};
+export type CanalInbox = "whatsapp" | "telegram" | "instagram" | "email";
 export type ConversaTela = {
   id: string; chat_id: string; nome: string | null; telefone: string | null; lead_id: string | null;
   status: "aberta" | "pendente" | "resolvida"; ia_ativa: boolean; nao_lidas: number;
-  ultima_mensagem: string | null; ultima_em: string; atribuido_a: string | null;
+  ultima_mensagem: string | null; ultima_em: string; atribuido_a: string | null; canal?: CanalInbox;
   leads?: { nome: string; empresa: string; cod: string } | null;
 };
 type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string };
@@ -36,7 +45,7 @@ const hora = (iso: string) => {
 const titulo = (c: ConversaTela) => c.leads?.nome || c.nome || (c.telefone ? `+${c.telefone}` : "Contato");
 const AUTOR: Record<Msg["autor"], string> = { contato: "", humano: "Você", ia: "IA", celular: "Celular" };
 
-export function InboxView({ userId, conexao, conversasIniciais, membros }: { userId: string; conexao: ConexaoTela | null; conversasIniciais: ConversaTela[]; membros: { user_id: string; nome: string; email: string | null; avatar_url: string | null; papel: string; ativo: boolean }[] }) {
+export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conversasIniciais, membros }: { userId: string; conexao: ConexaoTela | null; conexaoTelegram: ConexaoTelegramTela | null; emailConexao: EmailConexaoTela | null; conversasIniciais: ConversaTela[]; membros: { user_id: string; nome: string; email: string | null; avatar_url: string | null; papel: string; ativo: boolean }[] }) {
   const sb = useMemo(() => createBrowserClient(), []);
   const [conversas, setConversas] = useState(conversasIniciais);
   const [selId, setSelId] = useState<string | null>(null);
@@ -47,6 +56,8 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [config, setConfig] = useState(!conexao);
+  const [configTelegram, setConfigTelegram] = useState(false);
+  const [configEmail, setConfigEmail] = useState(false);
   const [nova, setNova] = useState(false);
   const [pendente, iniciar] = useTransition();
   const [templates, setTemplates] = useState<{ id: string; titulo: string; corpo: string }[]>([]);
@@ -133,12 +144,17 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
     const t = texto;
     setTexto(""); setErro(null);
     iniciar(async () => {
-      const r = await enviarMensagem(sel.id, t);
+      // Cada canal tem sua própria action de envio — a conversa já sabe de onde veio.
+      const r = sel.canal === "telegram" ? await enviarMensagemTelegram(sel.id, t)
+        : sel.canal === "email" ? await responderEmail(sel.id, t)
+        : await enviarMensagem(sel.id, t);
       if (!r.ok) { setErro(r.erro); setTexto(t); }
     });
   }
 
-  const conectado = conexao?.status === "WORKING";
+  const conectado = sel?.canal === "telegram" ? conexaoTelegram?.status === "WORKING"
+    : sel?.canal === "email" ? !!emailConexao?.endereco_envia
+    : conexao?.status === "WORKING";
 
   return (
     <>
@@ -157,7 +173,9 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
                 <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar conversa" className="campo pl-8" aria-label="Buscar conversa" />
               </label>
               <button onClick={() => setNova(true)} aria-label="Nova conversa" className="btn btn-secundario btn-sm h-10 px-2.5"><MessageCirclePlus size={16} /></button>
-              <button onClick={() => setConfig(true)} aria-label="Configurar WhatsApp" className="btn btn-secundario btn-sm h-10 px-2.5"><Settings size={16} /></button>
+              <button onClick={() => setConfig(true)} aria-label="Configurar WhatsApp" title="WhatsApp" className="btn btn-secundario btn-sm h-10 px-2.5"><Settings size={16} /></button>
+              <button onClick={() => setConfigTelegram(true)} aria-label="Configurar Telegram" title="Telegram" className={cn("btn btn-secundario btn-sm h-10 px-2.5", conexaoTelegram?.status === "WORKING" && "border-sky-500/40 text-sky-400")}><Send size={15} /></button>
+              <button onClick={() => setConfigEmail(true)} aria-label="Configurar e-mail" title="E-mail" className={cn("btn btn-secundario btn-sm h-10 px-2.5", emailConexao?.endereco_recebe && "border-amber-500/40 text-amber-400")}><Mail size={15} /></button>
             </div>
             <div className="flex gap-1 overflow-x-auto">
               {FILTROS.map((f) => (
@@ -172,7 +190,11 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
             {visiveis.map((c) => (
               <li key={c.id}>
                 <button onClick={() => abrir(c.id)} className={cn("flex w-full gap-3 border-b border-gray-900 px-3 py-3 text-left transition-colors hover:bg-gray-900/60", c.id === selId && "bg-gray-900")}>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-800 text-[13px] font-semibold text-white">{titulo(c)[0]?.toUpperCase()}</span>
+                  <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-800 text-[13px] font-semibold text-white">
+                    {titulo(c)[0]?.toUpperCase()}
+                    {c.canal === "telegram" && <Send size={9} className="absolute -bottom-0.5 -right-0.5 rounded-full bg-sky-500 p-0.5 text-white" aria-label="Telegram" />}
+                    {c.canal === "email" && <Mail size={9} className="absolute -bottom-0.5 -right-0.5 rounded-full bg-amber-500 p-0.5 text-white" aria-label="E-mail" />}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-[14px] font-medium text-white">{titulo(c)}</span>
@@ -276,7 +298,7 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
                     onChange={(e) => setTexto(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }}
                     rows={1}
-                    placeholder={conectado ? (sel.ia_ativa && conexao?.ia_ativa ? "Escreva para responder (a IA continua ativa)…" : "Escreva uma mensagem…") : "Conecte o WhatsApp para enviar"}
+                    placeholder={conectado ? (sel.ia_ativa && conexao?.ia_ativa ? "Escreva para responder (a IA continua ativa)…" : "Escreva uma mensagem…") : `Conecte o ${sel.canal === "telegram" ? "Telegram" : "WhatsApp"} para enviar`}
                     disabled={!conectado}
                     className="campo min-h-[42px] flex-1 resize-none"
                     aria-label="Mensagem"
@@ -290,6 +312,8 @@ export function InboxView({ userId, conexao, conversasIniciais, membros }: { use
       </div>
 
       <ConexaoWhats aberto={config} aoFechar={() => setConfig(false)} conexao={conexao} />
+      <ConexaoTelegram aberto={configTelegram} aoFechar={() => setConfigTelegram(false)} conexao={conexaoTelegram} />
+      <ConexaoEmail aberto={configEmail} aoFechar={() => setConfigEmail(false)} conexao={emailConexao} />
       {nova && <NovaConversa aoFechar={() => setNova(false)} aoCriar={(id) => { setNova(false); abrir(id); }} />}
     </>
   );
