@@ -17,7 +17,15 @@ const SUGESTOES = [
   { t: "Escreva um e-mail de primeiro contato para um diretor de compras", d: "Mensagem curta e consultiva" },
 ];
 
-export function Chat({ agente }: { agente: { nome: string; descricao: string | null } | null }) {
+export function Chat({ agente, endpoint = "/api/agente", chaveStorage = CHAVE, rotaBase = "/app/agente", sugestoes = SUGESTOES, nomeExibicao, descricaoExibicao }: {
+  agente: { nome: string; descricao: string | null } | null;
+  endpoint?: string;
+  chaveStorage?: string;
+  rotaBase?: string;
+  sugestoes?: typeof SUGESTOES;
+  nomeExibicao?: string;
+  descricaoExibicao?: string;
+}) {
   const params = useSearchParams();
   const router = useRouter();
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -32,15 +40,15 @@ export function Chat({ agente }: { agente: { nome: string; descricao: string | n
   // Restaura a conversa deste navegador
   useEffect(() => {
     try {
-      const salvo = localStorage.getItem(CHAVE);
+      const salvo = localStorage.getItem(chaveStorage);
       if (salvo) setMsgs(JSON.parse(salvo));
     } catch { /* storage indisponível */ }
-  }, []);
+  }, [chaveStorage]);
 
   useEffect(() => {
-    try { localStorage.setItem(CHAVE, JSON.stringify(msgs.slice(-40))); } catch { /* ignore */ }
+    try { localStorage.setItem(chaveStorage, JSON.stringify(msgs.slice(-40))); } catch { /* ignore */ }
     fim.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [msgs]);
+  }, [msgs, chaveStorage]);
 
   const enviar = useCallback(async (conteudo: string) => {
     const q = conteudo.trim();
@@ -57,7 +65,7 @@ export function Chat({ agente }: { agente: { nome: string; descricao: string | n
       setMsgs((ms) => [...ms.slice(0, -1), fn(ms[ms.length - 1])]);
 
     try {
-      const res = await fetch("/api/agente", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensagens: historico.map(({ role, content }) => ({ role, content })) }),
@@ -93,17 +101,17 @@ export function Chat({ agente }: { agente: { nome: string; descricao: string | n
       abortar.current = null;
       campo.current?.focus();
     }
-  }, [msgs, rodando, router]);
+  }, [msgs, rodando, router, endpoint]);
 
   // ?q= vindo do dashboard
   useEffect(() => {
     const q = params.get("q");
     if (q && !iniciou.current) {
       iniciou.current = true;
-      router.replace("/app/agente");
+      router.replace(rotaBase);
       enviar(q);
     }
-  }, [params, enviar, router]);
+  }, [params, enviar, router, rotaBase]);
 
   if (!agente) {
     return (
@@ -122,12 +130,12 @@ export function Chat({ agente }: { agente: { nome: string; descricao: string | n
           {msgs.length === 0 ? (
             <div className="pt-6 sm:pt-14">
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-black"><Sparkles size={20} /></span>
-              <h1 className="mt-5 text-[26px] font-semibold tracking-[-0.02em] text-white sm:text-[30px]">{agente.nome}</h1>
+              <h1 className="mt-5 text-[26px] font-semibold tracking-[-0.02em] text-white sm:text-[30px]">{nomeExibicao ?? agente.nome}</h1>
               <p className="mt-2 max-w-[52ch] text-[14px] leading-relaxed text-gray-400">
-                {agente.descricao ?? "Pergunte sobre seus leads, campanhas e pipeline."} Ele lê e atualiza a sua base de verdade — nada é inventado.
+                {descricaoExibicao ?? agente.descricao ?? "Pergunte sobre seus leads, campanhas e pipeline."} Ele lê e atualiza a sua base de verdade — nada é inventado.
               </p>
               <div className="mt-8 grid gap-2 sm:grid-cols-2">
-                {SUGESTOES.map((s) => (
+                {sugestoes.map((s) => (
                   <button key={s.t} onClick={() => enviar(s.t)} className="painel group p-4 text-left transition-colors hover:border-gray-600">
                     <p className="text-[13.5px] font-medium text-white">{s.t}</p>
                     <p className="mt-1 text-[12px] text-gray-500">{s.d}</p>

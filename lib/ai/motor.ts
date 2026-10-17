@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Agente } from "./agentes";
 import { decifrar } from "./cofre";
 import { definirFerramentas, executarFerramenta, ROTULO_FERRAMENTA, type FerramentaNeutra } from "./ferramentas";
+import { definirFerramentasJarvis, executarFerramentaJarvis, ROTULO_FERRAMENTA_JARVIS } from "./ferramentas-jarvis";
 import { hojeISO } from "@/lib/data/format";
 
 /*
@@ -33,8 +34,8 @@ type Contexto = {
   nomeUsuario?: string | null;
   emitir: (e: Evento) => void;
   sinal?: AbortSignal;
-  /** "atendimento" = responde clientes no WhatsApp (sem ferramentas do CRM) */
-  modo?: "crm" | "atendimento";
+  /** "atendimento" = responde clientes no WhatsApp; "jarvis" = configura o Tappo (sem ferramentas de dados do CRM) */
+  modo?: "crm" | "atendimento" | "jarvis";
   instrucoesExtras?: string;
 };
 
@@ -58,8 +59,19 @@ function promptAtendimento(a: Agente, extras?: string) {
   ].filter(Boolean).join("\n");
 }
 
+function promptJarvis(a: Agente) {
+  return [
+    `Você é o Jarvis, o assistente de configuração do Tappo. Fala como "${a.nome}" mas seu trabalho aqui é só configurar o sistema — não é o agente que atende cliente.`,
+    "Responda em português do Brasil, breve e direto. Use as ferramentas pra fazer de verdade (não só explicar como fazer manualmente).",
+    "Antes de criar algo, se não tiver certeza do estado atual, rode diagnostico_configuracao primeiro.",
+    "Automações sempre nascem pausadas — depois de criar uma, avise a pessoa que ela precisa revisar e ativar em /app/automacoes.",
+    "Seu escopo é: diagnóstico de configuração, automações, SLA, promoções de marketing e convite de equipe. Pra qualquer outra coisa (conectar WhatsApp, cadastrar agente de IA, mudar plano, etc.), diga exatamente em qual tela a pessoa encontra isso — não invente que você fez algo que não tem ferramenta pra fazer.",
+  ].join("\n");
+}
+
 function promptSistema(a: Agente, comFerramentas: boolean, ctx?: Pick<Contexto, "modo" | "instrucoesExtras">) {
   if (ctx?.modo === "atendimento") return promptAtendimento(a, ctx.instrucoesExtras);
+  if (ctx?.modo === "jarvis") return promptJarvis(a);
   return [
     `Você é "${a.nome}", agente de IA do Tappo (CRM de prospecção B2B).`,
     "Responda em português do Brasil, breve e objetivo. Markdown simples (listas, **negrito**).",
@@ -80,9 +92,13 @@ function chaveDo(a: Agente): string | null {
 }
 
 async function rodarFerramenta(ctx: Contexto, nome: string, entrada: unknown): Promise<{ conteudo: string; erro: boolean }> {
-  ctx.emitir({ t: "ferramenta", nome, rotulo: ROTULO_FERRAMENTA[nome] ?? nome });
+  const rotulos = ctx.modo === "jarvis" ? ROTULO_FERRAMENTA_JARVIS : ROTULO_FERRAMENTA;
+  ctx.emitir({ t: "ferramenta", nome, rotulo: rotulos[nome] ?? nome });
   try {
-    return { conteudo: await executarFerramenta(ctx.sb!, nome, entrada, ctx.agente.pode_editar_dados), erro: false };
+    const resultado = ctx.modo === "jarvis"
+      ? await executarFerramentaJarvis(ctx.sb!, nome, entrada)
+      : await executarFerramenta(ctx.sb!, nome, entrada, ctx.agente.pode_editar_dados);
+    return { conteudo: resultado, erro: false };
   } catch (e) {
     const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String(e.message) : "falha";
     return { conteudo: `Erro: ${msg}`, erro: true };
@@ -90,7 +106,7 @@ async function rodarFerramenta(ctx: Contexto, nome: string, entrada: unknown): P
 }
 
 export async function rodarAgente(ctx: Contexto): Promise<Uso> {
-  const ferramentas = ctx.sb ? definirFerramentas(ctx.agente.pode_editar_dados) : [];
+  const ferramentas = !ctx.sb ? [] : ctx.modo === "jarvis" ? definirFerramentasJarvis() : definirFerramentas(ctx.agente.pode_editar_dados);
   const historico = prepararHistorico(ctx.mensagens, ctx.agente.max_historico);
   if (!historico.length) throw new Error("Mensagem vazia.");
   return ctx.agente.provedor === "anthropic"
