@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3, Building2, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, type LucideIcon,
+  Settings, Sparkles, Users, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
@@ -25,6 +25,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
     titulo: "Vendas",
     itens: [
       { href: "/app/leads", label: "Leads", Icone: Users },
+      { href: "/app/prospeccao", label: "Prospecção", Icone: MapPin },
       { href: "/app/pipeline", label: "Pipeline", Icone: KanbanSquare },
       { href: "/app/campanhas", label: "Campanhas", Icone: Send },
       { href: "/app/analytics", label: "Analytics", Icone: BarChart3 },
