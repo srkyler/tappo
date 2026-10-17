@@ -41,6 +41,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
       { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
       { href: "/app/calendario", label: "Calendário", Icone: Calendar },
       { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
+      { href: "/app/executivo", label: "Dashboard Executivo", Icone: LayoutGrid },
       { href: "/app/contas", label: "Contas", Icone: Building2 },
       { href: "/app/pessoas", label: "Pessoas", Icone: Users },
       { href: "/app/duplicados", label: "Duplicados", Icone: Copy },
