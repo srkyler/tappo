@@ -1979,3 +1979,13 @@ BEGIN
     FOR SELECT TO public
     USING (bucket_id = 'propostas');
 EXCEPTION WHEN others THEN NULL; END $$;
+
+-- -------------------------------------------------------------
+-- Prioridade nas conversas e status do atendente
+-- -------------------------------------------------------------
+ALTER TABLE public.wa_conversas ADD COLUMN IF NOT EXISTS prioridade text NOT NULL DEFAULT 'media' CHECK (prioridade IN ('baixa','media','alta','urgente'));
+CREATE INDEX IF NOT EXISTS idx_wa_conversas_prioridade ON public.wa_conversas (prioridade);
+
+-- Status do atendente (disponível, ocupado, ausente, offline)
+ALTER TABLE public.org_membros ADD COLUMN IF NOT EXISTS status_atendimento text NOT NULL DEFAULT 'disponível' CHECK (status_atendimento IN ('disponível','ocupado','ausente','offline'));
+CREATE INDEX IF NOT EXISTS idx_org_membros_status ON public.org_membros (status_atendimento);

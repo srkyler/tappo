@@ -227,3 +227,29 @@ export async function excluirTarefaRecorrente(id: string): Promise<{ ok: boolean
     return { ok: true };
   } catch (e) { return erro(e); }
 }
+
+/* ---------- Status do Atendente ---------- */
+
+export async function salvarStatusAtendimento(userId: string, status: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    if (!["disponível","ocupado","ausente","offline"].includes(status)) return { ok: false, erro: "Status inválido." };
+    const { error } = await supabase.from("org_membros").update({ status_atendimento: status }).eq("user_id", userId);
+    if (error) return { ok: false, erro: error.message };
+    revalidatePath("/app/empresa");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
+
+/* ---------- Prioridade da Conversa ---------- */
+
+export async function salvarPrioridadeConversa(conversaId: string, prioridade: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    if (!["baixa","media","alta","urgente"].includes(prioridade)) return { ok: false, erro: "Prioridade inválida." };
+    const { error } = await supabase.from("wa_conversas").update({ prioridade }).eq("id", conversaId);
+    if (error) return { ok: false, erro: error.message };
+    revalidatePath("/app/inbox");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
