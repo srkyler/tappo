@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Cabecalho, Pagina, Barra, Kpi } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
-import { lerPainelGestor, bancoPronto } from "@/lib/data/queries";
+import { lerPainelGestor, bancoPronto, lerConversaoPorOrigem } from "@/lib/data/queries";
 import { formatBRL, formatNum } from "@/lib/data/format";
 import { salvarMetas } from "@/app/app/empresa/actions";
 
@@ -9,6 +9,7 @@ async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
   const painel = await lerPainelGestor(30);
   if (!painel) return <div className="text-[14px] text-gray-500">Não foi possível carregar o painel.</div>;
+  const conversaoOrigem = await lerConversaoPorOrigem();
 
   return (
     <div className="space-y-6">
@@ -180,6 +181,32 @@ async function Conteudo() {
         </div>
       </section>
     </div>
+
+    <section className="painel">
+      <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3">
+        <h2 className="text-[13px] font-medium text-white">Conversão por Origem</h2>
+      </div>
+      <div className="px-5 py-3 space-y-2">
+        {conversaoOrigem.length === 0 ? (
+          <p className="text-[12px] text-gray-500">Sem dados de origem ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {conversaoOrigem.map((c) => (
+              <div key={c.origem} className="flex items-center justify-between p-2 rounded-lg bg-gray-900/30">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium text-white truncate">{c.origem}</p>
+                  <p className="text-[11px] text-gray-500">{c.total} leads · {c.ganhos} ganhos</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[14px] font-bold text-white">{c.taxa_conversao}%</span>
+                  <span className="text-[10px] text-gray-500">taxa conversão</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

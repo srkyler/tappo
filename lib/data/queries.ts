@@ -122,3 +122,28 @@ export async function bancoPronto(): Promise<boolean> {
   const { error } = await supabase.from("leads").select("id", { head: true, count: "exact" }).limit(1);
   return !error || !/does not exist|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`);
 }
+
+/** Relatório de conversão por origem para o painel do gestor */
+export type ConversaoOrigem = { origem: string; total: number; ganhos: number; taxa_conversao: number };
+
+export async function lerConversaoPorOrigem(): Promise<ConversaoOrigem[]> {
+  const { supabase } = await usuarioAtual();
+  const { data } = await supabase
+    .from("leads")
+    .select("origem")
+    .not("status", "eq", "Nova");
+  const todos = (data ?? []) as { origem: string }[];
+  const total = todos.length;
+  const porOrigem = todos.reduce((acc: Record<string, { total: number; ganhos: number }>, l) => {
+    if (!acc[l.origem]) acc[l.origem] = { total: 0, ganhos: 0 };
+    acc[l.origem].total++;
+    if (l.status === "Ganho") acc[l.origem].ganhos++;
+    return acc;
+  }, {});
+  return Object.entries(porOrigem).map(([origem, v]) => ({
+    origem,
+    total: v.total,
+    ganhos: v.ganhos,
+    taxa_conversao: v.total > 0 ? Math.round((v.ganhos / v.total) * 100) : 0,
+  })).sort((a, b) => b.total - a.total);
+}
