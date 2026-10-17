@@ -124,7 +124,7 @@ export async function excluirLead(id: string): Promise<ActionResult> {
 }
 
 /** Importa CSV simples: cabeçalho com nome,empresa,cargo,email,telefone,segmento */
-export async function importarLeads(csv: string): Promise<ActionResult & { total?: number }> {
+export async function importarLeads(csv: string): Promise<ActionResult & { total?: number; duplicados?: { linha: number; campo: string; valor: string; lead_id: string; lead_nome: string }[] }> {
   try {
     const { supabase } = await cliente();
     const linhas = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -151,14 +151,38 @@ export async function importarLeads(csv: string): Promise<ActionResult & { total
       };
     }).filter((r) => r.nome && r.empresa);
     if (!registros.length) return { ok: false, erro: "Nenhuma linha válida (nome e empresa são obrigatórios)." };
+
+    // Detectar duplicados por telefone e email
+    const duplicados: { linha: number; campo: string; valor: string; lead_id: string; lead_nome: string }[] = [];
+    const registrosValidos: typeof registros = [];
+    for (let i = 0; i < registros.length; i++) {
+      const r = registros[i];
+      let ehDuplicado = false;
+      if (r.telefone) {
+        const { data: tel } = await supabase.from("leads").select("id, nome, telefone").eq("telefone", r.telefone);
+        if (tel?.length) {
+          duplicados.push({ linha: i + 2, campo: "telefone", valor: r.telefone, lead_id: tel[0].id, lead_nome: tel[0].nome });
+          ehDuplicado = true;
+        }
+      }
+      if (!ehDuplicado && r.email) {
+        const { data: em } = await supabase.from("leads").select("id, nome, email").eq("email", r.email);
+        if (em?.length) {
+          duplicados.push({ linha: i + 2, campo: "email", valor: r.email, lead_id: em[0].id, lead_nome: em[0].nome });
+          ehDuplicado = true;
+        }
+      }
+      if (!ehDuplicado) registrosValidos.push(r);
+    }
+
     // Inserção sequencial em lotes pequenos: o código GAR-xxxx é gerado por trigger
-    for (let i = 0; i < registros.length; i += 100) {
-      const { error } = await supabase.from("leads").insert(registros.slice(i, i + 100));
+    for (let i = 0; i < registrosValidos.length; i += 100) {
+      const { error } = await supabase.from("leads").insert(registrosValidos.slice(i, i + 100));
       if (error) return falha(error);
     }
-    await supabase.from("activities").insert({ tipo: "importacao", descricao: `${registros.length} leads importados via CSV` });
+    await supabase.from("activities").insert({ tipo: "importacao", descricao: `${registrosValidos.length} leads importados via CSV${duplicados.length > 0 ? ` (${duplicados.length} duplicados ignorados)` : ""}` });
     revalidar("/app/leads");
-    return { ok: true, total: registros.length };
+    return { ok: true, total: registrosValidos.length, duplicados };
   } catch (e) { return falha(e); }
 }
 
