@@ -243,3 +243,114 @@ export type Automacao = {
 };
 
 export type ActionResult = { ok: true } | { ok: false; erro: string };
+
+export type LeadDuplicado = {
+  id: string;
+  org_id: string;
+  lead_id: string;
+  duplicado_de: string;
+  campo: "telefone" | "email";
+  valor: string;
+  resolvido_em: string | null;
+  resolvido_por: string | null;
+  criado_em: string;
+};
+
+export type LeadHistorico = {
+  id: string;
+  org_id: string;
+  lead_id: string;
+  usuario_id: string | null;
+  campo: string;
+  valor_antigo: string | null;
+  valor_novo: string | null;
+  alterado_em: string;
+};
+
+export type LeadScore = {
+  id: string;
+  org_id: string;
+  lead_id: string;
+  score: number;
+  classificacao: "frio" | "morno" | "quente" | "qualificado";
+  fatores: Record<string, unknown>;
+  calculado_em: string;
+};
+
+export type Comissao = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  deal_id: string | null;
+  percentual: number;
+  valor_comissao: number;
+  status: "pendente" | "pago" | "cancelado";
+  mes: string;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type CampoPersonalizado = {
+  id: string;
+  org_id: string;
+  tabela: "leads" | "deals" | "contas";
+  nome: string;
+  tipo: "texto" | "numero" | "data" | "selecao" | "booleano";
+  opcoes: Record<string, unknown> | null;
+  obrigatorio: boolean;
+  criado_em: string;
+};
+
+export type Conta = {
+  id: string;
+  org_id: string;
+  nome: string;
+  cnpj_cpf: string | null;
+  segmento: string | null;
+  telefone: string | null;
+  email: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  estado: string | null;
+  cep: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type Pessoa = {
+  id: string;
+  conta_id: string | null;
+  org_id: string;
+  nome: string;
+  cargo: string | null;
+  telefone: string | null;
+  email: string | null;
+  telefone_whatsapp: string | null;
+  lider_decision: boolean;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type TarefaRecorrente = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  recorrencia: "diaria" | "semanal" | "mensal" | "anual";
+  proxima_execucao: string;
+  ativa: boolean;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type SlaConfig = {
+  id: string;
+  org_id: string;
+  tempo_resposta_min: number;
+  ativo: boolean;
+  criado_em: string;
+};
+
