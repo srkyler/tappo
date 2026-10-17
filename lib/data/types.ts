@@ -251,6 +251,19 @@ export type Automacao = {
   atualizado_em: string;
 };
 
+export type TarefaView = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  vence_em: string | null;
+  concluida_em: string | null;
+  responsavel_nome: string | null;
+  lead_nome: string | null;
+  lead_cod: string | null;
+};
+
 export type ActionResult = { ok: true } | { ok: false; erro: string };
 
 export type LeadDuplicado = {

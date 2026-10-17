@@ -110,7 +110,27 @@ export async function lerTarefasRecorrentes(): Promise<TarefaRecorrente[]> {
   return (data ?? []) as TarefaRecorrente[];
 }
 
-/* ---------- SLA ---------- */
+/* ---------- Tarefas para calendário ---------- */
+
+export async function lerTarefasCalendario(): Promise<TarefaView[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tarefas")
+    .select("*, responsavel:profiles(id, nome_completo), lead:leads(id, nome, cod)")
+    .order("vence_em", { ascending: true });
+  return ((data ?? []) as any[]).map((t: any) => ({
+    id: t.id,
+    titulo: t.titulo,
+    descricao: t.descricao,
+    tipo: t.tipo,
+    prioridade: t.prioridade,
+    vence_em: t.vence_em,
+    concluida_em: t.concluida_em,
+    responsavel_nome: t.responsavel?.nome_completo || null,
+    lead_nome: t.lead?.nome || null,
+    lead_cod: t.lead?.cod || null,
+  })) as TarefaView[];
+}
 
 export async function lerSlaConfig(): Promise<SlaConfig | null> {
   const supabase = await createClient();
