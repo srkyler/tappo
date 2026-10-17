@@ -1,11 +1,11 @@
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { Cabecalho, Pagina, Vazio, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
 import { lerTags } from "@/lib/data/tags";
-import { lerHistoricoLead, lerScoreLead, calcularScoreLead } from "@/lib/data/crm";
+import { lerHistoricoLead, lerScoreLead } from "@/lib/data/crm";
 import { toggleTagLead } from "@/app/app/tags/actions";
-import { calcularScoreLeadAction } from "@/app/app/crm/actions";
+import { RecalcularScore } from "@/components/leads/recalcular-score";
 import { formatBRL, formatData, tempoRelativo } from "@/lib/data/format";
 
 async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
@@ -33,16 +33,7 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
   type ConversaView = { id: string; nome: string | null; telefone: string | null; status: string; ultima_mensagem: string | null; ultima_em: string };
   type LinhaTimeline = { id: string; tipoItem: "atividade" | "tarefa"; titulo?: string; descricao?: string; tipo?: string; prioridade?: string; concluida_em: string | null; ocorreu_em: string | null; vence_em: string | null; created_at: string };
 
-  const [calculandoScore, setCalculandoScore] = useState(false);
-
   if (!lead) return <div className="text-[14px] text-gray-500">Lead não encontrado.</div>;
-
-  const classificacaoCor: Record<string, string> = {
-    frio: "text-gray-500",
-    morno: "text-amber-400",
-    quente: "text-red-400",
-    qualificado: "text-emerald-400",
-  };
 
   return (
     <div className="space-y-6">
@@ -67,22 +58,7 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
           <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Segmento</p>
           <p className="text-[14px] text-white">{lead.segmento ?? "—"}</p>
         </div>
-        <div className="painel p-5">
-          <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Score</p>
-          <div className="flex items-center justify-between">
-            <p className={`text-[24px] font-bold tabular ${score ? classificacaoCor[score.classificacao] : "text-gray-500"}`}>
-              {score ? score.score : "—"}
-            </p>
-            <button
-              onClick={() => { setCalculandoScore(true); calcularScoreLeadAction(id).then((r) => { setCalculandoScore(false); if (r.ok) { score = { id: "", org_id: lead.org_id, lead_id: lead.id, score: r.score!, classificacao: r.classificacao!, fatores: {}, calculado_em: "" } as any; } }); }}}
-              disabled={calculandoScore}
-              className="btn btn-fantasma btn-sm text-[11px] px-2"
-            >
-              {calculandoScore ? "…" : "Recalcular"}
-            </button>
-          </div>
-          <p className="text-[11px] text-gray-500">{score?.classificacao ?? "—"}</p>
-        </div>
+        <RecalcularScore leadId={id} scoreInicial={score?.score ?? null} classificacaoInicial={score?.classificacao ?? null} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

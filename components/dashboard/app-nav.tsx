@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3, Building2, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, type LucideIcon,
+  Settings, Sparkles, Users, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
@@ -40,6 +40,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
       { href: "/app/propostas", label: "Propostas", Icone: Send },
       { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
       { href: "/app/calendario", label: "Calendário", Icone: Calendar },
+      { href: "/app/tarefas-recorrentes", label: "Tarefas Recorrentes", Icone: RefreshCw },
       { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
       { href: "/app/executivo", label: "Dashboard Executivo", Icone: LayoutGrid },
       { href: "/app/contas", label: "Contas", Icone: Building2 },

@@ -185,3 +185,45 @@ export async function salvarSlaConfig(f: FormData): Promise<{ ok: boolean; erro?
     return { ok: true };
   } catch (e) { return erro(e); }
 }
+
+/* ---------- Tarefas Recorrentes ---------- */
+
+export async function salvarTarefaRecorrente(f: FormData): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, erro: "Sessão expirada." };
+    const id = String(f.get("id") ?? "");
+    const titulo = String(f.get("titulo") ?? "").trim();
+    if (!titulo) return { ok: false, erro: "Título é obrigatório." };
+    const proxima_execucao = String(f.get("proxima_execucao") ?? "");
+    if (!proxima_execucao) return { ok: false, erro: "Data da próxima execução é obrigatória." };
+
+    const payload = {
+      user_id: user.id,
+      titulo,
+      descricao: String(f.get("descricao") ?? "") || null,
+      tipo: String(f.get("tipo") ?? "outro"),
+      prioridade: String(f.get("prioridade") ?? "media"),
+      recorrencia: String(f.get("recorrencia") ?? "diaria"),
+      proxima_execucao,
+      ativa: f.get("ativa") === "on",
+    };
+    const { error } = id
+      ? await supabase.from("tarefas_recorrentes").update(payload).eq("id", id)
+      : await supabase.from("tarefas_recorrentes").insert(payload);
+    if (error) return { ok: false, erro: error.message };
+    revalidatePath("/app/tarefas-recorrentes");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
+
+export async function excluirTarefaRecorrente(id: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from("tarefas_recorrentes").delete().eq("id", id);
+    if (error) return { ok: false, erro: error.message };
+    revalidatePath("/app/tarefas-recorrentes");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
