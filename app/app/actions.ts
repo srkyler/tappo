@@ -342,13 +342,33 @@ export async function salvarDeal(id: string | null, fd: FormData): Promise<Actio
 export async function moverDeal(id: string, stageId: string, motivoPerda?: string): Promise<ActionResult> {
   try {
     const { supabase } = await cliente();
+    const { data: antes } = await supabase.from("deals").select("id, valor, user_id, stage_id").eq("id", id).single();
     const { data, error } = await supabase.from("deals").update({
       stage_id: stageId,
       motivo_perda: motivoPerda?.trim() || null,
-    }).eq("id", id).select("lead_id").single();
+    }).eq("id", id).select("lead_id, user_id, valor, stage_id").single();
     if (error) return falha(error);
     await dispararAutomacoes(supabase, "deal_mudou_etapa", stageId, { dealId: id, leadId: data?.lead_id ?? null });
-    revalidar("/app/pipeline", "/app/analytics");
+
+    // Calcular comissão automática quando deal vira "ganho"
+    const stage = await supabase.from("pipeline_stages").select("tipo").eq("id", stageId).single();
+    if (stage.data?.tipo === "ganho" && antes?.user_id && data?.valor) {
+      const { data: comissoesConfig } = await supabase.from("org_membros").select("papel").eq("user_id", data.user_id).single();
+      const percentual = comissoesConfig?.papel === "vendedor" ? 10 : 5; // padrão: 10% vendedor, 5% outros
+      const valor_comissao = Number(data.valor) * (percentual / 100);
+      const mes = new Date().toISOString().slice(0, 7) + "-01";
+      await supabase.from("comissoes").insert({
+        org_id: (await supabase.from("profiles").select("org_atual").eq("id", data.user_id).single()).data?.org_atual,
+        user_id: data.user_id,
+        deal_id: id,
+        percentual,
+        valor_comissao,
+        status: "pendente",
+        mes,
+      });
+    }
+
+    revalidar("/app/pipeline", "/app/analytics", "/app/comissoes");
     return { ok: true };
   } catch (e) { return falha(e); }
 }
