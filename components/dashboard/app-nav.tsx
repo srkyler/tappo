@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3, Building2, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, Webhook,   Zap, Activity, Clock, GitBranch, type LucideIcon,
+  Settings, Sparkles, Users, Webhook, Zap, Activity, Clock, GitBranch, CreditCard, Timer, Briefcase, Copy, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
@@ -35,12 +35,17 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
     itens: [
       { href: "/app/respostas", label: "Respostas rápidas", Icone: Zap },
       { href: "/app/captacao", label: "Captação", Icone: Webhook },
-      { href: "/app/automacoes", label: "Automações", Icone: GitBranch },
       { href: "/app/tags", label: "Tags", Icone: Activity },
       { href: "/app/propostas", label: "Propostas", Icone: Send },
       { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
       { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
-      { href: "/app/empresa", label: "Empresa e equipe", Icone: Building2 },
+      { href: "/app/contas", label: "Contas", Icone: Building2 },
+      { href: "/app/pessoas", label: "Pessoas", Icone: Users },
+      { href: "/app/duplicados", label: "Duplicados", Icone: Copy },
+      { href: "/app/campos-personalizados", label: "Campos personalizados", Icone: LayoutGrid },
+      { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
+      { href: "/app/sla", label: "SLA atendimento", Icone: Timer },
+      { href: "/app/empresa", label: "Empresa e equipe", Icone: Briefcase },
     ],
   },
 ];
