@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import type { Activity, Campaign, CampaignLead, CampaignStep, Deal, Lead, Meta, PainelGestor, Pipeline, PipelineStage, Profile, Tarefa } from "./types";
+import type { Activity, Campaign, CampaignLead, CampaignStep, Deal, Lead, Meta, PainelGestor, Pipeline, PipelineStage, Profile, Promocao, Tarefa } from "./types";
 
 /* Tappo — leituras do app (sempre com o cliente do usuário: RLS filtra por dono) */
 
@@ -65,6 +65,12 @@ export async function lerPipeline(pipelineId?: string): Promise<{ pipelineId: st
     ? await supabase.from("deals").select("*").in("stage_id", idsEtapas).order("updated_at", { ascending: false })
     : { data: [] as Deal[] };
   return { pipelineId: pid, etapas: (etapas ?? []) as PipelineStage[], deals: (deals ?? []) as Deal[] };
+}
+
+export async function lerPromocoes(): Promise<Promocao[]> {
+  const { supabase } = await usuarioAtual();
+  const { data } = await supabase.from("promocoes").select("*").order("data_inicio", { ascending: true });
+  return (data ?? []) as Promocao[];
 }
 
 export async function lerAtividades(limite = 12): Promise<Activity[]> {

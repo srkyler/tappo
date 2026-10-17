@@ -265,6 +265,21 @@ export type TarefaView = {
   lead_cod: string | null;
 };
 
+export type Promocao = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  titulo: string;
+  descricao: string | null;
+  oferta: string | null;
+  canal: "whatsapp" | "email" | "instagram" | "site" | "outro";
+  data_inicio: string;
+  data_fim: string | null;
+  status: "planejada" | "ativa" | "concluida" | "cancelada";
+  criado_em: string;
+  atualizado_em: string;
+};
+
 export type ActionResult = { ok: true } | { ok: false; erro: string };
 
 export type LeadDuplicado = {
