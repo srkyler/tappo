@@ -20,6 +20,20 @@
   volta sozinho se quebrar), deploy/healthcheck.sh (diagnóstico
   completo sem alterar nada), deploy/backup.sh e deploy/reset-password.sh.
 
+  NOVO 2: o instalador pode CRIAR o projeto Supabase inteiro sozinho —
+  você não precisa entrar no painel do Supabase, copiar URL nem chave
+  nenhuma. Só precisa de um token pessoal (uma vez, grátis):
+
+    1. Abra https://supabase.com/dashboard/account/tokens e gere um
+       token (nome qualquer, ex.: "tappo-vps")
+    2. No passo 4 abaixo, quando o instalador perguntar, escolha
+       "novo" e cole esse token quando ele pedir
+    3. Ele cria o projeto, espera o banco ficar saudável, pega as
+       chaves e a connection string sozinho — leva de 1 a 3 minutos
+
+  Se preferir continuar do jeito manual (projeto já existe), escolha
+  "existente" nessa pergunta e siga o passo 5 como sempre.
+
 O que vai rodar na VPS (tudo em Docker):
   - app   -> o CRM (Next.js)
   - waha  -> o WhatsApp

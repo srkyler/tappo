@@ -30,6 +30,7 @@ fi
 cd "$DIR"
 # shellcheck source=./_common.sh
 source "$DIR/deploy/_common.sh"
+source "$DIR/deploy/_supabase_criar.sh"
 
 passo "Docker"
 if ! command -v docker >/dev/null; then curl -fsSL https://get.docker.com | sh; fi
@@ -66,6 +67,23 @@ perguntar DOMAIN "Domínio do CRM (ex.: crm.suaempresa.com)"
 if [ "$PROXY_EXISTENTE" = "0" ]; then
   perguntar WAHA_DOMAIN "Domínio do painel do WhatsApp/WAHA (ex.: waha.suaempresa.com)"
 fi
+
+if [ -z "$(env_get NEXT_PUBLIC_SUPABASE_URL)" ]; then
+  if [ "${MODO_NAO_INTERATIVO:-0}" = "1" ]; then
+    if [ -n "$(env_get SUPABASE_ACCESS_TOKEN)" ]; then
+      supabase_criar_projeto || c_amarelo "Criação automática do Supabase falhou — preencha NEXT_PUBLIC_SUPABASE_URL etc. manualmente no .env e rode de novo."
+    fi
+  else
+    echo
+    read -r -p "Você já tem um projeto Supabase pronto, ou quer que eu crie um novo agora? (existente/novo) [novo]: " ESCOLHA_SUPA
+    if [ "$ESCOLHA_SUPA" = "existente" ] || [ "$ESCOLHA_SUPA" = "e" ]; then
+      : # segue pros perguntar() manuais abaixo
+    else
+      supabase_criar_projeto || c_amarelo "Não consegui criar sozinho — preenche manualmente abaixo."
+    fi
+  fi
+fi
+
 perguntar NEXT_PUBLIC_SUPABASE_URL "URL do projeto Supabase (https://xxxx.supabase.co)"
 perguntar NEXT_PUBLIC_SUPABASE_ANON_KEY "Supabase anon public key"
 perguntar SUPABASE_SERVICE_ROLE_KEY "Supabase service_role key (secreta)"

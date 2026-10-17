@@ -78,6 +78,12 @@ testar_credenciais_supabase() {
 
 docker_compose() { docker compose --env-file "$ENV_FILE" -f "$TAPPO_DIR/docker-compose.yml" "$@"; }
 
+# Extrai um campo string de um JSON simples (sem nested arrays) sem depender de jq.
+# Uso: json_get "$RESPOSTA_CURL" "campo"
+json_get() {
+  printf '%s' "$1" | grep -oP "\"$2\"\\s*:\\s*\"[^\"]*\"" | head -n1 | sed -E 's/.*:\s*"([^"]*)"/\1/'
+}
+
 aguardar_http_ok() {
   local url="$1" tentativas="${2:-30}" i=0
   while [ $i -lt "$tentativas" ]; do
