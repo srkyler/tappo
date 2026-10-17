@@ -2,22 +2,33 @@ import { Suspense } from "react";
 import { Cabecalho, Pagina } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { PipelineView } from "@/components/pipeline/pipeline-view";
-import { bancoPronto, lerLeads, lerPipeline } from "@/lib/data/queries";
+import { bancoPronto, lerLeads, lerPipeline, lerPipelines } from "@/lib/data/queries";
 
 export const metadata = { title: "Pipeline — Tappo" };
 
-async function Conteudo() {
+type Params = Promise<{ funil?: string }>;
+
+async function Conteudo({ searchParams }: { searchParams: Params }) {
   if (!(await bancoPronto())) return <AvisoBanco />;
-  const [{ etapas, deals }, leads] = await Promise.all([lerPipeline(), lerLeads()]);
-  return <PipelineView etapas={etapas} deals={deals} leads={leads.map(({ id, nome, empresa }) => ({ id, nome, empresa }))} />;
+  const { funil } = await searchParams;
+  const [pipelines, { pipelineId, etapas, deals }, leads] = await Promise.all([lerPipelines(), lerPipeline(funil), lerLeads()]);
+  return (
+    <PipelineView
+      pipelines={pipelines}
+      pipelineAtualId={pipelineId}
+      etapas={etapas}
+      deals={deals}
+      leads={leads.map(({ id, nome, empresa }) => ({ id, nome, empresa }))}
+    />
+  );
 }
 
-export default function PipelinePage() {
+export default function PipelinePage({ searchParams }: { searchParams: Params }) {
   return (
     <Pagina className="max-w-none">
       <Cabecalho rotulo="Negócios" titulo="Pipeline" descricao="Arraste os cartões entre as etapas. No celular, use o seletor abaixo de cada cartão." />
       <Suspense fallback={<div className="flex gap-3 overflow-hidden">{[0, 1, 2, 3].map((i) => <div key={i} className="esqueleto h-80 w-[280px] shrink-0" />)}</div>}>
-        <Conteudo />
+        <Conteudo searchParams={searchParams} />
       </Suspense>
     </Pagina>
   );

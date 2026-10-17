@@ -1,18 +1,26 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { GripVertical, Pencil, Plus, Settings, Trash2 } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, cn } from "@/components/ui/base";
-import { excluirDeal, moverDeal, salvarDeal } from "@/app/app/actions";
-import type { Deal, Lead, PipelineStage } from "@/lib/data/types";
+import { criarPipeline, excluirDeal, excluirPipeline, moverDeal, renomearPipeline, salvarDeal } from "@/app/app/actions";
+import type { Deal, Lead, Pipeline, PipelineStage } from "@/lib/data/types";
 import { diasDesde, formatBRL, formatData } from "@/lib/data/format";
 
-export function PipelineView({ etapas, deals, leads }: {
+export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads }: {
+  pipelines: Pipeline[];
+  pipelineAtualId: string | null;
   etapas: PipelineStage[];
   deals: Deal[];
   leads: Pick<Lead, "id" | "nome" | "empresa">[];
 }) {
+  const router = useRouter();
+  const pipelineAtual = pipelines.find((p) => p.id === pipelineAtualId);
+  const [gerenciando, setGerenciando] = useState(false);
+  const [criando, setCriando] = useState(false);
   const [otimista, mover] = useOptimistic(deals, (atual, m: { id: string; stage: string }) =>
     atual.map((d) => (d.id === m.id ? { ...d, stage_id: m.stage, etapa_entrada_em: new Date().toISOString() } : d)),
   );
@@ -51,6 +59,29 @@ export function PipelineView({ etapas, deals, leads }: {
 
   return (
     <>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {pipelines.map((p) => (
+          <Link
+            key={p.id}
+            href={p.padrao ? "/app/pipeline" : `/app/pipeline?funil=${p.id}`}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-[12.5px] transition-colors",
+              p.id === pipelineAtualId ? "border-white bg-white text-black" : "border-gray-800 text-gray-400 hover:border-gray-600 hover:text-white",
+            )}
+          >
+            {p.nome}
+          </Link>
+        ))}
+        <button onClick={() => setCriando(true)} className="rounded-full border border-dashed border-gray-700 px-3 py-1.5 text-[12.5px] text-gray-500 transition-colors hover:border-gray-500 hover:text-white">
+          <Plus size={13} className="inline -mt-0.5" /> Novo funil
+        </button>
+        {pipelineAtual && (
+          <button onClick={() => setGerenciando(true)} className="rounded-full p-1.5 text-gray-600 transition-colors hover:text-white" aria-label="Gerenciar funil">
+            <Settings size={14} />
+          </button>
+        )}
+      </div>
+
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-6 text-[13px]">
           <div><p className="rotulo">Em aberto</p><p className="mt-1 text-[18px] font-semibold text-white tabular">{formatBRL(abertos.reduce((s, d) => s + d.valor, 0))}</p></div>
@@ -150,7 +181,90 @@ export function PipelineView({ etapas, deals, leads }: {
       <Dialogo aberto={!!perdendo} aoFechar={() => setPerdendo(null)} titulo="Motivo da perda" descricao={perdendo?.titulo}>
         <FormMotivoPerda aoConfirmar={confirmarPerda} aoCancelar={() => setPerdendo(null)} />
       </Dialogo>
+
+      <Dialogo aberto={criando} aoFechar={() => setCriando(false)} titulo="Novo funil" descricao="Começa com as etapas padrão — edite depois.">
+        <FormNovoPipeline
+          aoCriar={(id) => { setCriando(false); router.push(`/app/pipeline?funil=${id}`); }}
+          aoCancelar={() => setCriando(false)}
+        />
+      </Dialogo>
+
+      {pipelineAtual && (
+        <Dialogo aberto={gerenciando} aoFechar={() => setGerenciando(false)} titulo="Gerenciar funil" descricao={pipelineAtual.nome}>
+          <FormGerenciarPipeline
+            pipeline={pipelineAtual}
+            aoSalvar={() => setGerenciando(false)}
+            aoExcluir={() => { setGerenciando(false); router.push("/app/pipeline"); }}
+          />
+        </Dialogo>
+      )}
     </>
+  );
+}
+
+function FormNovoPipeline({ aoCriar, aoCancelar }: { aoCriar: (id: string) => void; aoCancelar: () => void }) {
+  const [nome, setNome] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  return (
+    <form
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        iniciar(async () => {
+          const r = await criarPipeline(nome);
+          if (r.ok && r.id) aoCriar(r.id); else setErro(r.ok ? "Não foi possível criar o funil." : r.erro);
+        });
+      }}
+      className="grid gap-4"
+    >
+      <div>
+        <Rotulo htmlFor="nome-funil">Nome do funil</Rotulo>
+        <input id="nome-funil" autoFocus value={nome} onChange={(e) => setNome(e.target.value)} className="campo" placeholder="Ex.: Pós-venda, Suporte, Imóveis novos…" />
+      </div>
+      {erro && <p role="alert" className="text-[13px] text-white">⚠ {erro}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={aoCancelar} className="btn btn-fantasma btn-sm">Cancelar</button>
+        <button disabled={pendente} className="btn btn-primario btn-sm">{pendente ? "Criando…" : "Criar funil"}</button>
+      </div>
+    </form>
+  );
+}
+
+function FormGerenciarPipeline({ pipeline, aoSalvar, aoExcluir }: { pipeline: Pipeline; aoSalvar: () => void; aoExcluir: () => void }) {
+  const [nome, setNome] = useState(pipeline.nome);
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  return (
+    <div className="grid gap-4">
+      <div>
+        <Rotulo htmlFor="renomear-funil">Nome</Rotulo>
+        <input id="renomear-funil" value={nome} onChange={(e) => setNome(e.target.value)} className="campo" />
+      </div>
+      {erro && <p role="alert" className="text-[13px] text-white">⚠ {erro}</p>}
+      <div className="flex items-center justify-between gap-2">
+        {pipeline.padrao ? (
+          <p className="text-[12px] text-gray-500">Funil padrão — não pode ser excluído.</p>
+        ) : (
+          <button
+            type="button"
+            disabled={pendente}
+            onClick={() => { if (confirm(`Excluir o funil "${pipeline.nome}"? Só funciona se não tiver negócios.`)) iniciar(async () => {
+              const r = await excluirPipeline(pipeline.id);
+              if (r.ok) aoExcluir(); else setErro(r.erro);
+            }); }}
+            className="btn btn-fantasma btn-sm"
+          ><Trash2 size={14} /> Excluir</button>
+        )}
+        <button
+          disabled={pendente}
+          onClick={() => iniciar(async () => {
+            const r = await renomearPipeline(pipeline.id, nome);
+            if (r.ok) aoSalvar(); else setErro(r.erro);
+          })}
+          className="btn btn-primario btn-sm"
+        ><Pencil size={13} /> Salvar nome</button>
+      </div>
+    </div>
   );
 }
 

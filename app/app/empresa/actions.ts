@@ -46,18 +46,24 @@ export async function salvarEmpresa(f: FormData): Promise<ActionResult> {
   } catch (e) { return falha(e); }
 }
 
-/** Troca as etapas do funil pelas do segmento (só se ainda não houver negócios). */
+/** Troca as etapas do funil padrão pelas do segmento (só se ainda não houver negócios nele). */
 export async function aplicarFunilDoSegmento(): Promise<ActionResult> {
   try {
     const { supabase, user, empresa } = await gestor();
-    const { count } = await supabase.from("deals").select("id", { count: "exact", head: true });
-    if ((count ?? 0) > 0) return { ok: false, erro: "Já existem negócios no funil. Edite as etapas manualmente no Pipeline." };
+    const { data: padrao, error: ep } = await supabase.from("pipelines").select("id").eq("org_id", empresa.id).eq("padrao", true).single();
+    if (ep || !padrao) throw ep ?? new Error("Funil padrão não encontrado.");
+    const { data: etapasAtuais } = await supabase.from("pipeline_stages").select("id").eq("pipeline_id", padrao.id);
+    const idsAtuais = (etapasAtuais ?? []).map((x) => x.id);
+    if (idsAtuais.length) {
+      const { count } = await supabase.from("deals").select("id", { count: "exact", head: true }).in("stage_id", idsAtuais);
+      if ((count ?? 0) > 0) return { ok: false, erro: "Já existem negócios no funil. Edite as etapas manualmente no Pipeline." };
+    }
     const { data: etapas, error: e1 } = await supabase.rpc("etapas_do_segmento", { seg: empresa.segmento });
     if (e1) throw e1;
-    const { error: e2 } = await supabase.from("pipeline_stages").delete().eq("org_id", empresa.id);
+    const { error: e2 } = await supabase.from("pipeline_stages").delete().eq("pipeline_id", padrao.id);
     if (e2) throw e2;
     const { error: e3 } = await supabase.from("pipeline_stages").insert(
-      (etapas as { nome: string; ordem: number; probabilidade: number; tipo: string }[]).map((x) => ({ ...x, org_id: empresa.id, user_id: user.id })),
+      (etapas as { nome: string; ordem: number; probabilidade: number; tipo: string }[]).map((x) => ({ ...x, org_id: empresa.id, user_id: user.id, pipeline_id: padrao.id })),
     );
     if (e3) throw e3;
     revalidar();
@@ -174,9 +180,10 @@ export async function criarEmpresa(nome: string, segmento: string): Promise<Acti
     const { data: org, error } = await admin.from("organizacoes").insert({ nome: n, segmento }).select("id").single();
     if (error) throw error;
     await admin.from("org_membros").insert({ org_id: org.id, user_id: user.id, papel: "dono" });
+    const { data: pipeline } = await admin.from("pipelines").insert({ org_id: org.id, nome: "Principal", padrao: true }).select("id").single();
     const { data: etapas } = await admin.rpc("etapas_do_segmento", { seg: segmento });
     await admin.from("pipeline_stages").insert(
-      ((etapas ?? []) as { nome: string; ordem: number; probabilidade: number; tipo: string }[]).map((x) => ({ ...x, org_id: org.id, user_id: user.id })),
+      ((etapas ?? []) as { nome: string; ordem: number; probabilidade: number; tipo: string }[]).map((x) => ({ ...x, org_id: org.id, user_id: user.id, pipeline_id: pipeline?.id })),
     );
     await admin.from("profiles").update({ org_atual: org.id }).eq("id", user.id);
     await admin.rpc("templates_padrao", { uid: user.id });

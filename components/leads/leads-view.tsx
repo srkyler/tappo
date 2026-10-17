@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Status, Vazio, cn } from "@/components/ui/base";
-import { excluirLead, importarLeads, mudarStatusLead, salvarLead } from "@/app/app/actions";
+import { excluirLead, importarLeads, mudarStatusLead, salvarLead, detectarDuplicadosLead } from "@/app/app/actions";
 import { LEAD_ORIGEM, LEAD_STATUS, type Lead, type LeadStatus } from "@/lib/data/types";
 import { segmentoPorId } from "@/lib/segmentos";
 import { formatData } from "@/lib/data/format";
@@ -224,15 +224,56 @@ function BotaoExcluir({ id, nome }: { id: string; nome: string }) {
 function FormLead({ lead, aoSalvar }: { lead: Lead | null; aoSalvar: () => void }) {
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
+  const [duplicados, setDuplicados] = useState<{ campo: string; valor: string; lead_id: string; lead_nome: string }[]>([]);
+  const [mostrarDuplicados, setMostrarDuplicados] = useState(false);
+  const [fdPendente, setFdPendente] = useState<FormData | null>(null);
+
+  async function verificarDuplicados(fd: FormData) {
+    const telefone = String(fd.get("telefone") ?? "").trim() || null;
+    const email = String(fd.get("email") ?? "").trim() || null;
+    if (!telefone && !email) {
+      await salvarLeadConfirmado(fd);
+      return;
+    }
+    const { duplicados: dups } = await detectarDuplicadosLead(telefone, email);
+    if (dups.length > 0) {
+      setDuplicados(dups);
+      setFdPendente(fd);
+      setMostrarDuplicados(true);
+    } else {
+      setMostrarDuplicados(false);
+      await salvarLeadConfirmado(fd);
+    }
+  }
+
+  async function salvarLeadConfirmado(fd: FormData) {
+    const r = await salvarLead(lead?.id ?? null, fd);
+    if (r.ok) { aoSalvar(); setFdPendente(null); } else setErro(r.erro);
+  }
 
   return (
-    <form
-      action={(fd) => iniciar(async () => {
-        const r = await salvarLead(lead?.id ?? null, fd);
-        if (r.ok) aoSalvar(); else setErro(r.erro);
-      })}
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2"
-    >
+    <>
+      {mostrarDuplicados && fdPendente && (
+        <Dialogo aberto aoFechar={() => { setMostrarDuplicados(false); setDuplicados([]); setFdPendente(null); }} titulo="Lead duplicado encontrado" descricao="Já existe um lead com este telefone ou e-mail na sua base. Deseja salvar mesmo assim?">
+          <div className="space-y-3 p-4">
+            {duplicados.map((d) => (
+              <div key={d.lead_id} className="p-2 rounded-lg bg-gray-900/30 border border-gray-800">
+                <p className="text-[11px] text-gray-500 uppercase">{d.campo}</p>
+                <p className="text-[13px] font-medium text-white">{d.valor}</p>
+                <p className="text-[11px] text-gray-400">{d.lead_nome}</p>
+              </div>
+            ))}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => { setMostrarDuplicados(false); setDuplicados([]); setFdPendente(null); }} className="btn btn-fantasma btn-sm">Cancelar</button>
+              <button type="button" onClick={() => { setMostrarDuplicados(false); setDuplicados([]); salvarLeadConfirmado(fdPendente!); }} className="btn btn-primario btn-sm">Salvar mesmo assim</button>
+            </div>
+          </div>
+        </Dialogo>
+      )}
+      <form
+        action={(fd) => { verificarDuplicados(fd as unknown as FormData); }}
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+      >
       <div className="sm:col-span-2"><Rotulo htmlFor="nome">Nome *</Rotulo><input id="nome" name="nome" required defaultValue={lead?.nome} className="campo" autoFocus /></div>
       <div><Rotulo htmlFor="empresa">Empresa *</Rotulo><input id="empresa" name="empresa" required defaultValue={lead?.empresa} className="campo" /></div>
       <div><Rotulo htmlFor="cargo">Cargo</Rotulo><input id="cargo" name="cargo" defaultValue={lead?.cargo ?? ""} className="campo" /></div>
@@ -256,6 +297,7 @@ function FormLead({ lead, aoSalvar }: { lead: Lead | null; aoSalvar: () => void 
         <button disabled={pendente} className="btn btn-primario btn-sm">{pendente ? "Salvando…" : "Salvar lead"}</button>
       </div>
     </form>
+    </>
   );
 }
 

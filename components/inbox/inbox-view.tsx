@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
 import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
@@ -11,6 +11,7 @@ import { responderEmail } from "@/app/app/inbox/email-actions";
 import { ConexaoWhats } from "./conexao-whats";
 import { ConexaoTelegram } from "./conexao-telegram";
 import { ConexaoEmail, type EmailConexaoTela } from "./conexao-email";
+import { lerSlaConfig } from "@/lib/data/crm";
 
 export type ConexaoTela = {
   base_url: string; sessao: string; status: string; numero: string | null;
@@ -61,6 +62,7 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
   const [nova, setNova] = useState(false);
   const [pendente, iniciar] = useTransition();
   const [templates, setTemplates] = useState<{ id: string; titulo: string; corpo: string }[]>([]);
+  const [slaConfig, setSlaConfig] = useState<{ tempo_resposta_min: number; ativo: boolean } | null>(null);
   const fim = useRef<HTMLDivElement>(null);
 
   const sel = conversas.find((c) => c.id === selId) ?? null;
@@ -91,6 +93,15 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
     return () => { vivo = false; };
   }, [sb]);
 
+  // Configuração SLA de resposta
+  useEffect(() => {
+    let vivo = true;
+    lerSlaConfig().then((sla) => {
+      if (vivo) setSlaConfig(sla ? { tempo_resposta_min: sla.tempo_resposta_min, ativo: sla.ativo } : null);
+    });
+    return () => { vivo = false; };
+  }, []);
+
   const inserirRapida = (corpo: string) => {
     setTexto((t) => (t ? `${t}\n${corpo}` : corpo));
   };
@@ -117,6 +128,8 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
 
   const visiveis = useMemo(() => {
     const t = busca.trim().toLowerCase();
+    const slaMin = slaConfig?.ativo ? slaConfig.tempo_resposta_min : null;
+    const limiteSla = slaMin ? new Date(Date.now() - slaMin * 60000) : null;
     return conversas.filter((c) => {
       let passa = true;
       if (filtro === "ativas") passa = c.status !== "resolvida";
@@ -124,13 +137,17 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
       else passa = c.status === filtro;
       if (!passa) return false;
       return !t || `${titulo(c)} ${c.telefone ?? ""} ${c.ultima_mensagem ?? ""}`.toLowerCase().includes(t);
-    });
-  }, [conversas, filtro, busca, userId]);
+    }).map((c) => ({
+      ...c,
+      acimaSla: !!limiteSla && c.status !== "resolvida" && new Date(c.ultima_em) < limiteSla,
+    }));
+  }, [conversas, filtro, busca, userId, slaConfig]);
   const contagem = (id: string) => conversas.filter((c) => {
     if (id === "ativas") return c.status !== "resolvida";
     if (id === "minhas") return c.atribuido_a === userId;
     return c.status === id;
   }).length;
+  const contagemAcimaSla = visiveis.filter((c) => c.acimaSla).length;
 
   function mudar(m: { status?: ConversaTela["status"]; ia_ativa?: boolean }) {
     if (!sel) return;
@@ -178,11 +195,14 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
               <button onClick={() => setConfigEmail(true)} aria-label="Configurar e-mail" title="E-mail" className={cn("btn btn-secundario btn-sm h-10 px-2.5", emailConexao?.endereco_recebe && "border-amber-500/40 text-amber-400")}><Mail size={15} /></button>
             </div>
             <div className="flex gap-1 overflow-x-auto">
-              {FILTROS.map((f) => (
-                <button key={f.id} onClick={() => setFiltro(f.id)} className={cn("shrink-0 rounded-full px-2.5 py-1 text-[12px]", filtro === f.id ? "bg-white text-black" : "text-gray-400 hover:bg-gray-900")}>
-                  {f.rotulo} <span className="opacity-60">{contagem(f.id)}</span>
-                </button>
-              ))}
+              {FILTROS.map((f) => {
+                const extra = f.id === "ativas" && contagemAcimaSla > 0 ? ` +${contagemAcimaSla} SLA` : "";
+                return (
+                  <button key={f.id} onClick={() => setFiltro(f.id)} className={cn("shrink-0 rounded-full px-2.5 py-1 text-[12px]", filtro === f.id ? "bg-white text-black" : "text-gray-400 hover:bg-gray-900")}>
+                    {f.rotulo}{extra} <span className="opacity-60">{contagem(f.id)}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
           <ul className="min-h-0 flex-1 overflow-y-auto">
@@ -211,6 +231,7 @@ export function InboxView({ userId, conexao, conexaoTelegram, emailConexao, conv
                           </span>
                         )}
                         {c.nao_lidas > 0 && <span className="rounded-full bg-white px-1.5 text-[11px] font-semibold text-black">{c.nao_lidas}</span>}
+                        {c.acimaSla && <span className="flex items-center gap-1 text-[11px] text-red-400" title="Acima do SLA de resposta"><Clock size={10} /> SLA</span>}
                       </span>
                     </span>
                   </span>

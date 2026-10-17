@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import type { Activity, Campaign, CampaignLead, CampaignStep, Deal, Lead, Meta, PainelGestor, PipelineStage, Profile, Tarefa } from "./types";
+import type { Activity, Campaign, CampaignLead, CampaignStep, Deal, Lead, Meta, PainelGestor, Pipeline, PipelineStage, Profile, Tarefa } from "./types";
 
 /* Tappo — leituras do app (sempre com o cliente do usuário: RLS filtra por dono) */
 
@@ -44,13 +44,27 @@ export async function lerCampanhas(): Promise<CampanhaCompleta[]> {
   }));
 }
 
-export async function lerPipeline(): Promise<{ etapas: PipelineStage[]; deals: Deal[] }> {
+export async function lerPipelines(): Promise<Pipeline[]> {
   const { supabase } = await usuarioAtual();
-  const [{ data: etapas }, { data: deals }] = await Promise.all([
-    supabase.from("pipeline_stages").select("*").order("ordem"),
-    supabase.from("deals").select("*").order("updated_at", { ascending: false }),
-  ]);
-  return { etapas: (etapas ?? []) as PipelineStage[], deals: (deals ?? []) as Deal[] };
+  const { data } = await supabase.from("pipelines").select("*").eq("ativo", true).order("padrao", { ascending: false }).order("created_at");
+  return (data ?? []) as Pipeline[];
+}
+
+/** Etapas + negócios de UM funil. Sem `pipelineId`, usa o funil padrão da empresa. */
+export async function lerPipeline(pipelineId?: string): Promise<{ pipelineId: string | null; etapas: PipelineStage[]; deals: Deal[] }> {
+  const { supabase } = await usuarioAtual();
+  let pid = pipelineId;
+  if (!pid) {
+    const { data: padrao } = await supabase.from("pipelines").select("id").eq("padrao", true).maybeSingle();
+    pid = padrao?.id;
+  }
+  if (!pid) return { pipelineId: null, etapas: [], deals: [] };
+  const { data: etapas } = await supabase.from("pipeline_stages").select("*").eq("pipeline_id", pid).order("ordem");
+  const idsEtapas = (etapas ?? []).map((e) => e.id);
+  const { data: deals } = idsEtapas.length
+    ? await supabase.from("deals").select("*").in("stage_id", idsEtapas).order("updated_at", { ascending: false })
+    : { data: [] as Deal[] };
+  return { pipelineId: pid, etapas: (etapas ?? []) as PipelineStage[], deals: (deals ?? []) as Deal[] };
 }
 
 export async function lerAtividades(limite = 12): Promise<Activity[]> {

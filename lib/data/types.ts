@@ -62,8 +62,17 @@ export type CampaignLead = {
   proximo_passo_em: string | null;
 };
 
+export type Pipeline = {
+  id: string;
+  nome: string;
+  padrao: boolean;
+  ativo: boolean;
+  created_at: string;
+};
+
 export type PipelineStage = {
   id: string;
+  pipeline_id: string;
   nome: string;
   ordem: number;
   probabilidade: number;
@@ -326,7 +335,7 @@ export type Pessoa = {
   telefone: string | null;
   email: string | null;
   telefone_whatsapp: string | null;
-  lider_decision: boolean;
+  lider_decisao: boolean;
   criado_em: string;
   atualizado_em: string;
 };

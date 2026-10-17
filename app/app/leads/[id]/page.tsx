@@ -3,6 +3,7 @@ import { Cabecalho, Pagina, Vazio, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
 import { lerTags } from "@/lib/data/tags";
+import { lerHistoricoLead, lerScoreLead } from "@/lib/data/crm";
 import { toggleTagLead } from "@/app/app/tags/actions";
 import { formatBRL, formatData, tempoRelativo } from "@/lib/data/format";
 
@@ -11,12 +12,14 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
   const { supabase } = await usuarioAtual();
   const { id } = await params;
 
-  const [{ data: lead }, { data: atividades }, { data: deals }, { data: tarefas }, { data: conversas }] = await Promise.all([
+  const [{ data: lead }, { data: atividades }, { data: deals }, { data: tarefas }, { data: conversas }, historico, score] = await Promise.all([
     supabase.from("leads").select("*").eq("id", id).single(),
     supabase.from("activities").select("*").eq("lead_id", id).order("ocorreu_em", { ascending: false }).limit(50),
     supabase.from("deals").select("*, pipeline_stages(nome, tipo)").eq("lead_id", id),
     supabase.from("tarefas").select("*").eq("lead_id", id).order("vence_em", { ascending: true, nullsFirst: false }),
     supabase.from("wa_conversas").select("*").eq("lead_id", id).order("ultima_em", { ascending: false }),
+    lerHistoricoLead(id),
+    lerScoreLead(id),
   ]);
 
   const [tagsDisponiveis, tagsLead] = await Promise.all([
@@ -31,11 +34,18 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
 
   if (!lead) return <div className="text-[14px] text-gray-500">Lead não encontrado.</div>;
 
+  const classificacaoCor: Record<string, string> = {
+    frio: "text-gray-500",
+    morno: "text-amber-400",
+    quente: "text-red-400",
+    qualificado: "text-emerald-400",
+  };
+
   return (
     <div className="space-y-6">
       <Cabecalho rotulo="Contato" titulo={lead.nome} descricao={`${lead.empresa} · ${lead.cod}`} />
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-5">
         <div className="painel p-5">
           <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Status</p>
           <Status valor={lead.status} />
@@ -53,6 +63,13 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
         <div className="painel p-5">
           <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Segmento</p>
           <p className="text-[14px] text-white">{lead.segmento ?? "—"}</p>
+        </div>
+        <div className="painel p-5">
+          <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Score</p>
+          <p className={`text-[24px] font-bold tabular ${score ? classificacaoCor[score.classificacao] : "text-gray-500"}`}>
+            {score ? score.score : "—"}
+          </p>
+          <p className="text-[11px] text-gray-500">{score?.classificacao ?? "—"}</p>
         </div>
       </div>
 
@@ -145,6 +162,33 @@ async function Conteudo({ params }: { params: Promise<{ id: string }> }) {
       <section className="painel p-5">
         <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Notas do lead</h3>
         <p className="text-[13px] text-gray-400">{lead.notas ?? "Sem notas ainda."}</p>
+      </section>
+
+      <section className="painel p-5">
+        <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3 mb-3">
+          <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide">Histórico de alterações</h3>
+        </div>
+        <div className="px-5 py-3 space-y-2">
+          {historico.length === 0 ? (
+            <p className="text-[12px] text-gray-500">Sem alterações registradas ainda.</p>
+          ) : (
+            <ul className="space-y-2">
+              {historico.map((h) => (
+                <li key={h.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-900/30">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-medium text-white truncate">{h.campo}</p>
+                    <p className="text-[11px] text-gray-500">
+                      {h.valor_antigo ?? "—"} → {h.valor_novo ?? "—"}
+                    </p>
+                    <p className="text-[10px] text-gray-600 mt-0.5">
+                      {h.usuario?.nome_completo || h.usuario?.email || "Sistema"} · {tempoRelativo(h.alterado_em)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       <section className="painel p-5">

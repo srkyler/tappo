@@ -53,13 +53,59 @@ export async function salvarLead(id: string | null, fd: FormData): Promise<Actio
     const { supabase } = await cliente();
     const dados = leadDoForm(fd);
     if (!dados.nome || !dados.empresa) return { ok: false, erro: "Nome e empresa são obrigatórios." };
+
+    // Detectar duplicados antes de inserir
+    const duplicados: { campo: "telefone" | "email"; valor: string; lead_id: string; lead_nome: string }[] = [];
+    if (dados.telefone) {
+      const { data: tel } = await supabase.from("leads").select("id, nome, telefone").eq("telefone", dados.telefone).neq("id", id ?? "00000000-0000-0000-0000-000000000000");
+      for (const l of (tel ?? [])) duplicados.push({ campo: "telefone", valor: l.telefone!, lead_id: l.id, lead_nome: l.nome });
+    }
+    if (dados.email) {
+      const { data: em } = await supabase.from("leads").select("id, nome, email").eq("email", dados.email).neq("id", id ?? "00000000-0000-0000-0000-000000000000");
+      for (const l of (em ?? [])) duplicados.push({ campo: "email", valor: l.email!, lead_id: l.id, lead_nome: l.nome });
+    }
+
     const { error } = id
       ? await supabase.from("leads").update(dados).eq("id", id)
-      : await supabase.from("leads").insert(dados);
+      : await supabase.from("leads").insert(dados).select("id").single();
     if (error) return falha(error);
+
+    // Registrar duplicados encontrados na tabela de duplicados
+    const novoId = typeof (error as any) === "undefined" && !id ? (error as any) : null;
+    const leadInseridoId = id ?? (error as any)?.new?.id ?? null;
+
+    // Se houver duplicados, registrar na tabela lead_duplicados
+    if (duplicados.length > 0 && leadInseridoId) {
+      const { data: perfil } = await supabase.from("profiles").select("org_atual").eq("id", (await supabase.auth.getUser()).data.user!.id).single();
+      for (const d of duplicados) {
+        await supabase.from("lead_duplicados").insert({
+          org_id: perfil?.org_atual,
+          lead_id: leadInseridoId,
+          duplicado_de: d.lead_id,
+          campo: d.campo,
+          valor: d.valor,
+        });
+      }
+    }
+
     revalidar("/app/leads");
     return { ok: true };
   } catch (e) { return falha(e); }
+}
+
+/** Detectar duplicados de um lead (telefone ou email) antes de criar. Retorna os duplicados encontrados. */
+export async function detectarDuplicadosLead(telefone: string | null, email: string | null): Promise<{ duplicados: { campo: string; valor: string; lead_id: string; lead_nome: string }[] }> {
+  const { supabase } = await cliente();
+  const duplicados: { campo: string; valor: string; lead_id: string; lead_nome: string }[] = [];
+  if (telefone) {
+    const { data: tel } = await supabase.from("leads").select("id, nome, telefone").eq("telefone", telefone);
+    for (const l of (tel ?? [])) duplicados.push({ campo: "telefone", valor: l.telefone!, lead_id: l.id, lead_nome: l.nome });
+  }
+  if (email) {
+    const { data: em } = await supabase.from("leads").select("id, nome, email").eq("email", email);
+    for (const l of (em ?? [])) duplicados.push({ campo: "email", valor: l.email!, lead_id: l.id, lead_nome: l.nome });
+  }
+  return { duplicados };
 }
 
 export async function mudarStatusLead(id: string, status: LeadStatus): Promise<ActionResult> {
@@ -295,6 +341,63 @@ export async function excluirDeal(id: string): Promise<ActionResult> {
     const { error } = await supabase.from("deals").delete().eq("id", id);
     if (error) return falha(error);
     revalidar("/app/pipeline", "/app/analytics");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+/* ---------------- Funis (pipelines) ---------------- */
+
+const ETAPAS_PADRAO = [
+  { nome: "Prospecção", ordem: 1, probabilidade: 10, tipo: "aberto" },
+  { nome: "Qualificado", ordem: 2, probabilidade: 30, tipo: "aberto" },
+  { nome: "Reunião", ordem: 3, probabilidade: 50, tipo: "aberto" },
+  { nome: "Proposta", ordem: 4, probabilidade: 70, tipo: "aberto" },
+  { nome: "Ganho", ordem: 5, probabilidade: 100, tipo: "ganho" },
+  { nome: "Perdido", ordem: 6, probabilidade: 0, tipo: "perdido" },
+] as const;
+
+export async function criarPipeline(nome: string): Promise<ActionResult & { id?: string }> {
+  try {
+    const { supabase } = await cliente();
+    const n = nome.trim().slice(0, 80);
+    if (!n) return { ok: false, erro: "Informe o nome do funil." };
+    const { data: pipeline, error } = await supabase.from("pipelines").insert({ nome: n }).select("id").single();
+    if (error) return falha(error);
+    const { error: e2 } = await supabase.from("pipeline_stages").insert(
+      ETAPAS_PADRAO.map((e) => ({ ...e, pipeline_id: pipeline.id })),
+    );
+    if (e2) return falha(e2);
+    revalidar("/app/pipeline");
+    return { ok: true, id: pipeline.id };
+  } catch (e) { return falha(e); }
+}
+
+export async function renomearPipeline(id: string, nome: string): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const n = nome.trim().slice(0, 80);
+    if (!n) return { ok: false, erro: "Informe o nome do funil." };
+    const { error } = await supabase.from("pipelines").update({ nome: n }).eq("id", id);
+    if (error) return falha(error);
+    revalidar("/app/pipeline");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function excluirPipeline(id: string): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const { data: pl } = await supabase.from("pipelines").select("padrao").eq("id", id).single();
+    if (pl?.padrao) return { ok: false, erro: "O funil padrão não pode ser excluído." };
+    const { data: etapas } = await supabase.from("pipeline_stages").select("id").eq("pipeline_id", id);
+    const idsEtapas = (etapas ?? []).map((e) => e.id);
+    if (idsEtapas.length) {
+      const { count } = await supabase.from("deals").select("id", { count: "exact", head: true }).in("stage_id", idsEtapas);
+      if ((count ?? 0) > 0) return { ok: false, erro: "Esse funil tem negócios. Mova-os para outro funil antes de excluir." };
+    }
+    const { error } = await supabase.from("pipelines").delete().eq("id", id);
+    if (error) return falha(error);
+    revalidar("/app/pipeline");
     return { ok: true };
   } catch (e) { return falha(e); }
 }
