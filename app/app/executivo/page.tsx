@@ -1,29 +1,33 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Kpi, Vazio } from "@/components/ui/base";
+import { Cabecalho, Pagina, Kpi, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
 import { formatBRL, formatNum } from "@/lib/data/format";
 
 export const metadata = { title: "Dashboard Executivo — Tappo" };
 
+type DealComEtapa = { id: string; valor: number; stage_id: string; pipeline_stages: { tipo: string } | { tipo: string }[] | null };
+const tipoDaEtapa = (d: DealComEtapa) => (Array.isArray(d.pipeline_stages) ? d.pipeline_stages[0]?.tipo : d.pipeline_stages?.tipo);
+
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
-  const { supabase, user } = await usuarioAtual();
+  const { supabase } = await usuarioAtual();
 
-  // Buscar métricas globais da empresa atual
+  // Buscar métricas globais da empresa atual ("tipo" vive em pipeline_stages, não em deals)
   const [{ data: leads }, { data: deals }, { data: conversas }] = await Promise.all([
-    supabase.from("leads").select("id, status, origem, criado_em"),
-    supabase.from("deals").select("id, valor, tipo, fechado_em, stage_id"),
+    supabase.from("leads").select("id, status, origem, created_at"),
+    supabase.from("deals").select("id, valor, fechado_em, stage_id, pipeline_stages(tipo)"),
     supabase.from("wa_conversas").select("id, status, ultima_em"),
   ]);
 
+  const dealsComEtapa = (deals ?? []) as unknown as DealComEtapa[];
   const totalLeads = leads?.length ?? 0;
-  const totalDeals = deals?.length ?? 0;
+  const totalDeals = dealsComEtapa.length;
   const totalConversas = conversas?.length ?? 0;
-  const ganhoTotal = deals?.filter((d: any) => d.tipo === "ganho").reduce((s, d) => s + Number(d.valor), 0) ?? 0;
-  const pipelineAberto = deals?.filter((d: any) => d.tipo === "aberto").reduce((s, d) => s + Number(d.valor), 0) ?? 0;
+  const ganhoTotal = dealsComEtapa.filter((d) => tipoDaEtapa(d) === "ganho").reduce((s, d) => s + Number(d.valor), 0);
+  const pipelineAberto = dealsComEtapa.filter((d) => tipoDaEtapa(d) === "aberto").reduce((s, d) => s + Number(d.valor), 0);
 
-  const taxaConversao = totalLeads > 0 ? Math.round((deals?.filter((d: any) => d.tipo === "ganho").length ?? 0) / totalLeads * 100) : 0;
+  const taxaConversao = totalLeads > 0 ? Math.round((dealsComEtapa.filter((d) => tipoDaEtapa(d) === "ganho").length / totalLeads) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -58,7 +62,7 @@ async function Conteudo() {
             ) : (
               <div className="space-y-2">
                 {Object.entries(
-                  (leads ?? []).reduce((acc: Record<string, number>, l: any) => {
+                  (leads ?? []).reduce((acc: Record<string, number>, l) => {
                     acc[l.origem] = (acc[l.origem] ?? 0) + 1;
                     return acc;
                   }, {})

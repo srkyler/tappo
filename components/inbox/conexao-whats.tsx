@@ -22,27 +22,25 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
   const [estado, setEstado] = useState<EstadoWhats | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [pendente, iniciar] = useTransition();
-  const [estadoId, setEstadoId] = useState<string | null>(null);
 
-  const atualizar = useCallback(async () => {
-    if (!estadoId) return;
-    const e = await estadoWhatsApp(estadoId);
+  const atualizar = useCallback(async (id: string): Promise<EstadoWhats> => {
+    const e = await estadoWhatsApp(id);
     setEstado(e);
     return e;
-  }, [estadoId]);
+  }, []);
 
   // Enquanto o diálogo está aberto e não conectou, consulta o status (QR expira a cada ~20s)
   useEffect(() => {
     if (!aberta || !conexaoAtiva) return;
-    setEstadoId(conexaoAtiva.id);
+    const id = conexaoAtiva.id;
     let vivo = true;
     const ciclo = async () => {
-      const e = await atualizar();
+      const e = await atualizar(id);
       if (vivo && !(e.ok && e.status === "WORKING")) timer = setTimeout(ciclo, 4000);
     };
     let timer = setTimeout(ciclo, 0);
     return () => { vivo = false; clearTimeout(timer); };
-  }, [aberta, conexaoAtiva, atualizar, estadoId]);
+  }, [aberta, conexaoAtiva, atualizar]);
 
   function enviar(f: FormData) {
     setErro(null); setSalvo(false);
@@ -54,7 +52,7 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
   }
 
   const status = estado?.ok ? estado.status : conexaoAtiva?.status ?? "DESCONHECIDO";
-  const conexaoSelecionada = conexoes.find((c) => c.id === conexaoAtiva?.id);
+  const conexaoSelecionada = abertas.find((c) => c.id === conexaoAtiva?.id);
 
   return (
     <Dialogo aberto={aberta} aoFechar={aoFechar} titulo="WhatsApp (WAHA)" descricao="Gerencie múltiplas conexões WAHA por empresa. Cada conexão é um número diferente." largura={640}>
@@ -81,7 +79,7 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={(e) => { e.stopPropagation(); setConexaoAtiva(c); }} className="rounded-md p-1 text-gray-400 hover:bg-gray-800 hover:text-white" title="Selecionar como ativa">{ativa ? <Check size={12} /> : <ChevronRight size={12} />}</button>
-                      <button onClick={(e) => { e.stopPropagation(); setConexaoAtiva(c); setEstadoId(c.id); }} className="rounded-md p-1 text-gray-400 hover:bg-amber-500/20 hover:text-amber-400" title="Ver status"><QrCode size={12} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); setConexaoAtiva(c); }} className="rounded-md p-1 text-gray-400 hover:bg-amber-500/20 hover:text-amber-400" title="Ver status"><QrCode size={12} /></button>
                       <button onClick={(e) => { e.stopPropagation(); iniciar(async () => { await excluirConexao(c.id); setConexaoAtiva(null); }); }} className="rounded-md p-1 text-red-400 hover:bg-red-500/20" title="Excluir"><Trash2 size={12} /></button>
                     </div>
                   </div>
@@ -146,9 +144,9 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
                 </p>
               </div>
               {status === "WORKING" ? (
-                <button disabled={pendente} onClick={() => iniciar(async () => { await desconectarWhatsApp(conexaoAtiva.id); await atualizar(); })} className="btn btn-secundario btn-sm"><LogOut size={14} /> Desconectar</button>
+                <button disabled={pendente} onClick={() => iniciar(async () => { await desconectarWhatsApp(conexaoAtiva.id); await atualizar(conexaoAtiva.id); })} className="btn btn-secundario btn-sm"><LogOut size={14} /> Desconectar</button>
               ) : (
-                <button disabled={pendente} onClick={() => iniciar(async () => { setErro(null); const r = await conectarWhatsApp(conexaoAtiva.id); if (!r.ok) setErro(r.erro); await atualizar(); })} className="btn btn-primario btn-sm"><QrCode size={14} /> Conectar</button>
+                <button disabled={pendente} onClick={() => iniciar(async () => { setErro(null); const r = await conectarWhatsApp(conexaoAtiva.id); if (!r.ok) setErro(r.erro); await atualizar(conexaoAtiva.id); })} className="btn btn-primario btn-sm"><QrCode size={14} /> Conectar</button>
               )}
             </div>
             {estado && !estado.ok && <p className="text-[13px] text-red-400">{estado.erro}</p>}

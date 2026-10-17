@@ -83,7 +83,7 @@ export async function estadoWhatsApp(conexaoId?: string): Promise<EstadoWhats> {
 async function conexaoPorId(id: string) {
   const supabase = await createClient();
   const { data } = await supabase.from("wa_conexoes").select("*").eq("id", id).maybeSingle();
-  return data as any;
+  return data;
 }
 
 export async function conectarWhatsApp(conexaoId?: string): Promise<ActionResult> {

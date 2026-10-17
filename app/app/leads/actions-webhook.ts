@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/data/types";
 
 function falha(e: unknown): { ok: false; erro: string } {
@@ -59,25 +60,27 @@ export async function receberLead(f: FormData): Promise<ActionResult> {
   } catch (e) { return falha(e); }
 }
 
-export async function webhookCaptacao(token: string, body: any): Promise<{ ok: boolean; erro?: string }> {
+export async function webhookCaptacao(token: string, body: Record<string, unknown>): Promise<{ ok: boolean; erro?: string }> {
   try {
-    const supabase = await createClient();
-    const { data: fonte } = await supabase
+    // Chamada externa, sem sessão — precisa da service role (RLS bloquearia o client comum).
+    const db = createAdminClient();
+    const texto = (v: unknown) => (typeof v === "string" ? v : null);
+    const { data: fonte } = await db
       .from("lead_sources")
-      .select("id, org_id, status_inicial")
+      .select("id, org_id, status_inicial, recebidos")
       .eq("token", token)
       .eq("ativo", true)
       .maybeSingle();
     if (!fonte) return { ok: false, erro: "Fonte não encontrada ou inativa." };
 
-    const nome = body.nome || body.name || "";
-    const empresa = body.empresa || body.company || "Não informada";
-    const email = body.email || null;
-    const telefone = body.telefone || body.phone || null;
+    const nome = texto(body.nome) || texto(body.name) || "";
+    const empresa = texto(body.empresa) || texto(body.company) || "Não informada";
+    const email = texto(body.email);
+    const telefone = texto(body.telefone) || texto(body.phone);
 
     if (!nome) return { ok: false, erro: "Nome é obrigatório." };
 
-    const { error } = await supabase.from("leads").insert({
+    const { error } = await db.from("leads").insert({
       org_id: fonte.org_id,
       nome,
       empresa,
@@ -85,13 +88,12 @@ export async function webhookCaptacao(token: string, body: any): Promise<{ ok: b
       telefone,
       origem: "Site",
       status: fonte.status_inicial,
-      notas: body.mensagem || body.message || null,
+      notas: texto(body.mensagem) || texto(body.message),
     });
     if (error) throw error;
 
-    // Atualizar contador de recebidos na fonte
-    await supabase.from("lead_sources")
-      .update({ recebidos: supabase.sql`recebidos + 1`, ultimo_em: new Date().toISOString() })
+    await db.from("lead_sources")
+      .update({ recebidos: fonte.recebidos + 1, ultimo_em: new Date().toISOString() })
       .eq("id", fonte.id);
 
     return { ok: true };

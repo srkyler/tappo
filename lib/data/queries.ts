@@ -128,16 +128,20 @@ export type ConversaoOrigem = { origem: string; total: number; ganhos: number; t
 
 export async function lerConversaoPorOrigem(): Promise<ConversaoOrigem[]> {
   const { supabase } = await usuarioAtual();
+  // "Ganho" não é status de lead (é tipo de etapa do funil) — conversão real é
+  // o lead ter algum negócio numa etapa tipo "ganho".
   const { data } = await supabase
     .from("leads")
-    .select("origem")
-    .not("status", "eq", "Nova");
-  const todos = (data ?? []) as { origem: string }[];
-  const total = todos.length;
+    .select("origem, deals(pipeline_stages(tipo))");
+  const todos = (data ?? []) as unknown as { origem: string; deals: { pipeline_stages: { tipo: string }[] | { tipo: string } | null }[] }[];
   const porOrigem = todos.reduce((acc: Record<string, { total: number; ganhos: number }>, l) => {
     if (!acc[l.origem]) acc[l.origem] = { total: 0, ganhos: 0 };
     acc[l.origem].total++;
-    if (l.status === "Ganho") acc[l.origem].ganhos++;
+    const ganhou = l.deals?.some((d) => {
+      const ps = d.pipeline_stages;
+      return Array.isArray(ps) ? ps.some((x) => x.tipo === "ganho") : ps?.tipo === "ganho";
+    });
+    if (ganhou) acc[l.origem].ganhos++;
     return acc;
   }, {});
   return Object.entries(porOrigem).map(([origem, v]) => ({

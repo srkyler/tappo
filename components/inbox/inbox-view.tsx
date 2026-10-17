@@ -172,7 +172,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
 
   const conectado = sel?.canal === "telegram" ? conexaoTelegram?.status === "WORKING"
     : sel?.canal === "email" ? !!emailConexao?.endereco_envia
-    : conexao?.status === "WORKING";
+    : conexoes.some((c) => c.status === "WORKING");
 
   return (
     <>
@@ -320,7 +320,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                     onChange={(e) => setTexto(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }}
                     rows={1}
-                    placeholder={conectado ? (sel.ia_ativa && conexao?.ia_ativa ? "Escreva para responder (a IA continua ativa)…" : "Escreva uma mensagem…") : `Conecte o ${sel.canal === "telegram" ? "Telegram" : "WhatsApp"} para enviar`}
+                    placeholder={conectado ? (sel.ia_ativa && conexoes.some((c) => c.ia_ativa) ? "Escreva para responder (a IA continua ativa)…" : "Escreva uma mensagem…") : `Conecte o ${sel.canal === "telegram" ? "Telegram" : "WhatsApp"} para enviar`}
                     disabled={!conectado}
                     className="campo min-h-[42px] flex-1 resize-none"
                     aria-label="Mensagem"

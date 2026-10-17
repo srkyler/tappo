@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
+import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
-import { lerTarefasCalendario } from "@/lib/data/crm";
+import { lerTarefasCalendario, type TarefaView } from "@/lib/data/crm";
 import { formatData } from "@/lib/data/format";
 
 export const metadata = { title: "Calendário de Tarefas — Tappo" };

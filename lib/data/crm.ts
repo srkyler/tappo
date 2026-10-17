@@ -28,6 +28,19 @@ export type PessoaComConta = Pessoa & {
   conta: Pick<Conta, "id" | "nome"> | null;
 };
 
+export type TarefaView = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  vence_em: string | null;
+  concluida_em: string | null;
+  responsavel_nome: string | null;
+  lead_nome: string | null;
+  lead_cod: string | null;
+};
+
 /* ---------- Duplicados ---------- */
 
 export async function lerDuplicados(): Promise<LeadDuplicadoComLeads[]> {
@@ -110,7 +123,7 @@ export async function calcularScoreLead(leadId: string): Promise<LeadScore | nul
     .from("tarefas")
     .select("id, concluida_em")
     .eq("lead_id", leadId);
-  const tarefasConcluidas = (tarefas ?? []).filter((t: any) => t.concluida_em).length;
+  const tarefasConcluidas = (tarefas ?? []).filter((t) => t.concluida_em).length;
   const ptsTarefas = Math.min(tarefasConcluidas * 3, 15);
   score += ptsTarefas;
   fatores.tarefas_concluidas = { pontos: ptsTarefas, total: tarefasConcluidas };
@@ -193,7 +206,8 @@ export async function lerTarefasCalendario(): Promise<TarefaView[]> {
     .from("tarefas")
     .select("*, responsavel:profiles(id, nome_completo), lead:leads(id, nome, cod)")
     .order("vence_em", { ascending: true });
-  return ((data ?? []) as any[]).map((t: any) => ({
+  type Linha = { id: string; titulo: string; descricao: string | null; tipo: string; prioridade: string; vence_em: string | null; concluida_em: string | null; responsavel: { nome_completo: string | null } | null; lead: { nome: string; cod: string } | null };
+  return ((data ?? []) as unknown as Linha[]).map((t) => ({
     id: t.id,
     titulo: t.titulo,
     descricao: t.descricao,
@@ -213,40 +227,5 @@ export async function lerSlaConfig(): Promise<SlaConfig | null> {
   return data ? (data as SlaConfig) : null;
 }
 
-/* ---------- Automações ---------- */
-
-export async function lerAutomacoes(): Promise<Automacao[]> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("automacoes").select("*").order("criado_em", { ascending: false });
-  return (data ?? []) as Automacao[];
-}
-
-export async function salvarAutomacao(f: FormData): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const id = String(f.get("id") ?? "");
-  const nome = String(f.get("nome") ?? "").trim();
-  if (!nome) return { ok: false, erro: "Nome é obrigatório." };
-  const payload = {
-    nome,
-    ativo: f.get("ativo") === "on",
-    gatilho: String(f.get("gatilho") ?? "lead_mudou_status"),
-    gatilho_valor: String(f.get("gatilho_valor") ?? "") || null,
-    acao: String(f.get("acao") ?? "mover_etapa"),
-    acao_valor: String(f.get("acao_valor") ?? "") || null,
-  };
-  if (!id) {
-    const { error } = await supabase.from("automacoes").insert(payload);
-    if (error) return { ok: false, erro: error.message };
-  } else {
-    const { error } = await supabase.from("automacoes").update(payload).eq("id", id);
-    if (error) return { ok: false, erro: error.message };
-  }
-  return { ok: true };
-}
-
-export async function excluirAutomacao(id: string): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("automacoes").delete().eq("id", id);
-  if (error) return { ok: false, erro: error.message };
-  return { ok: true };
-}
+/* Automações: lerAutomacoes/salvarAutomacao/excluirAutomacao já vivem em
+ * app/app/automacoes/actions.ts + lib/data/automacoes.ts — não duplicar aqui. */
