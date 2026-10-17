@@ -77,6 +77,7 @@ export type PipelineStage = {
   ordem: number;
   probabilidade: number;
   tipo: StageTipo;
+  sla_dias: number | null;
 };
 
 export type Deal = {

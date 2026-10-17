@@ -2012,3 +2012,7 @@ CREATE INDEX IF NOT EXISTS idx_wa_conversas_prioridade ON public.wa_conversas (p
 -- Status do atendente (disponível, ocupado, ausente, offline)
 ALTER TABLE public.org_membros ADD COLUMN IF NOT EXISTS status_atendimento text NOT NULL DEFAULT 'disponível' CHECK (status_atendimento IN ('disponível','ocupado','ausente','offline'));
 CREATE INDEX IF NOT EXISTS idx_org_membros_status ON public.org_membros (status_atendimento);
+
+-- SLA por etapa do pipeline (dias máximos para ficar na etapa)
+ALTER TABLE public.pipeline_stages ADD COLUMN IF NOT EXISTS sla_dias int;
+CREATE INDEX IF NOT EXISTS idx_pipeline_stages_sla ON public.pipeline_stages (sla_dias);
