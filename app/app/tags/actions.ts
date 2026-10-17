@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { dispararAutomacoes } from "@/lib/automacoes";
 import type { ActionResult } from "@/lib/data/types";
 
 function falha(e: unknown): { ok: false; erro: string } {
@@ -51,6 +52,7 @@ export async function toggleTagLead(leadId: string, tagId: string): Promise<Acti
     } else {
       const { error } = await supabase.from("lead_tag_rel").insert({ lead_id: leadId, tag_id: tagId });
       if (error) throw error;
+      await dispararAutomacoes(supabase, "tag_adicionada", tagId, { leadId });
     }
     revalidatePath("/app/leads");
     return { ok: true };

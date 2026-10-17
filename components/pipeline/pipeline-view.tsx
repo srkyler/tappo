@@ -21,13 +21,28 @@ export function PipelineView({ etapas, deals, leads }: {
   const [sobre, setSobre] = useState<string | null>(null);
   const [editando, setEditando] = useState<Deal | null>(null);
   const [novoEm, setNovoEm] = useState<string | null>(null);
+  const [perdendo, setPerdendo] = useState<{ id: string; stage: string; titulo: string } | null>(null);
 
   function soltar(stage: string, id: string) {
     const d = otimista.find((x) => x.id === id);
     if (!d || d.stage_id === stage) return;
+    if (etapas.find((e) => e.id === stage)?.tipo === "perdido") {
+      setPerdendo({ id, stage, titulo: d.titulo });
+      return;
+    }
     iniciar(async () => {
       mover({ id, stage });
       await moverDeal(id, stage);
+    });
+  }
+
+  function confirmarPerda(motivo: string) {
+    if (!perdendo) return;
+    const { id, stage } = perdendo;
+    setPerdendo(null);
+    iniciar(async () => {
+      mover({ id, stage });
+      await moverDeal(id, stage, motivo);
     });
   }
 
@@ -89,6 +104,9 @@ export function PipelineView({ etapas, deals, leads }: {
                         <span className="text-[14px] font-semibold tabular">{formatBRL(d.valor)}</span>
                         <span className={cn("text-[11px]", e.tipo === "ganho" ? "text-gray-600" : "text-gray-600")}>{diasDesde(d.etapa_entrada_em)}d na etapa</span>
                       </div>
+                      {e.tipo === "perdido" && d.motivo_perda && (
+                        <p className="mt-1.5 truncate text-[11px] text-gray-600">Motivo: {d.motivo_perda}</p>
+                      )}
                     </button>
                     {/* Mobile: mover sem arrastar */}
                     <select
@@ -128,7 +146,34 @@ export function PipelineView({ etapas, deals, leads }: {
           aoSalvar={() => { setEditando(null); setNovoEm(null); }}
         />
       </Dialogo>
+
+      <Dialogo aberto={!!perdendo} aoFechar={() => setPerdendo(null)} titulo="Motivo da perda" descricao={perdendo?.titulo}>
+        <FormMotivoPerda aoConfirmar={confirmarPerda} aoCancelar={() => setPerdendo(null)} />
+      </Dialogo>
     </>
+  );
+}
+
+function FormMotivoPerda({ aoConfirmar, aoCancelar }: { aoConfirmar: (motivo: string) => void; aoCancelar: () => void }) {
+  const [motivo, setMotivo] = useState("");
+  return (
+    <form onSubmit={(ev) => { ev.preventDefault(); aoConfirmar(motivo); }} className="grid gap-4">
+      <div>
+        <Rotulo htmlFor="motivo_perda">Por que esse negócio foi perdido?</Rotulo>
+        <input
+          id="motivo_perda"
+          autoFocus
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          className="campo"
+          placeholder="Ex.: Preço, concorrente, sem orçamento, sem resposta…"
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={aoCancelar} className="btn btn-fantasma btn-sm">Cancelar</button>
+        <button className="btn btn-primario btn-sm">Confirmar</button>
+      </div>
+    </form>
   );
 }
 

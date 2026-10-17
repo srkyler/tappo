@@ -138,10 +138,21 @@ export async function atribuirConversa(conversaId: string, userId: string | null
   try {
     const { supabase, user } = await cliente();
     const empresa = await empresaAtual();
-    // Vendedor/atendente só pode puxar para si; gestor distribui para qualquer um
+    // Vendedor/atendente só pode puxar para si; gestor distribui ou transfere para qualquer um
     if (userId && userId !== user.id && !ehGestor(empresa?.papel)) return { ok: false, erro: "Só gestores podem atribuir conversas a outras pessoas." };
+    const { data: antes } = await supabase.from("wa_conversas").select("atribuido_a, lead_id").eq("id", conversaId).single();
     const { error } = await supabase.from("wa_conversas").update({ atribuido_a: userId }).eq("id", conversaId);
     if (error) throw error;
+    // Auditoria: toda troca de responsável (atribuição ou transferência) vira atividade
+    if (antes && antes.atribuido_a !== userId) {
+      let rotulo = "ninguém";
+      if (userId) {
+        const { data: perfil } = await supabase.from("profiles").select("nome_completo, email").eq("id", userId).single();
+        rotulo = perfil?.nome_completo || perfil?.email?.split("@")[0] || "alguém";
+      }
+      const descricao = antes.atribuido_a ? `Conversa transferida para ${rotulo}.` : `Conversa atribuída a ${rotulo}.`;
+      await supabase.from("activities").insert({ user_id: user.id, lead_id: antes.lead_id, tipo: "nota", descricao });
+    }
     return { ok: true };
   } catch (e) { return falha(e); }
 }

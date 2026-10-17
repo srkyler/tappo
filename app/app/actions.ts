@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { dispararAutomacoes } from "@/lib/automacoes";
 import { campo, traduzErro } from "@/lib/data/format";
 import {
   CAMPAIGN_STATUS, CANAL, LEAD_ORIGEM, LEAD_STATUS,
@@ -66,6 +67,7 @@ export async function mudarStatusLead(id: string, status: LeadStatus): Promise<A
     const { supabase } = await cliente();
     const { error } = await supabase.from("leads").update({ status }).eq("id", id);
     if (error) return falha(error);
+    await dispararAutomacoes(supabase, "lead_mudou_status", status, { leadId: id });
     revalidar("/app/leads");
     return { ok: true };
   } catch (e) { return falha(e); }
@@ -204,6 +206,7 @@ export async function adicionarLeadsCampanha(campaignId: string, leadIds: string
       { onConflict: "campaign_id,lead_id", ignoreDuplicates: true },
     );
     if (error) return falha(error);
+    for (const leadId of leadIds) await dispararAutomacoes(supabase, "lead_entrou_campanha", campaignId, { leadId });
     revalidar("/app/campanhas");
     return { ok: true };
   } catch (e) { return falha(e); }
@@ -272,11 +275,15 @@ export async function salvarDeal(id: string | null, fd: FormData): Promise<Actio
   } catch (e) { return falha(e); }
 }
 
-export async function moverDeal(id: string, stageId: string): Promise<ActionResult> {
+export async function moverDeal(id: string, stageId: string, motivoPerda?: string): Promise<ActionResult> {
   try {
     const { supabase } = await cliente();
-    const { error } = await supabase.from("deals").update({ stage_id: stageId }).eq("id", id);
+    const { data, error } = await supabase.from("deals").update({
+      stage_id: stageId,
+      motivo_perda: motivoPerda?.trim() || null,
+    }).eq("id", id).select("lead_id").single();
     if (error) return falha(error);
+    await dispararAutomacoes(supabase, "deal_mudou_etapa", stageId, { dealId: id, leadId: data?.lead_id ?? null });
     revalidar("/app/pipeline", "/app/analytics");
     return { ok: true };
   } catch (e) { return falha(e); }

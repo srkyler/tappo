@@ -80,6 +80,7 @@ export type Deal = {
   valor: number;
   data_fechamento_previsto: string | null;
   notas: string | null;
+  motivo_perda: string | null;
   etapa_entrada_em: string;
   fechado_em: string | null;
   created_at: string;
@@ -218,6 +219,25 @@ export type Proposta = {
   status: string;
   pdf_url: string | null;
   enviado_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export const GATILHOS_AUTOMACAO = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
+export const ACOES_AUTOMACAO = ["mover_etapa", "adicionar_tag", "atribuir_responsavel", "criar_tarefa"] as const;
+export type GatilhoAutomacao = (typeof GATILHOS_AUTOMACAO)[number];
+export type AcaoAutomacao = (typeof ACOES_AUTOMACAO)[number];
+
+export type Automacao = {
+  id: string;
+  org_id: string;
+  nome: string;
+  ativo: boolean;
+  gatilho: GatilhoAutomacao;
+  gatilho_valor: string | null;
+  acao: AcaoAutomacao;
+  acao_valor: string | null;
+  execucoes: number;
   criado_em: string;
   atualizado_em: string;
 };

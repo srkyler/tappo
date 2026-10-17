@@ -78,6 +78,25 @@ export async function enviarERegistrar(
 const MARCA_HUMANO = /\[HUMANO\]/gi;
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/* Anti-banimento: a IA nunca responde instantaneamente (parece robô disparando) e
+ * nunca manda mais de N mensagens automáticas na mesma conversa num intervalo curto
+ * (evita flood que o WhatsApp detecta como spam). Em memória: o Tappo roda num único
+ * processo por instância; não precisa de Redis para isso. */
+const JANELA_RATE_LIMIT_MS = 60_000;
+const MAX_MENSAGENS_IA_POR_JANELA = 3;
+const historicoEnviosIA = new Map<string, number[]>();
+
+function podeEnviarIA(conversaId: string): boolean {
+  const agora = Date.now();
+  const recentes = (historicoEnviosIA.get(conversaId) ?? []).filter((t) => agora - t < JANELA_RATE_LIMIT_MS);
+  if (recentes.length >= MAX_MENSAGENS_IA_POR_JANELA) { historicoEnviosIA.set(conversaId, recentes); return false; }
+  recentes.push(agora);
+  historicoEnviosIA.set(conversaId, recentes);
+  return true;
+}
+
+const jitter = (min: number, max: number) => Math.floor(min + Math.random() * (max - min));
+
 /** IA responde a última mensagem do contato (roda depois do webhook responder). */
 export async function responderComIA(db: SupabaseClient, c: Conexao, conversaId: string, mensagemId: string) {
   // Junta rajadas: se o cliente mandar outra mensagem logo depois, só a última dispara resposta
@@ -130,7 +149,15 @@ export async function responderComIA(db: SupabaseClient, c: Conexao, conversaId:
   const passarParaHumano = /\[HUMANO\]/i.test(texto);
   texto = texto.replace(MARCA_HUMANO, "").trim();
   // A IA respondeu: o relógio de espera só volta a correr se ela passar para um humano
-  if (texto) await enviarERegistrar(db, c, conversa, texto, "ia");
+  if (texto) {
+    if (!podeEnviarIA(conversaId)) {
+      // Rajada demais nesta conversa: segura e devolve para um humano decidir (evita banimento por flood)
+      await db.from("wa_conversas").update({ status: "pendente", atribuido_a: conversa.atribuido_a ?? (await distribuir(db, c)), aguardando_desde: new Date().toISOString() }).eq("id", conversaId);
+    } else {
+      await espera(jitter(800, 2500)); // não responde instantâneo como robô
+      await enviarERegistrar(db, c, conversa, texto, "ia");
+    }
+  }
   if (passarParaHumano) {
     const atribuido_a = conversa.atribuido_a ?? (await distribuir(db, c));
     await db.from("wa_conversas").update({ ia_ativa: false, status: "pendente", atribuido_a, aguardando_desde: new Date().toISOString() }).eq("id", conversaId);
