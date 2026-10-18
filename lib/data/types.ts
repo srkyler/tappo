@@ -244,7 +244,9 @@ export type ChatbotQualificacao = {
   ativa: boolean;
   criado_em: string;
   atualizado_em: string;
-}; = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
+};
+
+export const GATILHOS_AUTOMACAO = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
 export const ACOES_AUTOMACAO = ["mover_etapa", "adicionar_tag", "atribuir_responsavel", "criar_tarefa"] as const;
 export type GatilhoAutomacao = (typeof GATILHOS_AUTOMACAO)[number];
 export type AcaoAutomacao = (typeof ACOES_AUTOMACAO)[number];
@@ -412,24 +414,5 @@ export type AtendimentoAtendente = {
   conversas_atribuidas_mes: number;
   tempo_medio_resposta_seg: number | null;
   conversas_resolvidas_mes: number;
-};
-
-export const GATILHOS_AUTOMACAO = ["lead_mudou_status","lead_entrou_campanha","deal_mudou_etapa","tag_adicionada"] as const;
-export const ACOES_AUTOMACAO = ["mover_etapa","adicionar_tag","atribuir_responsavel","criar_tarefa"] as const;
-export type GatilhoAutomacao = (typeof GATILHOS_AUTOMACAO)[number];
-export type AcaoAutomacao = (typeof ACOES_AUTOMACAO)[number];
-
-export type Automacao = {
-  id: string;
-  org_id: string;
-  nome: string;
-  ativo: boolean;
-  gatilho: GatilhoAutomacao;
-  gatilho_valor: string | null;
-  acao: AcaoAutomacao;
-  acao_valor: string | null;
-  execucoes: number;
-  criado_em: string;
-  atualizado_em: string;
 };
 

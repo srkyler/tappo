@@ -28,6 +28,7 @@ export type ConversaTela = {
   id: string; chat_id: string; nome: string | null; telefone: string | null; lead_id: string | null;
   status: "aberta" | "pendente" | "resolvida"; ia_ativa: boolean; nao_lidas: number;
   ultima_mensagem: string | null; ultima_em: string; atribuido_a: string | null; canal?: CanalInbox;
+  prioridade?: string;
   leads?: { nome: string; empresa: string; cod: string } | null;
 };
 type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string };

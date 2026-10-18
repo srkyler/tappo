@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   LeadDuplicado, LeadHistorico, LeadScore, Comissao, CampoPersonalizado,
   Conta, Pessoa, TarefaRecorrente, SlaConfig, Lead, Profile,
+  AtendimentoAtendente, ChatbotQualificacao,
 } from "@/lib/data/types";
 
 /* Leituras (server-only) das telas de Bloco 2. As mutações ficam em
