@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3, Building2, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, type LucideIcon,
+  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
@@ -52,6 +52,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
       { href: "/app/campos-personalizados", label: "Campos personalizados", Icone: LayoutGrid },
       { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
       { href: "/app/sla", label: "SLA atendimento", Icone: Timer },
+      { href: "/app/atendimento-atendente", label: "Atendimento por Atendente", Icone: UserRound },
       { href: "/app/empresa", label: "Empresa e equipe", Icone: Briefcase },
     ],
   },

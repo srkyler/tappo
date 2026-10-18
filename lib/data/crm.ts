@@ -229,3 +229,58 @@ export async function lerSlaConfig(): Promise<SlaConfig | null> {
 
 /* Automações: lerAutomacoes/salvarAutomacao/excluirAutomacao já vivem em
  * app/app/automacoes/actions.ts + lib/data/automacoes.ts — não duplicar aqui. */
+
+/* ---------- Atendimento por Atendente ---------- */
+
+export async function lerAtendimentoAtendente(): Promise<AtendimentoAtendente[]> {
+  const supabase = await createClient();
+  const { data: membros } = await supabase
+    .from("org_membros")
+    .select("*, usuarios:profiles(id, nome_completo, email)")
+    .eq("ativo", true);
+
+  if (!membros || membros.length === 0) return [];
+
+  const ids = membros.map((m) => m.user_id);
+  const mesInicio = new Date();
+  mesInicio.setDate(1);
+  mesInicio.setHours(0, 0, 0, 0);
+
+  const [{ data: conversasAbertas }, { data: conversasResolvidas }, { data: tempoResposta }] = await Promise.all([
+    supabase
+      .from("wa_conversas")
+      .select("atribuido_a, status")
+      .in("atribuido_a", ids)
+      .neq("status", "resolvida"),
+    supabase
+      .from("wa_conversas")
+      .select("atribuido_a, status, ultima_em")
+      .in("atribuido_a", ids)
+      .eq("status", "resolvida")
+      .gte("ultima_em", mesInicio.toISOString()),
+    supabase
+      .from("wa_mensagens")
+      .select("enviado_por, tempo_resposta_seg, created_at")
+      .in("enviado_por", ids)
+      .not("tempo_resposta_seg", "is", null)
+      .gte("created_at", mesInicio.toISOString()),
+  ]);
+
+  return membros.map((m) => {
+    const mConversasAbertas = (conversasAbertas ?? []).filter((c) => c.atribuido_a === m.user_id).length;
+    const mResolvidas = (conversasResolvidas ?? []).filter((c) => c.atribuido_a === m.user_id).length;
+    const mTempos = (tempoResposta ?? []).filter((t) => t.enviado_por === m.user_id).map((t) => t.tempo_resposta_seg).filter(Boolean) as number[];
+    const tempoMedio = mTempos.length > 0 ? Math.round(mTempos.reduce((a, b) => a + b, 0) / mTempos.length) : null;
+
+    return {
+      user_id: m.user_id,
+      nome: (m.usuarios as any)?.nome_completo || m.user_id.slice(0, 8),
+      papel: m.papel,
+      status_atendimento: m.status_atendimento,
+      conversas_abertas: mConversasAbertas,
+      conversas_atribuidas_mes: mResolvidas,
+      tempo_medio_resposta_seg: tempoMedio,
+      conversas_resolvidas_mes: mResolvidas,
+    };
+  });
+}
