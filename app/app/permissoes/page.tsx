@@ -1,4 +1,6 @@
-import { Suspense } from "react";
+"use client";
+
+import { Suspense, useState, useTransition } from "react";
 import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";

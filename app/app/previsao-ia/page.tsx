@@ -62,7 +62,7 @@ async function Conteudo() {
       <div className="grid gap-3 sm:gap-4 xl:grid-cols-4">
         <Kpi rotulo="Previsão ponderada" valor={formatBRL(totalPrevisto)} detalhe="Valor × probabilidade" />
         <Kpi rotulo="Valor total pipeline" valor={formatBRL(totalBruto)} detalhe="Todos os negócios" />
-        <Kpi rotulo="Probab. média" valor={formatNum(Math.round(mediaProb))} + "%" detalhe="Média do pipeline" />
+        <Kpi rotulo="Probab. média" valor={`${formatNum(Math.round(mediaProb))}%`} detalhe="Média do pipeline" />
         <Kpi rotulo="Leads analisados" valor={formatNum(predicoes.length)} detalhe="Com previsão ativa" />
       </div>
 
