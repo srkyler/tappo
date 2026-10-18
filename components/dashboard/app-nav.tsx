@@ -51,6 +51,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
       { href: "/app/duplicados", label: "Duplicados", Icone: Copy },
       { href: "/app/campos-personalizados", label: "Campos personalizados", Icone: LayoutGrid },
       { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
+      { href: "/app/chatbot-qualificacao", label: "Chatbot Qualificação", Icone: Sparkles },
       { href: "/app/sla", label: "SLA atendimento", Icone: Timer },
       { href: "/app/atendimento-atendente", label: "Atendimento por Atendente", Icone: UserRound },
       { href: "/app/empresa", label: "Empresa e equipe", Icone: Briefcase },

@@ -230,10 +230,21 @@ export type Proposta = {
   pdf_url: string | null;
   enviado_em: string | null;
   criado_em: string;
-  atualizado_em: string;
+      atualizado_em: string;
 };
 
-export const GATILHOS_AUTOMACAO = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
+export type ChatbotQualificacao = {
+  id: string;
+  org_id: string;
+  segmento: string;
+  pergunta: string;
+  ordem: number;
+  campo_resposta: string;
+  obrigatoria: boolean;
+  ativa: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}; = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
 export const ACOES_AUTOMACAO = ["mover_etapa", "adicionar_tag", "atribuir_responsavel", "criar_tarefa"] as const;
 export type GatilhoAutomacao = (typeof GATILHOS_AUTOMACAO)[number];
 export type AcaoAutomacao = (typeof ACOES_AUTOMACAO)[number];

@@ -1951,3 +1951,28 @@ CREATE POLICY promocoes_org ON public.promocoes FOR ALL TO authenticated
   USING (org_id = (SELECT public.org_atual()))
   WITH CHECK (org_id = (SELECT public.org_atual()));
 REVOKE ALL ON public.promocoes FROM anon;
+
+-- -------------------------------------------------------------
+-- Qualificação de Chatbot por segmento
+-- Fluxo de perguntas automáticas que o IA faz antes de passar para humano
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.chatbot_qualificacao (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        uuid NOT NULL REFERENCES public.organizacoes(id) ON DELETE CASCADE,
+  segmento      text NOT NULL,
+  pergunta      text NOT NULL CHECK (length(trim(pergunta)) > 0),
+  ordem         int NOT NULL DEFAULT 1 CHECK (ordem >= 1),
+  campo_resposta text NOT NULL DEFAULT 'resposta', -- nome do campo para salvar a resposta
+  obrigatoria   boolean NOT NULL DEFAULT true,
+  ativa         boolean NOT NULL DEFAULT true,
+  criado_em     timestamptz NOT NULL DEFAULT now(),
+  atualizado_em timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, segmento, ordem)
+);
+CREATE INDEX IF NOT EXISTS idx_chatbot_qualificacao_org ON public.chatbot_qualificacao (org_id, segmento);
+
+ALTER TABLE public.chatbot_qualificacao ENABLE ROW LEVEL SECURITY;
+CREATE POLICY chatbot_qualificacao_org ON public.chatbot_qualificacao FOR ALL TO authenticated
+  USING (org_id = (SELECT public.org_atual()))
+  WITH CHECK (org_id = (SELECT public.org_atual()));
+REVOKE ALL ON public.chatbot_qualificacao FROM anon;

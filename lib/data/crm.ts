@@ -284,3 +284,46 @@ export async function lerAtendimentoAtendente(): Promise<AtendimentoAtendente[]>
     };
   });
 }
+
+/* ---------- Chatbot Qualificação ---------- */
+
+export async function lerChatbotQualificacao(segmento: string): Promise<ChatbotQualificacao[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("chatbot_qualificacao")
+    .select("*")
+    .eq("segmento", segmento)
+    .eq("ativa", true)
+    .order("ordem", { ascending: true });
+  return (data ?? []) as ChatbotQualificacao[];
+}
+
+export async function salvarChatbotQualificacao(f: FormData): Promise<{ ok: boolean; erro?: string }> {
+  const supabase = await createClient();
+  const id = String(f.get("id") ?? "");
+  const segmento = String(f.get("segmento") ?? "").trim();
+  const pergunta = String(f.get("pergunta") ?? "").trim();
+  const ordem = Number(f.get("ordem") ?? 1) || 1;
+  const campo_resposta = String(f.get("campo_resposta") ?? "resposta").trim();
+  const obrigatoria = f.get("obrigatoria") === "on";
+  const ativa = f.get("ativa") === "on";
+
+  if (!segmento || !pergunta) return { ok: false, erro: "Segmento e pergunta são obrigatórios." };
+
+  const payload = { segmento, pergunta, ordem, campo_resposta, obrigatoria, ativa };
+  if (!id) {
+    const { error } = await supabase.from("chatbot_qualificacao").insert(payload);
+    if (error) return { ok: false, erro: error.message };
+  } else {
+    const { error } = await supabase.from("chatbot_qualificacao").update(payload).eq("id", id);
+    if (error) return { ok: false, erro: error.message };
+  }
+  return { ok: true };
+}
+
+export async function excluirChatbotQualificacao(id: string): Promise<{ ok: boolean; erro?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("chatbot_qualificacao").delete().eq("id", id);
+  if (error) return { ok: false, erro: error.message };
+  return { ok: true };
+}
