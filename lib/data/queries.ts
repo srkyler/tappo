@@ -16,7 +16,7 @@ export async function lerPerfil(): Promise<(Profile & { email: string | null }) 
   const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   return data ? { ...data, email: data.email ?? user.email ?? null } : {
     id: user.id, nome_completo: null, empresa: null, cargo: null, telefone: null,
-    avatar_url: null, meta_reunioes_semana: 5, email: user.email ?? null, org_atual: null,
+    avatar_url: null, avatar_icone: null, cor_destaque: "#FFFFFF", meta_reunioes_semana: 5, email: user.email ?? null, org_atual: null,
   };
 }
 

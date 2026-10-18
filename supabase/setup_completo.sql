@@ -1952,27 +1952,19 @@ CREATE POLICY promocoes_org ON public.promocoes FOR ALL TO authenticated
   WITH CHECK (org_id = (SELECT public.org_atual()));
 REVOKE ALL ON public.promocoes FROM anon;
 
--- -------------------------------------------------------------
--- Qualificação de Chatbot por segmento
--- Fluxo de perguntas automáticas que o IA faz antes de passar para humano
--- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.chatbot_qualificacao (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id        uuid NOT NULL REFERENCES public.organizacoes(id) ON DELETE CASCADE,
-  segmento      text NOT NULL,
-  pergunta      text NOT NULL CHECK (length(trim(pergunta)) > 0),
-  ordem         int NOT NULL DEFAULT 1 CHECK (ordem >= 1),
-  campo_resposta text NOT NULL DEFAULT 'resposta', -- nome do campo para salvar a resposta
-  obrigatoria   boolean NOT NULL DEFAULT true,
-  ativa         boolean NOT NULL DEFAULT true,
-  criado_em     timestamptz NOT NULL DEFAULT now(),
-  atualizado_em timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, segmento, ordem)
-);
-CREATE INDEX IF NOT EXISTS idx_chatbot_qualificacao_org ON public.chatbot_qualificacao (org_id, segmento);
 
-ALTER TABLE public.chatbot_qualificacao ENABLE ROW LEVEL SECURITY;
-CREATE POLICY chatbot_qualificacao_org ON public.chatbot_qualificacao FOR ALL TO authenticated
-  USING (org_id = (SELECT public.org_atual()))
-  WITH CHECK (org_id = (SELECT public.org_atual()));
-REVOKE ALL ON public.chatbot_qualificacao FROM anon;
+-- >>>>> 20261018000000_personalizacao_visual.sql
+
+-- =============================================================
+-- Tappo — personalização visual: cor de destaque por usuário.
+-- A base preto/branco não muda; isso só troca a cor de
+-- botões/realces (calcula o texto preto/branco automaticamente
+-- no app, não precisa de coluna extra pra isso).
+-- =============================================================
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cor_destaque text NOT NULL DEFAULT '#FFFFFF';
+DO $$ BEGIN
+  ALTER TABLE public.profiles ADD CONSTRAINT profiles_cor_destaque_check CHECK (cor_destaque ~ '^#[0-9A-Fa-f]{6}$');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_icone text;

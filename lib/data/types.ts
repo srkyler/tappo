@@ -114,6 +114,8 @@ export type Profile = {
   cargo: string | null;
   telefone: string | null;
   avatar_url: string | null;
+  avatar_icone: string | null;
+  cor_destaque: string;
   org_atual: string | null;
   meta_reunioes_semana: number;
 };

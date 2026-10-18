@@ -559,6 +559,27 @@ export async function salvarPerfil(fd: FormData): Promise<ActionResult> {
   } catch (e) { return falha(e); }
 }
 
+export async function salvarCorDestaque(cor: string): Promise<ActionResult> {
+  try {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(cor)) return { ok: false, erro: "Cor inválida." };
+    const { supabase, user } = await cliente();
+    const { error } = await supabase.from("profiles").update({ cor_destaque: cor }).eq("id", user.id);
+    if (error) return falha(error);
+    revalidatePath("/app", "layout");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function salvarAvatarIcone(icone: string | null): Promise<ActionResult> {
+  try {
+    const { supabase, user } = await cliente();
+    const { error } = await supabase.from("profiles").update({ avatar_icone: icone }).eq("id", user.id);
+    if (error) return falha(error);
+    revalidatePath("/app", "layout");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
 export async function trocarSenha(fd: FormData): Promise<ActionResult> {
   try {
     const { supabase } = await cliente();

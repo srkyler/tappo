@@ -1,38 +1,46 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import { ehAdmin } from "@/lib/admin/guard";
 import { createClient } from "@/lib/supabase/server";
 import { sair } from "@/app/auth/actions";
 import { NavInferior, NavLateral, PaletaComandos } from "@/components/dashboard/app-nav";
 import { Logo } from "@/components/ui/base";
+import { AvatarUsuario } from "@/components/perfil/avatar-usuario";
+import { corTextoContraste } from "@/lib/data/cor";
 
 /* Tappo — layout do app autenticado */
 
-async function Usuario() {
+const perfilBasico = cache(async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: perfil } = user
-    ? await supabase.from("profiles").select("nome_completo, avatar_url").eq("id", user.id).maybeSingle()
+    ? await supabase.from("profiles").select("nome_completo, avatar_url, avatar_icone, cor_destaque").eq("id", user.id).maybeSingle()
     : { data: null };
+  return { user, perfil };
+});
+
+async function Usuario() {
+  const { user, perfil } = await perfilBasico();
   const nome = perfil?.nome_completo || user?.email?.split("@")[0] || "Usuário";
 
   return (
     <Link href="/app/perfil" className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-gray-900">
-      {perfil?.avatar_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={perfil.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover grayscale" referrerPolicy="no-referrer" />
-      ) : (
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[13px] font-semibold text-black">
-          {nome[0]?.toUpperCase()}
-        </span>
-      )}
+      <AvatarUsuario nome={nome} avatarUrl={perfil?.avatar_url ?? null} avatarIcone={perfil?.avatar_icone ?? null} tamanho={32} />
       <div className="min-w-0">
         <div className="truncate text-[13px] font-medium text-white">{nome}</div>
         <div className="truncate text-[11px] text-gray-500">{user?.email}</div>
       </div>
     </Link>
   );
+}
+
+/** Variáveis CSS da cor de destaque do usuário — padrão branco se não escolheu nenhuma. */
+async function CorDestaque() {
+  const { perfil } = await perfilBasico();
+  const cor = perfil?.cor_destaque;
+  if (!cor || !/^#[0-9A-Fa-f]{6}$/.test(cor)) return null;
+  return <style>{`:root { --acento: ${cor}; --acento-fg: ${corTextoContraste(cor)}; }`}</style>;
 }
 
 /** Só aparece para administradores. */
@@ -61,6 +69,7 @@ function UsuarioCarregando() {
 export default function AppLayout({ children }: LayoutProps<"/app">) {
   return (
     <div className="flex h-[100svh] overflow-hidden bg-black">
+      <Suspense fallback={null}><CorDestaque /></Suspense>
       <aside className="hidden w-[240px] shrink-0 flex-col border-r border-gray-800 bg-[#070707] lg:flex">
         <div className="px-6 pb-2 pt-6">
           <Link href="/app"><Logo /></Link>

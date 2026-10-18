@@ -179,7 +179,8 @@
     text-transform: uppercase;
   }
 
-  /* Botão primário: branco sólido */
+  /* Botão primário: cor de destaque do usuário (padrão branco) — ver
+     --acento/--acento-fg, injetadas em app/app/layout.tsx a partir do perfil. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -191,13 +192,17 @@
     font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.15s var(--ease-gaveta);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.15s var(--ease-gaveta), box-shadow 0.2s;
     cursor: pointer;
   }
   .btn:active { transform: scale(0.97); }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-  .btn-primario { background: #FAFAFA; color: #0A0A0A; }
-  .btn-primario:hover { background: #D4D4D4; }
+  .btn-primario {
+    background: var(--acento, #FAFAFA);
+    color: var(--acento-fg, #0A0A0A);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  }
+  .btn-primario:hover { filter: brightness(0.85); box-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04) inset; }
   .btn-secundario { background: transparent; color: #FAFAFA; border: 1px solid #333; }
   .btn-secundario:hover { border-color: #FAFAFA; }
   .btn-fantasma { background: transparent; color: #B5B5B5; }
@@ -213,13 +218,13 @@
     height: 48px;
     padding: 0 26px;
     border-radius: 999px;
-    background: #FAFAFA;
-    color: #0A0A0A;
+    background: var(--acento, #FAFAFA);
+    color: var(--acento-fg, #0A0A0A);
     font-size: 15px;
     font-weight: 600;
-    transition: background-color 0.2s, transform 0.15s var(--ease-gaveta);
+    transition: filter 0.2s, transform 0.15s var(--ease-gaveta);
   }
-  .selo-cta:hover { background: #D4D4D4; }
+  .selo-cta:hover { filter: brightness(0.85); }
   .selo-cta:active { transform: scale(0.97); }
 
   /* Campos */
@@ -239,14 +244,16 @@
   select.campo { appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
   .campo::placeholder { color: #5A5A5A; }
   .campo:hover { border-color: #3A3A3A; }
-  .campo:focus { border-color: #FAFAFA; box-shadow: 0 0 0 3px rgba(250,250,250,0.08); }
+  .campo:focus { border-color: var(--acento, #FAFAFA); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento, #FAFAFA) 20%, transparent); }
   .campo:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Cartão / painel */
+  /* Cartão / painel — leve profundidade (sombra + friso claro no topo),
+     continua monocromático, só dá sensação de elevação sobre o fundo preto. */
   .painel {
-    background: #0F0F0F;
+    background: linear-gradient(180deg, #121212 0%, #0D0D0D 100%);
     border: 1px solid #1F1F1F;
     border-radius: 16px;
+    box-shadow: 0 1px 0 0 rgba(255,255,255,0.03) inset, 0 8px 24px -12px rgba(0,0,0,0.6);
   }
 
   /* Rótulo mono em caixa alta */

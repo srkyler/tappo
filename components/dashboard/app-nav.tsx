@@ -5,13 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3, Building2, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
+  BarChart3, Building2, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
   Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
 type Item = { href: string; label: string; Icone: LucideIcon };
 
+// Grupos pequenos e coerentes em vez de uma lista única — cada um recolhe
+// independente (preferência salva no navegador, ver NavLateral).
 export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
   {
     itens: [
@@ -29,31 +31,56 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
       { href: "/app/prospeccao", label: "Prospecção", Icone: MapPin },
       { href: "/app/pipeline", label: "Pipeline", Icone: KanbanSquare },
       { href: "/app/campanhas", label: "Campanhas", Icone: Send },
-      { href: "/app/analytics", label: "Analytics", Icone: BarChart3 },
-      { href: "/app/marketing", label: "Calendário de Marketing", Icone: Megaphone },
+      { href: "/app/propostas", label: "Propostas", Icone: Send },
+      { href: "/app/tags", label: "Tags", Icone: Activity },
+      { href: "/app/duplicados", label: "Duplicados", Icone: Copy },
     ],
   },
   {
-    titulo: "Ferramentas",
+    titulo: "Atendimento",
     itens: [
       { href: "/app/respostas", label: "Respostas rápidas", Icone: Zap },
-      { href: "/app/captacao", label: "Captação", Icone: Webhook },
-      { href: "/app/tags", label: "Tags", Icone: Activity },
       { href: "/app/automacoes", label: "Automações", Icone: Workflow },
-      { href: "/app/propostas", label: "Propostas", Icone: Send },
-      { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
-      { href: "/app/calendario", label: "Calendário", Icone: Calendar },
-      { href: "/app/tarefas-recorrentes", label: "Tarefas Recorrentes", Icone: RefreshCw },
-      { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
-      { href: "/app/executivo", label: "Dashboard Executivo", Icone: LayoutGrid },
-      { href: "/app/contas", label: "Contas", Icone: Building2 },
-      { href: "/app/pessoas", label: "Pessoas", Icone: Users },
-      { href: "/app/duplicados", label: "Duplicados", Icone: Copy },
-      { href: "/app/campos-personalizados", label: "Campos personalizados", Icone: LayoutGrid },
-      { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
       { href: "/app/chatbot-qualificacao", label: "Chatbot Qualificação", Icone: Sparkles },
       { href: "/app/sla", label: "SLA atendimento", Icone: Timer },
       { href: "/app/atendimento-atendente", label: "Atendimento por Atendente", Icone: UserRound },
+      { href: "/app/captacao", label: "Captação", Icone: Webhook },
+    ],
+  },
+  {
+    titulo: "Marketing",
+    itens: [
+      { href: "/app/marketing", label: "Calendário de Marketing", Icone: Megaphone },
+      { href: "/app/analytics", label: "Analytics", Icone: BarChart3 },
+    ],
+  },
+  {
+    titulo: "Tarefas e agenda",
+    itens: [
+      { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
+      { href: "/app/calendario", label: "Calendário", Icone: Calendar },
+      { href: "/app/tarefas-recorrentes", label: "Tarefas Recorrentes", Icone: RefreshCw },
+    ],
+  },
+  {
+    titulo: "Gestão",
+    itens: [
+      { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
+      { href: "/app/executivo", label: "Dashboard Executivo", Icone: LayoutGrid },
+      { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
+    ],
+  },
+  {
+    titulo: "Cadastros",
+    itens: [
+      { href: "/app/contas", label: "Contas", Icone: Building2 },
+      { href: "/app/pessoas", label: "Pessoas", Icone: Users },
+      { href: "/app/campos-personalizados", label: "Campos personalizados", Icone: LayoutGrid },
+    ],
+  },
+  {
+    titulo: "Empresa",
+    itens: [
       { href: "/app/empresa", label: "Empresa e equipe", Icone: Briefcase },
     ],
   },
@@ -67,34 +94,86 @@ function ativo(path: string, href: string) {
 
 const mola = { type: "spring", stiffness: 500, damping: 38 } as const;
 
-/** Navegação lateral (desktop). */
+const CHAVE_RECOLHIDOS = "tappo:nav:recolhidos";
+
+function lerRecolhidos(): Set<string> {
+  try {
+    const salvo = localStorage.getItem(CHAVE_RECOLHIDOS);
+    return salvo ? new Set(JSON.parse(salvo)) : new Set();
+  } catch { return new Set(); }
+}
+
+/** Navegação lateral (desktop). Cada categoria com título recolhe/expande. */
 export function NavLateral() {
   const path = usePathname();
+  const [recolhidos, setRecolhidos] = useState<Set<string>>(() => (typeof window === "undefined" ? new Set() : lerRecolhidos()));
+
+  // A categoria da página atual nunca fica escondida, mesmo se o usuário a
+  // recolheu antes — calculado no render (não em efeito: é derivado, não é
+  // sincronização com sistema externo).
+  const grupoAtivo = GRUPOS.find((g) => g.itens.some((i) => ativo(path, i.href)))?.titulo;
+  const recolhidosEfetivos = grupoAtivo && recolhidos.has(grupoAtivo)
+    ? new Set([...recolhidos].filter((t) => t !== grupoAtivo))
+    : recolhidos;
+
+  function alternar(titulo: string) {
+    setRecolhidos((atual) => {
+      const n = new Set(atual);
+      if (n.has(titulo)) n.delete(titulo); else n.add(titulo);
+      try { localStorage.setItem(CHAVE_RECOLHIDOS, JSON.stringify([...n])); } catch { /* storage indisponível */ }
+      return n;
+    });
+  }
+
   return (
     <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4" aria-label="Navegação principal">
       <BotaoBusca />
-      {GRUPOS.map((g, i) => (
-        <div key={i}>
-          {g.titulo && <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-[0.1em] text-gray-600">{g.titulo}</p>}
-          <div className="flex flex-col gap-0.5">
-            {g.itens.map(({ href, label, Icone }) => {
-              const on = ativo(path, href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={on ? "page" : undefined}
-                  className={`group relative flex h-9 items-center gap-3 rounded-lg px-3 text-[14px] transition-colors duration-200 ${on ? "text-black" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+      {GRUPOS.map((g, i) => {
+        const fechado = !!g.titulo && recolhidosEfetivos.has(g.titulo);
+        return (
+          <div key={i}>
+            {g.titulo && (
+              <button
+                onClick={() => alternar(g.titulo!)}
+                className="mb-1 flex w-full items-center justify-between rounded px-3 py-0.5 text-[11px] font-medium uppercase tracking-[0.1em] text-gray-600 transition-colors hover:text-gray-400"
+                aria-expanded={!fechado}
+              >
+                {g.titulo}
+                <ChevronDown size={12} className={cn("transition-transform", fechado && "-rotate-90")} />
+              </button>
+            )}
+            <AnimatePresence initial={false}>
+              {!fechado && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden"
                 >
-                  {on && <motion.span layoutId="nav-ativa" transition={mola} className="absolute inset-0 rounded-lg bg-white" />}
-                  <Icone size={16} strokeWidth={1.8} className="relative" />
-                  <span className="relative font-medium">{label}</span>
-                </Link>
-              );
-            })}
+                  <div className="flex flex-col gap-0.5">
+                    {g.itens.map(({ href, label, Icone }) => {
+                      const on = ativo(path, href);
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          aria-current={on ? "page" : undefined}
+                          className={`group relative flex h-9 items-center gap-3 rounded-lg px-3 text-[14px] transition-colors duration-200 ${on ? "text-[var(--acento-fg,#000)]" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+                        >
+                          {on && <motion.span layoutId="nav-ativa" transition={mola} className="absolute inset-0 rounded-lg bg-[var(--acento,#fff)]" />}
+                          <Icone size={16} strokeWidth={1.8} className="relative" />
+                          <span className="relative font-medium">{label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
@@ -126,7 +205,7 @@ export function NavInferior() {
         const on = ativo(path, href);
         return (
           <Link key={href} href={href} aria-current={on ? "page" : undefined} className={`relative flex flex-col items-center gap-1 pb-2 pt-2.5 text-[10.5px] font-medium ${on ? "text-white" : "text-gray-500"}`}>
-            {on && <motion.span layoutId="nav-ativa-m" transition={mola} className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-white" />}
+            {on && <motion.span layoutId="nav-ativa-m" transition={mola} className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-[var(--acento,#fff)]" />}
             <Icone size={19} strokeWidth={1.8} />
             {label.replace(" IA", "")}
           </Link>
