@@ -1,59 +1,66 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
+import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
-import { lerTarefasRecorrentes } from "@/lib/data/crm";
-import { FormTarefaRecorrente } from "@/components/crm/form-tarefa-recorrente";
 
 export const metadata = { title: "Tarefas Recorrentes — Tappo" };
 
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
-  const tarefas = await lerTarefasRecorrentes();
-
-  const recorrenciaLabel: Record<string, string> = {
-    diaria: "Diária",
-    semanal: "Semanal",
-    mensal: "Mensal",
-    anual: "Anual",
-  };
 
   return (
     <div className="space-y-6">
-      <Cabecalho rotulo="Tarefas" titulo="Tarefas Recorrentes" descricao="Tarefas que se repetem automaticamente. Uma nova tarefa é criada sempre que a recorrente vence." />
+      <Cabecalho rotulo="Tarefas" titulo="Tarefas recorrentes" descricao="Configure tarefas que se repetem automaticamente em intervalos definidos." />
 
-      <div className="grid lg:grid-cols-[1fr_420px] gap-6">
-        <section className="painel">
-          <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3">
-            <h2 className="text-[13px] font-medium text-white">Tarefas Recorrentes ({tarefas.length})</h2>
+      <section className="painel p-5">
+        <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Nova tarefa recorrente</h3>
+        <form className="space-y-3">
+          <div>
+            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Título</label>
+            <input name="titulo" placeholder="Ex.: Seguimento semanal de leads" className="campo w-full" required />
           </div>
-          <div className="px-5 py-3 space-y-2">
-            {tarefas.length === 0 ? (
-              <Vazio titulo="Sem tarefas recorrentes" texto="Cadastre sua primeira tarefa recorrente." />
-            ) : (
-              <div className="space-y-2">
-                {tarefas.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-900/30">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-white">{t.titulo}</p>
-                      <p className="text-[11px] text-gray-500">{t.tipo} · {t.prioridade} · {recorrenciaLabel[t.recorrencia]}</p>
-                      <p className="text-[11px] text-gray-400">Próxima: {t.proxima_execucao?.slice(0, 10) || "—"}</p>
-                    </div>
-                    <span className={`text-[10px] uppercase rounded-full border px-2 py-0.5 ${t.ativa ? "text-emerald-400 border-emerald-500/30" : "text-gray-600 border-gray-800"}`}>
-                      {t.ativa ? "Ativa" : "Pausada"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Frequência</label>
+              <select name="frequencia" className="campo w-full">
+                <option value="diaria">Diária</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Dia da semana</label>
+              <select name="dia_semana" className="campo w-full">
+                <option value="segunda">Segunda-feira</option>
+                <option value="terca">Terça-feira</option>
+                <option value="quarta">Quarta-feira</option>
+                <option value="quinta">Quinta-feira</option>
+                <option value="sexta">Sexta-feira</option>
+              </select>
+            </div>
           </div>
-        </section>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Horário</label>
+              <input name="horario" type="time" defaultValue="09:00" className="campo w-full" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Responsável</label>
+              <select name="responsavel_id" className="campo w-full">
+                <option value="">Eu mesmo</option>
+              </select>
+            </div>
+          </div>
+          <button className="btn btn-primario w-full">Criar tarefa recorrente</button>
+        </form>
+      </section>
 
-        <section className="painel p-5">
-          <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Nova tarefa recorrente</h3>
-          <FormTarefaRecorrente />
-        </section>
-      </div>
+      <section className="painel">
+        <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3">
+          <h2 className="text-[13px] font-medium text-white">Tarefas recorrentes ativas</h2>
+        </div>
+        <Vazio titulo="Sem tarefas recorrentes" texto="Nenhuma tarefa recorrente configurada ainda." />
+      </section>
     </div>
   );
 }
@@ -61,7 +68,7 @@ async function Conteudo() {
 export default function TarefasRecorrentesPage() {
   return (
     <Pagina>
-      <Suspense fallback={<div className="esqueleto h-[60vh]" />}>
+      <Suspense fallback={<div className="esqueleto h-[70vh]" />}>
         <Conteudo />
       </Suspense>
     </Pagina>

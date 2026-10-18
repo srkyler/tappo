@@ -1,9 +1,8 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina } from "@/components/ui/base";
+import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
-import { lerSlaConfig } from "@/lib/data/crm";
-import { FormSla } from "@/components/crm/form-sla";
+import { lerSlaConfig, salvarSlaConfig } from "@/lib/data/crm";
 
 export const metadata = { title: "SLA de Atendimento — Tappo" };
 
@@ -20,7 +19,25 @@ async function Conteudo() {
           <p className="text-[13px] text-gray-400 mb-4">
             Quando uma conversa fica sem resposta por mais do que o tempo configurado, ela aparece com destaque no inbox e no painel do gestor.
           </p>
-          <FormSla sla={sla} />
+          <form action={salvarSlaConfig} className="space-y-3">
+            <input type="hidden" name="id" value={sla?.id ?? ""} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Tempo de resposta (minutos)</label>
+                <input name="tempo_resposta_min" type="number" min="1" defaultValue={sla?.tempo_resposta_min ?? 15} className="campo w-full" required />
+              </div>
+              <div>
+                <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
+                  <input type="checkbox" name="ativo" defaultChecked={sla?.ativo ?? true} className="mt-1" />
+                  <span>
+                    <span className="block text-[14px] font-medium text-white">SLA ativo</span>
+                    <span className="block text-[12.5px] text-gray-500">Quando inativo, não há alertas de tempo de resposta.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+            <button className="btn btn-primario w-full">Salvar configuração</button>
+          </form>
         </div>
       </section>
 
@@ -31,7 +48,7 @@ async function Conteudo() {
           <li>• Conversas no canal WhatsApp, Telegram e E-mail contam para o tempo de resposta.</li>
           <li>• O tempo começa a contar quando a primeira mensagem do cliente chega.</li>
           <li>• Quando um atendente responde, o tempo é zerado.</li>
-          <li>• No painel do gestor, veja quantas conversas estão acima do SLA (acima de 15 min por padrão).</li>
+          <li>• No painel do gestor, veja quantas conversas estão acima do SLA (>15 min por padrão).</li>
         </ul>
       </section>
     </div>

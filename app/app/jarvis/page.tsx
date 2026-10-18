@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { Chat } from "@/components/agente/chat";
+import { ChatJarvis } from "@/components/agente/chat";
 import { agenteAtivoPublico } from "@/lib/ai/agentes";
 import { usuarioAtual } from "@/lib/data/queries";
 
@@ -17,7 +17,7 @@ async function Conteudo() {
   await usuarioAtual();
   const agente = await agenteAtivoPublico();
   return (
-    <Chat
+    <ChatJarvis
       agente={agente}
       endpoint="/api/jarvis"
       chaveStorage="tappo:jarvis:conversa"

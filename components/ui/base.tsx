@@ -1,129 +1,65 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "@/lib/utils";
 
-/* Tappo — primitivas visuais monocromáticas (server-safe) */
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-export function Pagina({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-10 lg:py-10", className)}>{children}</div>;
-}
-
-export function Cabecalho({ rotulo, titulo, descricao, acoes }: {
-  rotulo?: string;
-  titulo: string;
-  descricao?: React.ReactNode;
-  acoes?: React.ReactNode;
-}) {
+export function Cabecalho({ rotulo, titulo, descricao }: { rotulo: string; titulo: string; descricao?: string }) {
   return (
-    <header className="mb-8 flex flex-col gap-4 border-b border-gray-800 pb-6 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        {rotulo && <p className="rotulo mb-2">{rotulo}</p>}
-        <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-white sm:text-[32px]">{titulo}</h1>
-        {descricao && <p className="mt-2 max-w-[60ch] text-[14px] leading-relaxed text-gray-400">{descricao}</p>}
+    <div className="mb-6">
+      <span className="inline-flex items-center gap-1 rounded-full border border-gray-800 bg-black/30 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-400">
+        {rotulo}
+      </span>
+      <h1 className="mt-1 text-[20px] font-bold tracking-tight text-white">{titulo}</h1>
+      {descricao && <p className="mt-1 text-[13px] text-gray-500">{descricao}</p>}
+    </div>
+  );
+}
+
+export function Pagina({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-screen bg-black text-white">{children}</div>;
+}
+
+export function Painel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("rounded-lg border border-gray-800 bg-black/40 p-1", className)}>
+      {children}
+    </div>
+  );
+}
+
+export function Vazio({ titulo, texto }: { titulo: string; texto: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-800 bg-black/50 text-gray-500 mb-3">
+        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
       </div>
-      {acoes && <div className="flex flex-wrap items-center gap-2">{acoes}</div>}
-    </header>
-  );
-}
-
-export function Painel({ titulo, acao, children, className, corpo }: {
-  titulo?: React.ReactNode;
-  acao?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-  corpo?: string;
-}) {
-  return (
-    <section className={cn("painel overflow-hidden", className)}>
-      {titulo && (
-        <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-5 py-3.5">
-          <h2 className="text-[14px] font-medium text-white">{titulo}</h2>
-          {acao}
-        </div>
-      )}
-      <div className={corpo}>{children}</div>
-    </section>
-  );
-}
-
-export function Kpi({ rotulo, valor, detalhe }: { rotulo: string; valor: React.ReactNode; detalhe?: React.ReactNode }) {
-  return (
-    <div className="painel p-5">
-      <p className="rotulo">{rotulo}</p>
-      <p className="mt-3 text-[30px] font-semibold leading-none tracking-[-0.03em] text-white tabular">{valor}</p>
-      {detalhe && <p className="mt-2 text-[12px] text-gray-500">{detalhe}</p>}
+      <h3 className="text-lg font-medium text-white">{titulo}</h3>
+      <p className="mt-1 text-sm text-gray-500">{texto}</p>
     </div>
   );
 }
 
-const TOM_STATUS: Record<string, string> = {
-  // preenchido = mais quente; contorno = neutro; tracejado = encerrado
-  "Reunião": "bg-white text-black border-white",
-  "Qualificado": "bg-gray-200 text-black border-gray-200",
-  "Ganho": "bg-white text-black border-white",
-  "Ativa": "bg-white text-black border-white",
-  "Respondeu": "bg-gray-200 text-black border-gray-200",
-  "Contatado": "text-white border-gray-500",
-  "Follow-up": "text-white border-gray-500",
-  "Nova": "text-gray-300 border-gray-700",
-  "Rascunho": "text-gray-300 border-gray-700",
-  "Ativo": "text-white border-gray-500",
-  "Pausada": "text-gray-400 border-gray-700 border-dashed",
-  "Concluída": "text-gray-400 border-gray-700",
-  "Concluído": "text-gray-400 border-gray-700",
-  "Perdido": "text-gray-500 border-gray-800 border-dashed line-through",
-  "Removido": "text-gray-500 border-gray-800 border-dashed",
-};
-
-export function Status({ valor, className }: { valor: string; className?: string }) {
-  return (
-    <span className={cn(
-      "inline-flex h-6 items-center whitespace-nowrap rounded-full border px-2.5 font-mono text-[10.5px] uppercase tracking-[0.08em]",
-      TOM_STATUS[valor] ?? "text-gray-300 border-gray-700",
-      className,
-    )}>
-      {valor}
-    </span>
-  );
+export function Status({ label }: { label: string }) {
+  return <span className="text-[11px] font-medium text-gray-400 uppercase">{label}</span>;
 }
 
-export function Vazio({ icone, titulo, texto, acao }: {
-  icone?: React.ReactNode;
-  titulo: string;
-  texto?: string;
-  acao?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      {icone && <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-gray-800 text-gray-400">{icone}</div>}
-      <p className="text-[15px] font-medium text-white">{titulo}</p>
-      {texto && <p className="mt-1.5 max-w-[42ch] text-[13px] leading-relaxed text-gray-500">{texto}</p>}
-      {acao && <div className="mt-5">{acao}</div>}
-    </div>
-  );
+export function btn({ variant = "primario", size = "md", children, className }: { variant?: "primario" | "secundario" | "fantasma"; size?: "sm" | "md"; children: React.ReactNode; className?: string }) {
+  const base = "inline-flex items-center justify-center rounded-lg font-medium text-[13px] transition-colors focus:outline-none focus:ring-2 focus:ring-gray-600 disabled:opacity-50 disabled:pointer-events-none";
+  const variants: Record<string, string> = {
+    primario: "bg-white text-black hover:bg-gray-200",
+    secundario: "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700",
+    fantasma: "text-gray-400 hover:text-white hover:bg-gray-800/30",
+  };
+  const sizes: Record<string, string> = {
+    sm: "px-2.5 py-1.5 text-[11px]",
+    md: "px-4 py-2",
+  };
+  return <button className={cn(base, variants[variant], sizes[size], className)}>{children}</button>;
 }
 
-export function Barra({ valor, max = 100, className }: { valor: number; max?: number; className?: string }) {
-  const pct = max > 0 ? Math.min(100, Math.round((valor / max) * 100)) : 0;
-  return (
-    <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-gray-800", className)}>
-      <div className="h-full rounded-full bg-white transition-[width] duration-700 ease-[var(--ease-gaveta)]" style={{ width: `${pct}%` }} />
-    </div>
-  );
+export function campo({ className }: { className?: string }) {
+  return <input className={cn("block w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none", className)} />;
 }
 
-export function Rotulo({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
-  return <label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] font-medium text-gray-300">{children}</label>;
-}
-
-export function Logo({ className }: { className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-2 text-[17px] font-semibold tracking-[-0.02em] text-white", className)}>
-      <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-mono text-[13px] font-bold text-black">T</span>
-      tappo
-    </span>
-  );
+export function esqueleto({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-md bg-gray-900", className)} />;
 }
