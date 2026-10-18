@@ -70,10 +70,59 @@ export async function concluirTarefa(id: string, concluida: boolean): Promise<Ac
 
 export async function excluirTarefa(id: string): Promise<ActionResult> {
   try {
-    const { supabase } = await cliente();
+    const supabase = await createClient();
     const { error } = await supabase.from("tarefas").delete().eq("id", id);
     if (error) throw error;
     revalidatePath("/app/tarefas");
     return { ok: true };
   } catch (e) { return falha(e); }
+}
+
+/* ---------- Lembretes WhatsApp para tarefas vencidas ---------- */
+
+export async function enviarLembreteTarefaVencida(): Promise<{ ok: boolean; erro?: string; enviadas: number }> {
+  try {
+    const { supabase, user } = await cliente();
+    const empresa = await empresaAtual();
+    if (!empresa) return { ok: false, erro: "Empresa não encontrada.", enviadas: 0 };
+
+    const agora = new Date().toISOString();
+
+    // Buscar tarefas vencidas e não concluídas com conversa vinculada
+    const { data: tarefas } = await supabase
+      .from("tarefas")
+      .select("*, conversa:wa_conversas(chat_id, telefone)")
+      .eq("org_id", empresa.id)
+      .is("concluida_em", null)
+      .lt("vence_em", agora)
+      .not("conversa_id", "is", null);
+
+    if (!tarefas || tarefas.length === 0) return { ok: true, enviadas: 0 };
+
+    let enviadas = 0;
+    for (const t of tarefas) {
+      const conversa = (t as any).conversa;
+      if (!conversa?.chat_id) continue;
+
+      const mensagem = `⚠️ *Lembrete de tarefa vencida*\n\n*${t.titulo}*\n${t.descricao || ""}\n\nVencia em: ${new Date(t.vence_em).toLocaleDateString("pt-BR")}\n\nResponda esta mensagem para atualizar.`;
+
+      try {
+        await supabase.from("wa_mensagens").insert({
+          org_id: empresa.id,
+          conversa_id: t.id,
+          direcao: "saida",
+          autor: "humano",
+          tipo: "texto",
+          corpo: mensagem,
+          status: "enviado",
+          enviado_por: user.id,
+          created_at: agora,
+        });
+        enviadas++;
+      } catch { /* ignora erro individual */ }
+    }
+
+    revalidatePath("/app/tarefas");
+    return { ok: true, enviadas };
+  } catch (e) { return { ok: false, erro: falha(e).erro, enviadas: 0 }; }
 }
