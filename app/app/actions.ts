@@ -308,8 +308,107 @@ export async function mudarStatusLeadCampanha(campaignLeadId: string, status: st
     const { supabase } = await cliente();
     const { error } = await supabase.from("campaign_leads").update({ status }).eq("id", campaignLeadId);
     if (error) return falha(error);
-    revalidar("/app/campanhas");
+    revalidatePath("/app/campanhas");
     return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+/* ---------------- Cadência multi-canal ---------------- */
+
+export async function executarProximaEtapaCampanha(campaignLeadId: string): Promise<ActionResult & { etapa?: any }> {
+  try {
+    const { supabase } = await cliente();
+
+    // Buscar o próximo passo da campanha para este lead
+    const { data: cl, error: e1 } = await supabase
+      .from("campaign_leads")
+      .select("*, campaign_id, lead_id, etapas_concluidas, status")
+      .eq("id", campaignLeadId)
+      .single();
+    if (e1) return falha(e1);
+    if (!cl) return { ok: false, erro: "Campanha-lead não encontrada." };
+
+    const proximaEtapa = cl.etapas_concluidas + 1;
+
+    const { data: passos, error: e2 } = await supabase
+      .from("campaign_steps")
+      .select("*")
+      .eq("campaign_id", cl.campaign_id)
+      .eq("ordem", proximaEtapa)
+      .single();
+    if (e2 || !passos) {
+      // Não há mais passos - marcar como concluído
+      await supabase.from("campaign_leads").update({ status: "Concluído" }).eq("id", campaignLeadId);
+      revalidatePath("/app/campanhas");
+      return { ok: true };
+    }
+
+    // Buscar dados do lead
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("nome, telefone, email, empresa")
+      .eq("id", cl.lead_id)
+      .single();
+
+    // Executar a ação baseado no canal
+    const corpo = passos.acao
+      .replace(/\{\{nome\}\}/g, lead?.nome || "")
+      .replace(/\{\{empresa\}\}/g, lead?.empresa || "")
+      .replace(/\{\{email\}\}/g, lead?.email || "")
+      .replace(/\{\{telefone\}\}/g, lead?.telefone || "");
+
+    if (passos.canal === "WhatsApp") {
+      // Enviar mensagem via WhatsApp (inserir em wa_mensagens para o WAHA processar)
+      const { data: conversa } = await supabase
+        .from("wa_conversas")
+        .select("id")
+        .eq("lead_id", cl.lead_id)
+        .maybeSingle();
+
+      if (conversa) {
+        await supabase.from("wa_mensagens").insert({
+          org_id: cl.org_id || "",
+          conversa_id: conversa.id,
+          direcao: "saida",
+          autor: "humano",
+          tipo: "texto",
+          corpo,
+          status: "enviado",
+          enviado_por: cl.lead_id,
+        });
+      }
+    } else if (passos.canal === "E-mail") {
+      // Inserir como atividade de e-mail
+      await supabase.from("activities").insert({
+        org_id: cl.org_id || "",
+        user_id: cl.lead_id,
+        tipo: "email",
+        descricao: `E-mail enviado: ${corpo}`,
+        lead_id: cl.lead_id,
+        campanha_id: cl.campaign_id,
+        ocorreu_em: new Date().toISOString(),
+      });
+    } else if (passos.canal === "Ligação") {
+      await supabase.from("activities").insert({
+        org_id: cl.org_id || "",
+        user_id: cl.lead_id,
+        tipo: "ligacao",
+        descricao: `Ligação feita: ${corpo}`,
+        lead_id: cl.lead_id,
+        campanha_id: cl.campaign_id,
+        ocorreu_em: new Date().toISOString(),
+      });
+    }
+
+    // Avançar etapa
+    const { error: e3 } = await supabase.from("campaign_leads").update({
+      etapas_concluidas: proximaEtapa,
+      proximo_passo_em: new Date(Date.now() + 86400000).toISOString(), // próximo dia
+    }).eq("id", campaignLeadId);
+    if (e3) return falha(e3);
+
+    revalidatePath("/app/campanhas");
+    return { ok: true, etapa: passos };
   } catch (e) { return falha(e); }
 }
 
