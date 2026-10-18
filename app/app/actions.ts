@@ -6,7 +6,7 @@ import { dispararAutomacoes } from "@/lib/automacoes";
 import { campo, traduzErro } from "@/lib/data/format";
 import {
   CAMPAIGN_STATUS, CANAL, LEAD_ORIGEM, LEAD_STATUS,
-  type ActionResult, type CampaignStatus, type Canal, type LeadOrigem, type LeadStatus,
+  type ActionResult, type CampaignStatus, type Canal, type CampaignStep, type LeadOrigem, type LeadStatus,
 } from "@/lib/data/types";
 
 /* Tappo — mutações do app. Toda escrita passa pelo cliente do usuário (RLS = dono). */
@@ -315,7 +315,7 @@ export async function mudarStatusLeadCampanha(campaignLeadId: string, status: st
 
 /* ---------------- Cadência multi-canal ---------------- */
 
-export async function executarProximaEtapaCampanha(campaignLeadId: string): Promise<ActionResult & { etapa?: any }> {
+export async function executarProximaEtapaCampanha(campaignLeadId: string): Promise<ActionResult & { etapa?: CampaignStep }> {
   try {
     const { supabase } = await cliente();
 

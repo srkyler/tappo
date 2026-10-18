@@ -11,6 +11,40 @@ function erro(e: unknown): { ok: false; erro: string } {
   return { ok: false, erro: msg };
 }
 
+/* ---------- Chatbot de qualificação ---------- */
+
+export async function salvarChatbotQualificacao(f: FormData): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    const id = String(f.get("id") ?? "");
+    const segmento = String(f.get("segmento") ?? "").trim();
+    const pergunta = String(f.get("pergunta") ?? "").trim();
+    const ordem = Number(f.get("ordem") ?? 1) || 1;
+    const campo_resposta = String(f.get("campo_resposta") ?? "resposta").trim();
+    const obrigatoria = f.get("obrigatoria") === "on";
+    const ativa = f.get("ativa") === "on";
+    if (!segmento || !pergunta) return { ok: false, erro: "Segmento e pergunta são obrigatórios." };
+
+    const payload = { segmento, pergunta, ordem, campo_resposta, obrigatoria, ativa };
+    const { error: e } = id
+      ? await supabase.from("chatbot_qualificacao").update(payload).eq("id", id)
+      : await supabase.from("chatbot_qualificacao").insert(payload);
+    if (e) return { ok: false, erro: e.message };
+    revalidatePath("/app/chatbot-qualificacao");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
+
+export async function excluirChatbotQualificacao(id: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    const { error: e } = await supabase.from("chatbot_qualificacao").delete().eq("id", id);
+    if (e) return { ok: false, erro: e.message };
+    revalidatePath("/app/chatbot-qualificacao");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
+
 /* ---------- Duplicados ---------- */
 
 export async function resolverDuplicado(id: string, manterLeadId: string): Promise<{ ok: boolean; erro?: string }> {

@@ -101,7 +101,7 @@ export async function enviarLembreteTarefaVencida(): Promise<{ ok: boolean; erro
 
     let enviadas = 0;
     for (const t of tarefas) {
-      const conversa = (t as any).conversa;
+      const conversa = t.conversa as { chat_id: string; telefone: string | null } | null;
       if (!conversa?.chat_id) continue;
 
       const mensagem = `⚠️ *Lembrete de tarefa vencida*\n\n*${t.titulo}*\n${t.descricao || ""}\n\nVencia em: ${new Date(t.vence_em).toLocaleDateString("pt-BR")}\n\nResponda esta mensagem para atualizar.`;
