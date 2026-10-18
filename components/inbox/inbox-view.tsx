@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock } from "lucide-react";
+import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock, AlertTriangle, Target } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
 import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
@@ -233,6 +233,8 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                         )}
                         {c.nao_lidas > 0 && <span className="rounded-full bg-white px-1.5 text-[11px] font-semibold text-black">{c.nao_lidas}</span>}
                         {c.acimaSla && <span className="flex items-center gap-1 text-[11px] text-red-400" title="Acima do SLA de resposta"><Clock size={10} /> SLA</span>}
+                        {c.prioridade === "urgente" && <span className="flex items-center gap-1 text-[11px] text-red-500" title="Prioridade urgente"><AlertTriangle size={10} /> Urgente</span>}
+                        {c.prioridade === "alta" && <span className="flex items-center gap-1 text-[11px] text-amber-400" title="Prioridade alta"><Target size={10} /> Alta</span>}
                       </span>
                     </span>
                   </span>
