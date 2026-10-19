@@ -2,12 +2,9 @@
 
 import { Suspense, useState } from "react";
 import { Cabecalho, Pagina, Painel, Vazio, Status } from "@/components/ui/base";
-import { AvisoBanco } from "@/components/dashboard/aviso-banco";
-import { bancoPronto } from "@/lib/data/queries";
+import { esqueleto } from "@/components/ui/base";
 
-async function Conteudo() {
-  if (!(await bancoPronto())) return <AvisoBanco />;
-
+export default function EnriquecimentoClient() {
   const exemplos = [
     {
       lead: "João Silva",
@@ -138,7 +135,7 @@ async function Conteudo() {
             </ul>
           </div>
           <div className="rounded-lg border border-gray-800 p-4">
-            <h4 className="text-[12px] font-bold text-white mb-2">🔗 Fontes</h2>
+            <h4 className="text-[12px] font-bold text-white mb-2">🔗 Fontes</h4>
             <ul className="space-y-1 text-[12px] text-gray-400">
               <li>Receita Federal (CNPJ)</li>
               <li>Sintegra (IE)</li>
@@ -149,15 +146,5 @@ async function Conteudo() {
         </div>
       </section>
     </div>
-  );
-}
-
-export default function EnriquecimentoPage() {
-  return (
-    <Pagina>
-      <Suspense fallback={<div className="esqueleto h-[70vh]" />}>
-        <Conteudo />
-      </Suspense>
-    </Pagina>
   );
 }

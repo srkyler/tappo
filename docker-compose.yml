@@ -11,9 +11,22 @@ services:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
     image: tappo-app:latest
     restart: unless-stopped
-    env_file: .env
     expose: ["3000"]
+    env_file: .env
     networks: [tappo]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   waha:
     image: devlikeapro/waha:latest
@@ -31,6 +44,11 @@ services:
       - waha_media:/app/.media
     expose: ["3000"]
     networks: [tappo]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
 
   caddy:
     image: caddy:2-alpine
@@ -39,7 +57,7 @@ services:
     ports: ["80:80", "443:443", "443:443/udp"]
     environment:
       DOMAIN: ${DOMAIN}
-      WAHA_DOMAIN: ${WAHA_DOMAIN:-waha.localhost}
+      WAHA_DOMAIN: ${WAHA_DOMAIN:-waha.${DOMAIN}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -48,6 +66,7 @@ services:
 
 networks:
   tappo:
+    driver: bridge
 
 volumes:
   waha_sessions:

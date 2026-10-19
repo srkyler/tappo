@@ -3,12 +3,9 @@
 import { Suspense, useState, useTransition } from "react";
 import { Cabecalho, Pagina, Painel, Kpi, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
-import { bancoPronto } from "@/lib/data/queries";
 import { formatBRL } from "@/lib/data/format";
 
-async function Conteudo() {
-  if (!(await bancoPronto())) return <AvisoBanco />;
-
+export default function FunilEditorClient() {
   const [etapas, setEtapas] = useState([
     { id: "1", nome: "Prospecção", ordem: 1, probabilidade: 10, tipo: "aberto", sla_dias: 7, cor: "#6B7280", qtd: 12, valor: 45000 },
     { id: "2", nome: "Qualificado", ordem: 2, probabilidade: 30, tipo: "aberto", sla_dias: 5, cor: "#3B82F6", qtd: 8, valor: 120000 },
@@ -213,15 +210,5 @@ async function Conteudo() {
         </div>
       </section>
     </div>
-  );
-}
-
-export default function FunilEditorPage() {
-  return (
-    <Pagina>
-      <Suspense fallback={<div className="esqueleto h-[80vh]" />}>
-        <Conteudo />
-      </Suspense>
-    </Pagina>
   );
 }
