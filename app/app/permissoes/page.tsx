@@ -5,8 +5,6 @@ import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
 
-export const metadata = { title: "Permissões — Tappo" };
-
 const MODULOS = [
   { id: "dashboard", nome: "Dashboard executivo" },
   { id: "gestor", nome: "Painel do gestor" },

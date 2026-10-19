@@ -5,8 +5,6 @@ import { Cabecalho, Pagina, Painel, Vazio, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
 
-export const metadata = { title: "Enriquecimento — Tappo" };
-
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
 

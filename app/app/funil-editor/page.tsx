@@ -1,5 +1,3 @@
-export const metadata = { title: "Funil Customizável — Tappo" };
-
 "use client";
 
 import { Suspense, useState, useTransition } from "react";
