@@ -103,8 +103,7 @@ export function Chat({ agente, endpoint = "/api/jarvis", chaveStorage = "tappo:j
           const e = JSON.parse(l) as Evento;
           if (e.t === "texto") { setStatus(null); atualizar((m) => ({ ...m, content: m.content + e.d })); }
           else if (e.t === "ferramenta") { setStatus(`${e.rotulo}…`); atualizar((m) => ({ ...m, ferramentas: [...(m.ferramentas ?? []), e.rotulo] })); }
-          else if (e.t === "erro") atualizar((m) => ({ ...m, content: `${m.content}${m.content ? "\n\n" : ""}⚠ ${e.d}`, erro: !m.content }));
-export { Chat as ChatJarvis };
+else if (e.t === "erro") atualizar((m) => ({ ...m, content: `${m.content}${m.content ? "\n\n" : ""}⚠ ${e.d}`, erro: !m.content }));
       }
       router.refresh();
     } catch (e) {
