@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { webhookCaptacao } from "@/app/app/leads/actions-webhook";
+import { webhookCaptacao } from "@/app/leads/actions-webhook";
 
 export async function POST(
   request: NextRequest,
