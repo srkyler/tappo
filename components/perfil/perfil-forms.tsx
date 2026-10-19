@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Rotulo } from "@/components/ui/base";
-import { salvarPerfil, trocarSenha } from "@/app/app/actions";
+import { salvarPerfil, trocarSenha } from "@/app/actions";
 import type { Profile } from "@/lib/data/types";
 
 function Mensagem({ m }: { m: { ok: boolean; t: string } | null }) {

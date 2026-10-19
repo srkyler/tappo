@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Phone, Activity, Mail, Video, MapPin, CheckCircle, Clock, Plus, type LucideIcon } from "lucide-react";
-import { criarTarefa, concluirTarefa, listarTarefas } from "@/app/app/tarefas/actions";
+import { criarTarefa, concluirTarefa, listarTarefas } from "@/app/tarefas/actions";
 import type { Tarefa } from "@/lib/data/types";
 
 const TAREFA_TIPOS: { id: string; rotulo: string; icone: LucideIcon }[] = [

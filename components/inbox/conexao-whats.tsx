@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { Check, Copy, Loader2, LogOut, QrCode, Smartphone, Plus, Trash2, ChevronRight } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, cn } from "@/components/ui/base";
-import { conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp, salvarConexao, excluirConexao, type EstadoWhats } from "@/app/app/inbox/actions";
+import { conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp, salvarConexao, excluirConexao, type EstadoWhats } from "@/app/inbox/actions";
 import type { ConexaoTela } from "./inbox-view";
 
 const ROTULO_STATUS: Record<string, string> = {

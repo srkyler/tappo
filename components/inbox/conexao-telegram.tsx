@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Loader2, LogOut, Send } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo } from "@/components/ui/base";
-import { desconectarTelegram, salvarTelegram } from "@/app/app/inbox/telegram-actions";
+import { desconectarTelegram, salvarTelegram } from "@/app/inbox/telegram-actions";
 import type { ConexaoTelegramTela } from "./inbox-view";
 
 export function ConexaoTelegram({ aberto, aoFechar, conexao }: { aberto: boolean; aoFechar: () => void; conexao: ConexaoTelegramTela | null }) {

@@ -5,7 +5,7 @@ import { Building2, Check, Copy, Loader2, Plus, Send, Trash2, Users, Workflow } 
 import { Painel, Rotulo, cn } from "@/components/ui/base";
 import {
   aplicarFunilDoSegmento, cancelarConvite, convidar, criarEmpresa, definirAtivo, mudarPapel, salvarEmpresa, trocarEmpresa,
-} from "@/app/app/empresa/actions";
+} from "@/app/empresa/actions";
 import { PAPEIS, SEGMENTOS, ehGestor, type Papel } from "@/lib/segmentos";
 import type { Empresa, Membro } from "@/lib/data/empresa";
 

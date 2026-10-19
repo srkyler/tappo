@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { salvarComissao } from "@/app/app/crm/actions";
+import { salvarComissao } from "@/app/crm/actions";
 import type { Membro } from "@/lib/data/types";
 
 export function FormComissao({ membros }: { membros: Membro[] }) {

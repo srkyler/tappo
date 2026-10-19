@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Copy, Pause, Play, Plus, Trash2, Webhook } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Vazio, cn } from "@/components/ui/base";
-import { alternarFonte, excluirFonte, salvarFonte } from "@/app/app/actions";
+import { alternarFonte, excluirFonte, salvarFonte } from "@/app/actions";
 import { LEAD_ORIGEM, LEAD_STATUS } from "@/lib/data/types";
 import { tempoRelativo } from "@/lib/data/format";
 

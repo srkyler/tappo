@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Rotulo, cn } from "@/components/ui/base";
-import { salvarCorDestaque } from "@/app/app/actions";
+import { salvarCorDestaque } from "@/app/actions";
 import { CORES_RAPIDAS } from "@/lib/data/cor";
 
 export function SeletorCor({ corAtual }: { corAtual: string }) {

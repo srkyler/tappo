@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { salvarTarefaRecorrente } from "@/app/app/crm/actions";
+import { salvarTarefaRecorrente } from "@/app/crm/actions";
 
 export function FormTarefaRecorrente() {
   const [erro, setErro] = useState<string | null>(null);

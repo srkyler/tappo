@@ -3,7 +3,7 @@ import { Cabecalho, Pagina } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
 import { lerTags } from "@/lib/data/tags";
-import { salvarTag, excluirTag } from "@/app/app/tags/actions";
+import { salvarTag, excluirTag } from "@/app/tags/actions";
 
 export const metadata = { title: "Tags — Tappo" };
 

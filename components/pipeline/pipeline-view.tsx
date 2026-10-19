@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { GripVertical, Pencil, Plus, Settings, Trash2 } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, cn } from "@/components/ui/base";
-import { criarPipeline, excluirDeal, excluirPipeline, moverDeal, renomearPipeline, salvarDeal } from "@/app/app/actions";
+import { criarPipeline, excluirDeal, excluirPipeline, moverDeal, renomearPipeline, salvarDeal } from "@/app/actions";
 import type { Deal, Lead, Pipeline, PipelineStage } from "@/lib/data/types";
 import { diasDesde, formatBRL, formatData } from "@/lib/data/format";
 

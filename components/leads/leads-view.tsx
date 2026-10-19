@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Status, Vazio, cn } from "@/components/ui/base";
-import { excluirLead, importarLeads, mudarStatusLead, salvarLead, detectarDuplicadosLead } from "@/app/app/actions";
+import { excluirLead, importarLeads, mudarStatusLead, salvarLead, detectarDuplicadosLead } from "@/app/actions";
 import { LEAD_ORIGEM, LEAD_STATUS, type Lead, type LeadStatus } from "@/lib/data/types";
 import { segmentoPorId } from "@/lib/segmentos";
 import { formatData } from "@/lib/data/format";

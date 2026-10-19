@@ -3,8 +3,8 @@ import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
 import { lerPropostas } from "@/lib/data/tags";
-import { salvarProposta, excluirProposta, enviarProposta } from "@/app/app/propostas/actions";
-import { gerarPdfProposta } from "@/app/app/propostas/actions-pdf";
+import { salvarProposta, excluirProposta, enviarProposta } from "@/app/propostas/actions";
+import { gerarPdfProposta } from "@/app/propostas/actions-pdf";
 import { formatBRL } from "@/lib/data/format";
 
 export const metadata = { title: "Propostas — Tappo" };

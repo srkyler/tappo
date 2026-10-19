@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { Rotulo, cn } from "@/components/ui/base";
-import { alternarAutomacao, excluirAutomacao, salvarAutomacao } from "@/app/app/automacoes/actions";
+import { alternarAutomacao, excluirAutomacao, salvarAutomacao } from "@/app/automacoes/actions";
 import type { Automacao, GatilhoAutomacao, AcaoAutomacao, PipelineStage, LeadTag } from "@/lib/data/types";
 
 const GATILHO_ROTULO: Record<GatilhoAutomacao, string> = {

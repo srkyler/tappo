@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { salvarConta } from "@/app/app/crm/actions";
+import { salvarConta } from "@/app/crm/actions";
 
 export function FormConta({ aoSalvar }: { aoSalvar?: () => void }) {
   const [erro, setErro] = useState<string | null>(null);
