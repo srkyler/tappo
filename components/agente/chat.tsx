@@ -39,7 +39,7 @@ type ChatProps = {
   descricaoExibicao?: string;
 };
 
-export function ChatJarvis({ agente, endpoint = "/api/jarvis", chaveStorage = "tappo:jarvis:conversa", rotaBase = "/app/jarvis", sugestoes = [], nomeExibicao = "Jarvis", descricaoExibicao }: ChatProps) {
+export function Chat({ agente, endpoint = "/api/jarvis", chaveStorage = "tappo:jarvis:conversa", rotaBase = "/app/jarvis", sugestoes = [], nomeExibicao = "Jarvis", descricaoExibicao }: ChatProps) {
   const params = useSearchParams();
   const router = useRouter();
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -104,7 +104,7 @@ export function ChatJarvis({ agente, endpoint = "/api/jarvis", chaveStorage = "t
           if (e.t === "texto") { setStatus(null); atualizar((m) => ({ ...m, content: m.content + e.d })); }
           else if (e.t === "ferramenta") { setStatus(`${e.rotulo}…`); atualizar((m) => ({ ...m, ferramentas: [...(m.ferramentas ?? []), e.rotulo] })); }
           else if (e.t === "erro") atualizar((m) => ({ ...m, content: `${m.content}${m.content ? "\n\n" : ""}⚠ ${e.d}`, erro: !m.content }));
-        }
+export { Chat as ChatJarvis };
       }
       router.refresh();
     } catch (e) {
@@ -402,3 +402,5 @@ export function ChatJarvis({ agente, endpoint = "/api/jarvis", chaveStorage = "t
     </div>
   );
 }
+
+export { Chat as ChatJarvis };

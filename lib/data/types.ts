@@ -89,3 +89,80 @@ export type SlaConfig = {
   tempo_resposta_min: number;
   ativo: boolean;
 };
+
+export const LEAD_ORIGEM = [
+  "Site",
+  "Indicação",
+  "WhatsApp",
+  "Telegram",
+  "E-mail",
+  "LinkedIn",
+  "Facebook",
+  "Instagram",
+  "Google Ads",
+  "Meta Ads",
+  "Evento",
+  "Cold Call",
+  "Outro",
+] as const;
+
+export const LEAD_STATUS = [
+  "Nova",
+  "Contatada",
+  "Qualificada",
+  "Proposta",
+  "Negociação",
+  "Ganha",
+  "Perdida",
+] as const;
+
+export const CAMPAIGN_STATUS = [
+  "rascunho",
+  "agendada",
+  "enviando",
+  "enviada",
+  "pausada",
+  "cancelada",
+] as const;
+
+export const CANAL = [
+  "whatsapp",
+  "email",
+  "telegram",
+] as const;
+
+export const GATILHOS_AUTOMACAO = [
+  "lead_criado",
+  "lead_status_alterado",
+  "lead_score_alterado",
+  "tarefa_vencida",
+  "deal_criado",
+  "deal_stage_alterado",
+  "deal_ganho",
+  "deal_perdido",
+  "mensagem_recebida",
+  "mensagem_enviada",
+] as const;
+
+export const ACOES_AUTOMACAO = [
+  "criar_tarefa",
+  "enviar_mensagem",
+  "alterar_status_lead",
+  "atribuir_usuario",
+  "adicionar_tag",
+  "remover_tag",
+  "criar_deal",
+  "notificar_usuario",
+  "chamar_webhook",
+] as const;
+
+export const ACTIVITY_TIPO = [
+  "ligacao",
+  "reuniao",
+  "email",
+  "whatsapp",
+  "tarefa",
+  "nota",
+  "proposta",
+  "outro",
+] as const;

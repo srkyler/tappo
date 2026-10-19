@@ -3,6 +3,26 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { FerramentaNeutra } from "./ferramentas";
 
+function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
+  if (schema instanceof z.ZodObject) {
+    const shape = schema.shape;
+    const properties: Record<string, unknown> = {};
+    const required: string[] = [];
+    for (const [key, value] of Object.entries(shape)) {
+      properties[key] = zodToJsonSchema(value as z.ZodTypeAny);
+      if (!(value as z.ZodTypeAny).isOptional()) required.push(key);
+    }
+    return { type: "object", properties, required: required.length ? required : undefined };
+  }
+  if (schema instanceof z.ZodString) return { type: "string" };
+  if (schema instanceof z.ZodNumber) return { type: "number" };
+  if (schema instanceof z.ZodBoolean) return { type: "boolean" };
+  if (schema instanceof z.ZodEnum) return { type: "string", enum: schema.options };
+  if (schema instanceof z.ZodOptional) return zodToJsonSchema(schema.unwrap());
+  if (schema instanceof z.ZodNullable) return zodToJsonSchema(schema.unwrap());
+  return { type: "string" };
+}
+
 /*
  * Ferramentas do Jarvis — assistente de CONFIGURAÇÃO do Tappo (não é o agente
  * que conversa com leads/clientes). Roda com o cliente Supabase do usuário
@@ -61,7 +81,7 @@ export function definirFerramentasJarvis(): FerramentaNeutra[] {
   return (Object.keys(DEFINICOES) as Nome[]).map((name) => ({
     name,
     description: DEFINICOES[name].description,
-    parameters: z.toJSONSchema(SCHEMAS[name]) as Record<string, unknown>,
+    parameters: zodToJsonSchema(SCHEMAS[name]) as Record<string, unknown>,
   }));
 }
 
