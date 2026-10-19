@@ -98,12 +98,13 @@ export function Chat({ agente, endpoint = "/api/jarvis", chaveStorage = "tappo:j
         resto += dec.decode(value, { stream: true });
         const linhas = resto.split("\n");
         resto = linhas.pop() ?? "";
-        for (const l of linhas) {
+for (const l of linhas) {
           if (!l.trim()) continue;
           const e = JSON.parse(l) as Evento;
           if (e.t === "texto") { setStatus(null); atualizar((m) => ({ ...m, content: m.content + e.d })); }
           else if (e.t === "ferramenta") { setStatus(`${e.rotulo}…`); atualizar((m) => ({ ...m, ferramentas: [...(m.ferramentas ?? []), e.rotulo] })); }
-else if (e.t === "erro") atualizar((m) => ({ ...m, content: `${m.content}${m.content ? "\n\n" : ""}⚠ ${e.d}`, erro: !m.content }));
+          else if (e.t === "erro") atualizar((m) => ({ ...m, content: `${m.content}${m.content ? "\n\n" : ""}⚠ ${e.d}`, erro: !m.content }));
+        }
       }
       router.refresh();
     } catch (e) {
