@@ -43,7 +43,9 @@ export default function PermissoesClient() {
   const togglePerm = (papel: string, modulo: string, campo: string) => {
     setPermissoes((prev) =>
       prev.map((p) =>
-        p.papel === papel && p.modulo === modulo ? { ...p, [campo]: !p[campo] } : p
+        p.papel === papel && p.modulo === modulo
+          ? { ...p, [campo]: !p[campo as "pode_ver" | "pode_editar" | "pode_excluir"] }
+          : p
       )
     );
   };
@@ -96,7 +98,7 @@ export default function PermissoesClient() {
                         >
                           <input
                             type="checkbox"
-                            checked={perm?.[campo as keyof typeof perm] ?? false}
+                            checked={perm?.[campo as "pode_ver" | "pode_editar" | "pode_excluir"] ?? false}
                             onChange={() => togglePerm(papel.id, modulo.id, campo)}
                             className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-amber-500 focus:ring-amber-500"
                           />

@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.37.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.49.0",
+    "clsx": "^2.1.1",
     "framer-motion": "^12.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.507.0",
@@ -19,14 +20,17 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "resend": "^6.34.1",
+    "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
+    "eslint-config-next": "^15.5.2",
     "typescript": "^5.8.0"
   }
 }

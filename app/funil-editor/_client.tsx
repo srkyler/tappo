@@ -3,7 +3,7 @@
 import { Suspense, useState, useTransition } from "react";
 import { Cabecalho, Pagina, Painel, Kpi, Status } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
-import { formatBRL } from "@/lib/data/format";
+import { formatBRL, formatNum } from "@/lib/data/format";
 
 export default function FunilEditorClient() {
   const [etapas, setEtapas] = useState([
@@ -204,7 +204,7 @@ export default function FunilEditorClient() {
             </div>
             <div className="rounded-lg border border-gray-800 p-3">
               <p className="text-[11px] text-gray-500 mb-1">Tipos</p>
-              <p className="text-[13px] font-medium text-white">Aberto · Ganho · Perdido. Apenas etapas "ganho" contam para receita realizada.</p>
+              <p className="text-[13px] font-medium text-white">Aberto · Ganho · Perdido. Apenas etapas &quot;ganho&quot; contam para receita realizada.</p>
             </div>
           </div>
         </div>

@@ -1,56 +1,362 @@
+// Tipos espelhando supabase/migrations/20261016000000_tappo_schema.sql
+
+export const LEAD_STATUS = ["Nova", "Contatado", "Qualificado", "Reunião", "Follow-up", "Perdido"] as const;
+export const LEAD_ORIGEM = ["LinkedIn", "Indicação", "Evento", "Prospecção", "Site", "Outro"] as const;
+export const CAMPAIGN_STATUS = ["Rascunho", "Ativa", "Pausada", "Concluída"] as const;
+export const CANAL = ["E-mail", "LinkedIn", "Telefone", "WhatsApp", "Videoconf", "Outro"] as const;
+export const CAMPAIGN_LEAD_STATUS = ["Ativo", "Respondeu", "Reunião", "Concluído", "Removido"] as const;
+export const ACTIVITY_TIPO = [
+  "ligacao", "email", "whatsapp", "linkedin", "reuniao", "nota",
+  "importacao", "movimentacao", "proposta", "campanha", "outro",
+] as const;
+
+export type LeadStatus = (typeof LEAD_STATUS)[number];
+export type LeadOrigem = (typeof LEAD_ORIGEM)[number];
+export type CampaignStatus = (typeof CAMPAIGN_STATUS)[number];
+export type Canal = (typeof CANAL)[number];
+export type CampaignLeadStatus = (typeof CAMPAIGN_LEAD_STATUS)[number];
+export type ActivityTipo = (typeof ACTIVITY_TIPO)[number];
+export type StageTipo = "aberto" | "ganho" | "perdido";
+
+export type Lead = {
+  id: string;
+  cod: string;
+  nome: string;
+  empresa: string;
+  cargo: string | null;
+  email: string | null;
+  telefone: string | null;
+  linkedin_url: string | null;
+  segmento: string | null;
+  origem: LeadOrigem;
+  status: LeadStatus;
+  notas: string | null;
+  proximo_contato_em: string | null;
+  created_at: string;
+};
+
+export type Campaign = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  status: CampaignStatus;
+  iniciada_em: string | null;
+  created_at: string;
+};
+
+export type CampaignStep = {
+  id: string;
+  campaign_id: string;
+  ordem: number;
+  dia: number;
+  canal: Canal;
+  acao: string;
+};
+
+export type CampaignLead = {
+  id: string;
+  campaign_id: string;
+  lead_id: string;
+  etapas_concluidas: number;
+  status: CampaignLeadStatus;
+  proximo_passo_em: string | null;
+};
+
+export type Pipeline = {
+  id: string;
+  nome: string;
+  padrao: boolean;
+  ativo: boolean;
+  created_at: string;
+};
+
+export type PipelineStage = {
+  id: string;
+  pipeline_id: string;
+  nome: string;
+  ordem: number;
+  probabilidade: number;
+  tipo: StageTipo;
+  sla_dias: number | null;
+};
+
+export type Deal = {
+  id: string;
+  titulo: string;
+  empresa: string;
+  contato: string | null;
+  lead_id: string | null;
+  stage_id: string;
+  valor: number;
+  data_fechamento_previsto: string | null;
+  notas: string | null;
+  motivo_perda: string | null;
+  etapa_entrada_em: string;
+  fechado_em: string | null;
+  created_at: string;
+};
+
+export type Activity = {
+  id: string;
+  tipo: ActivityTipo;
+  descricao: string;
+  lead_id: string | null;
+  deal_id: string | null;
+  campaign_id: string | null;
+  ocorreu_em: string;
+};
+
+export type Profile = {
+  id: string;
+  nome_completo: string | null;
+  email: string | null;
+  empresa: string | null;
+  cargo: string | null;
+  telefone: string | null;
+  avatar_url: string | null;
+  avatar_icone: string | null;
+  cor_destaque: string;
+  org_atual: string | null;
+  meta_reunioes_semana: number;
+};
+
+export type Empresa = {
+  id: string;
+  nome: string;
+  segmento: string;
+  plano: string;
+  teste_ate: string;
+  papel: Papel;
+  termos: Termos;
+};
+
+export type Membro = {
+  user_id: string;
+  nome: string;
+  email: string | null;
+  avatar_url: string | null;
+  papel: Papel;
+  ativo: boolean;
+};
+
+export type Convite = {
+  id: string;
+  email: string;
+  papel: string;
+  expira_em: string;
+};
+
+export type Tarefa = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  responsavel_id: string | null;
+  lead_id: string | null;
+  deal_id: string | null;
+  conversa_id: string | null;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  vence_em: string | null;
+  concluida_em: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Meta = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  mes: string;
+  meta_valor: number;
+  meta_vendas: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PainelGestor = {
+  ganho_valor: number;
+  ganho_qtd: number;
+  perdido_qtd: number;
+  aberto_valor: number;
+  previsao: number;
+  previsao_meses: { mes: string; ponderado: number; bruto: number; qtd: number }[];
+  funil: { etapa: string; tipo: string; qtd: number; valor: number }[];
+  inbox: {
+    abertas: number;
+    sem_responsavel: number;
+    aguardando: number;
+    aguardando_15m: number;
+    tempo_medio_seg: number | null;
+    novas: number;
+  };
+  equipe: {
+    user_id: string;
+    nome: string;
+    papel: string;
+    avatar_url: string | null;
+    ganho_valor: number;
+    ganho_qtd: number;
+    aberto_valor: number;
+    atividades: number;
+    tarefas_feitas: number;
+    tarefas_atrasadas: number;
+    conversas_abertas: number;
+    tempo_resposta_seg: number | null;
+    meta_valor: number | null;
+    ganho_mes: number;
+  }[];
+};
+
+export type Termos = { lead: string; leads: string; negocio: string; negocios: string };
+
+export type Papel = "dono" | "gestor" | "vendedor" | "atendente";
+
+export type LeadTag = {
+  id: string;
+  org_id: string;
+  nome: string;
+  cor: string;
+  created_at: string;
+};
+
+export type Proposta = {
+  id: string;
+  org_id: string;
+  lead_id: string | null;
+  deal_id: string | null;
+  titulo: string;
+  valor: number;
+  status: string;
+  pdf_url: string | null;
+  enviado_em: string | null;
+  criado_em: string;
+      atualizado_em: string;
+};
+
+export type ChatbotQualificacao = {
+  id: string;
+  org_id: string;
+  segmento: string;
+  pergunta: string;
+  ordem: number;
+  campo_resposta: string;
+  obrigatoria: boolean;
+  ativa: boolean;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export const GATILHOS_AUTOMACAO = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
+export const ACOES_AUTOMACAO = ["mover_etapa", "adicionar_tag", "atribuir_responsavel", "criar_tarefa"] as const;
+export type GatilhoAutomacao = (typeof GATILHOS_AUTOMACAO)[number];
+export type AcaoAutomacao = (typeof ACOES_AUTOMACAO)[number];
+
+export type Automacao = {
+  id: string;
+  org_id: string;
+  nome: string;
+  ativo: boolean;
+  gatilho: GatilhoAutomacao;
+  gatilho_valor: string | null;
+  acao: AcaoAutomacao;
+  acao_valor: string | null;
+  execucoes: number;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type TarefaView = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  vence_em: string | null;
+  concluida_em: string | null;
+  responsavel_nome: string | null;
+  lead_nome: string | null;
+  lead_cod: string | null;
+};
+
+export type Promocao = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  titulo: string;
+  descricao: string | null;
+  oferta: string | null;
+  canal: "whatsapp" | "email" | "instagram" | "site" | "outro";
+  data_inicio: string;
+  data_fim: string | null;
+  status: "planejada" | "ativa" | "concluida" | "cancelada";
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type ActionResult = { ok: true } | { ok: false; erro: string };
+
 export type LeadDuplicado = {
   id: string;
+  org_id: string;
   lead_id: string;
   duplicado_de: string;
+  campo: "telefone" | "email";
+  valor: string;
   resolvido_em: string | null;
+  resolvido_por: string | null;
   criado_em: string;
-  lead: { id: string; nome: string; telefone: string; email: string };
-  duplicado_de_lead: { id: string; nome: string; telefone: string; email: string };
 };
 
 export type LeadHistorico = {
   id: string;
+  org_id: string;
   lead_id: string;
+  usuario_id: string | null;
   campo: string;
   valor_antigo: string | null;
   valor_novo: string | null;
   alterado_em: string;
-  alterado_por: string | null;
-  usuario: { id: string; nome_completo: string; email: string } | null;
 };
 
 export type LeadScore = {
   id: string;
+  org_id: string;
   lead_id: string;
   score: number;
-  nivel: string;
+  classificacao: "frio" | "morno" | "quente" | "qualificado";
   fatores: Record<string, unknown>;
-  atualizado_em: string;
+  calculado_em: string;
 };
 
 export type Comissao = {
   id: string;
+  org_id: string;
   user_id: string;
   deal_id: string | null;
   percentual: number;
   valor_comissao: number;
-  status: string;
+  status: "pendente" | "pago" | "cancelado";
   mes: string;
   criado_em: string;
-  usuario: { id: string; nome_completo: string };
+  atualizado_em: string;
 };
 
 export type CampoPersonalizado = {
   id: string;
-  tabela: string;
+  org_id: string;
+  tabela: "leads" | "deals" | "contas";
   nome: string;
-  tipo: string;
+  tipo: "texto" | "numero" | "data" | "selecao" | "booleano";
   opcoes: Record<string, unknown> | null;
   obrigatorio: boolean;
+  criado_em: string;
 };
 
 export type Conta = {
   id: string;
+  org_id: string;
   nome: string;
   cnpj_cpf: string | null;
   segmento: string | null;
@@ -60,109 +366,55 @@ export type Conta = {
   cidade: string | null;
   estado: string | null;
   cep: string | null;
+  criado_em: string;
+  atualizado_em: string;
 };
 
 export type Pessoa = {
   id: string;
   conta_id: string | null;
+  org_id: string;
   nome: string;
   cargo: string | null;
   telefone: string | null;
   email: string | null;
   telefone_whatsapp: string | null;
-  lider_decision: boolean;
-  conta: { id: string; nome: string } | null;
+  lider_decisao: boolean;
+  criado_em: string;
+  atualizado_em: string;
 };
 
 export type TarefaRecorrente = {
   id: string;
+  org_id: string;
+  user_id: string;
   titulo: string;
-  frequencia: string;
-  dia_semana: string | null;
-  horario: string | null;
-  responsavel_id: string | null;
-  proxima_execucao: string | null;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  recorrencia: "diaria" | "semanal" | "mensal" | "anual";
+  proxima_execucao: string;
+  ativa: boolean;
+  criado_em: string;
+  atualizado_em: string;
 };
 
 export type SlaConfig = {
   id: string;
+  org_id: string;
   tempo_resposta_min: number;
   ativo: boolean;
+  criado_em: string;
 };
 
-export const LEAD_ORIGEM = [
-  "Site",
-  "Indicação",
-  "WhatsApp",
-  "Telegram",
-  "E-mail",
-  "LinkedIn",
-  "Facebook",
-  "Instagram",
-  "Google Ads",
-  "Meta Ads",
-  "Evento",
-  "Cold Call",
-  "Outro",
-] as const;
+export type AtendimentoAtendente = {
+  user_id: string;
+  nome: string;
+  papel: string;
+  status_atendimento: string;
+  conversas_abertas: number;
+  conversas_atribuidas_mes: number;
+  tempo_medio_resposta_seg: number | null;
+  conversas_resolvidas_mes: number;
+};
 
-export const LEAD_STATUS = [
-  "Nova",
-  "Contatada",
-  "Qualificada",
-  "Proposta",
-  "Negociação",
-  "Ganha",
-  "Perdida",
-] as const;
-
-export const CAMPAIGN_STATUS = [
-  "rascunho",
-  "agendada",
-  "enviando",
-  "enviada",
-  "pausada",
-  "cancelada",
-] as const;
-
-export const CANAL = [
-  "whatsapp",
-  "email",
-  "telegram",
-] as const;
-
-export const GATILHOS_AUTOMACAO = [
-  "lead_criado",
-  "lead_status_alterado",
-  "lead_score_alterado",
-  "tarefa_vencida",
-  "deal_criado",
-  "deal_stage_alterado",
-  "deal_ganho",
-  "deal_perdido",
-  "mensagem_recebida",
-  "mensagem_enviada",
-] as const;
-
-export const ACOES_AUTOMACAO = [
-  "criar_tarefa",
-  "enviar_mensagem",
-  "alterar_status_lead",
-  "atribuir_usuario",
-  "adicionar_tag",
-  "remover_tag",
-  "criar_deal",
-  "notificar_usuario",
-  "chamar_webhook",
-] as const;
-
-export const ACTIVITY_TIPO = [
-  "ligacao",
-  "reuniao",
-  "email",
-  "whatsapp",
-  "tarefa",
-  "nota",
-  "proposta",
-  "outro",
-] as const;

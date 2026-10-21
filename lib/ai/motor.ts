@@ -153,7 +153,7 @@ async function rodarAnthropic(ctx: Contexto, historico: Mensagem[], neutras: Fer
         output_config: { effort: a.esforco },
         ...(a.temperatura !== null && !a.modelo.startsWith("claude-") ? { temperature: Number(a.temperatura) } : {}),
         ...(fallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-      },
+      } as unknown as Anthropic.Beta.MessageCreateParams,
       { signal: ctx.sinal },
     );
     stream.on("text", (d) => ctx.emitir({ t: "texto", d }));
@@ -172,11 +172,11 @@ async function rodarAnthropic(ctx: Contexto, historico: Mensagem[], neutras: Fer
     uso.cache += msg.usage.cache_read_input_tokens ?? 0;
     uso.saida += msg.usage.output_tokens;
 
-    if (msg.stop_reason === "refusal") {
+    if ((msg.stop_reason as string | null) === "refusal") {
       ctx.emitir({ t: "texto", d: "\n\n_Não posso ajudar com esse pedido._" });
       break;
     }
-    if (msg.stop_reason === "pause_turn") {
+    if ((msg.stop_reason as string | null) === "pause_turn") {
       messages.push({ role: "assistant", content: msg.content });
       continue;
     }

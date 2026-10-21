@@ -1,8 +1,9 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
+import { Cabecalho, Pagina } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
-import { lerCamposPersonalizados, salvarCampoPersonalizado } from "@/lib/data/crm";
+import { lerCamposPersonalizados } from "@/lib/data/crm";
+import { FormCampoPersonalizado } from "@/components/crm/form-campo-personalizado";
 
 export const metadata = { title: "Campos Personalizados — Tappo" };
 
@@ -47,41 +48,7 @@ async function Conteudo() {
 
       <section className="painel p-5">
         <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Novo campo personalizado</h3>
-        <form action={salvarCampoPersonalizado} className="space-y-3">
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Tabela</label>
-            <select name="tabela" className="campo w-full">
-              <option value="leads">Leads</option>
-              <option value="deals">Negócios</option>
-              <option value="contas">Contas</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Nome do campo</label>
-            <input name="nome" placeholder="Ex.: Convênio, Cor do imóvel, Nível do curso" className="campo w-full" required />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Tipo</label>
-              <select name="tipo" className="campo w-full">
-                <option value="texto">Texto</option>
-                <option value="numero">Número</option>
-                <option value="data">Data</option>
-                <option value="selecao">Seleção (lista)</option>
-                <option value="booleano">Sim/Não</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Obrigatório</label>
-              <input type="checkbox" name="obrigatorio" className="mt-1" />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Opções (para seleção, JSON ou lista separada por vírgula)</label>
-            <textarea name="opcoes" rows={2} placeholder='["Opção A", "Opção B"] ou Opção A, Opção B' className="campo w-full" />
-          </div>
-          <button className="btn btn-primario w-full">Criar campo</button>
-        </form>
+        <FormCampoPersonalizado />
       </section>
     </div>
   );

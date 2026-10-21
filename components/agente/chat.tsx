@@ -134,7 +134,7 @@ for (const l of linhas) {
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Ações rápidas</h3>
             {ACÕES_RAPIDAS.map((a) => (
               <button key={a.id} onClick={() => enviar(a.prompt)} className="flex items-center gap-2.5 rounded-lg border border-gray-800 bg-black/30 px-3 py-2 text-left text-[12.5px] text-gray-300 hover:border-gray-600 hover:text-white transition-colors group">
-                <a.icon className={`h-5 w-5 shrink-0 ${a.cor}`} />
+                <a.icone className={`h-5 w-5 shrink-0 ${a.cor}`} />
                 <div>
                   <div className="font-medium text-white">{a.label}</div>
                   <div className="text-[10px] text-gray-500">{a.descricao}</div>
@@ -166,7 +166,7 @@ for (const l of linhas) {
                   </div>
                   <h1 className="mt-2 text-[26px] font-semibold tracking-[-0.02em] text-white sm:text-[32px]">{nomeExibicao}</h1>
                   <p className="mt-2 max-w-[52ch] text-[14px] leading-relaxed text-gray-400">
-                    {descricaoExibicao ?? agente.descricao ?? "Pergunte sobre seus leads, campanhas e pipeline."} Ele lê e atualiza a sua base de verdade — nada é inventado.
+                    {descricaoExibicao ?? "Pergunte sobre seus leads, campanhas e pipeline."} Ele lê e atualiza a sua base de verdade — nada é inventado.
                   </p>
                   <div className="mt-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {ACÕES_RAPIDAS.map((a) => (
@@ -239,7 +239,7 @@ for (const l of linhas) {
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(texto); } }}
                 rows={1}
                 maxLength={4000}
-                placeholder={`Mensagem para ${agente?.nome ?? nomeExibicao}…`}
+                placeholder={`Mensagem para ${nomeExibicao}…`}
                 aria-label="Mensagem"
                 className="campo max-h-40 min-h-[44px] flex-1 !rounded-2xl !py-[11px] leading-snug"
                 style={{ fieldSizing: "content" } as React.CSSProperties}

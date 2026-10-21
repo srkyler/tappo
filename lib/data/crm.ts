@@ -2,65 +2,69 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
   LeadDuplicado, LeadHistorico, LeadScore, Comissao, CampoPersonalizado,
-  Conta, Pessoa, TarefaRecorrente, SlaConfig,
+  Conta, Pessoa, TarefaRecorrente, SlaConfig, Lead, Profile,
+  AtendimentoAtendente, ChatbotQualificacao,
 } from "@/lib/data/types";
+
+/* Leituras (server-only) das telas de Bloco 2. As mutações ficam em
+ * app/app/crm/actions.ts ("use server") — componentes de cliente não podem
+ * importar nada deste arquivo. */
+
+type LeadResumo = Pick<Lead, "id" | "nome" | "telefone" | "email">;
+
+export type LeadDuplicadoComLeads = LeadDuplicado & {
+  lead: LeadResumo | null;
+  duplicado_de_lead: LeadResumo | null;
+};
+
+export type LeadHistoricoComUsuario = LeadHistorico & {
+  usuario: Pick<Profile, "id" | "nome_completo" | "email"> | null;
+};
+
+export type ComissaoComUsuario = Comissao & {
+  usuario: Pick<Profile, "id" | "nome_completo"> | null;
+};
+
+export type PessoaComConta = Pessoa & {
+  conta: Pick<Conta, "id" | "nome"> | null;
+};
+
+export type TarefaView = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  prioridade: string;
+  vence_em: string | null;
+  concluida_em: string | null;
+  responsavel_nome: string | null;
+  lead_nome: string | null;
+  lead_cod: string | null;
+};
 
 /* ---------- Duplicados ---------- */
 
-export async function lerDuplicados(): Promise<LeadDuplicado[]> {
+export async function lerDuplicados(): Promise<LeadDuplicadoComLeads[]> {
   const supabase = await createClient();
+  // Há duas FKs de lead_duplicados pra leads (lead_id e duplicado_de) — as duas
+  // precisam de "hint" explícito, senão o PostgREST não sabe qual usar em nenhuma.
   const { data } = await supabase
     .from("lead_duplicados")
-    .select("*, lead:leads(id, nome, telefone, email), duplicado_de_lead:leads!lead_duplicados_duplicado_de_fkey(id, nome, telefone, email)")
+    .select("*, lead:leads!lead_duplicados_lead_id_fkey(id, nome, telefone, email), duplicado_de_lead:leads!lead_duplicados_duplicado_de_fkey(id, nome, telefone, email)")
     .order("criado_em", { ascending: false });
-  return (data ?? []) as LeadDuplicado[];
-}
-
-export async function resolverDuplicado(id: string, manterLeadId: string): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const { data: dup } = await supabase
-    .from("lead_duplicados")
-    .select("lead_id, duplicado_de")
-    .eq("id", id)
-    .maybeSingle();
-  if (!dup) return { ok: false, erro: "Duplicado não encontrado." };
-
-  const leadParaManter = manterLeadId === dup.lead_id ? dup.lead_id : dup.duplicado_de;
-  const leadParaRemover = manterLeadId === dup.lead_id ? dup.duplicado_de : dup.lead_id;
-
-  // Mover atividades do lead removido para o mantido
-  await supabase.from("activities").update({ lead_id: leadParaManter }).eq("lead_id", leadParaRemover);
-  // Mover tarefas
-  await supabase.from("tarefas").update({ lead_id: leadParaManter }).eq("lead_id", leadParaRemover);
-  // Mover deals
-  await supabase.from("deals").update({ lead_id: leadParaManter }).eq("lead_id", leadParaRemover);
-  // Mover propostas
-  await supabase.from("propostas").update({ lead_id: leadParaManter }).eq("lead_id", leadParaRemover);
-  // Mover conversas
-  await supabase.from("wa_conversas").update({ lead_id: leadParaManter }).eq("lead_id", leadParaRemover);
-
-  // Remover lead duplicado
-  const { error } = await supabase.from("leads").delete().eq("id", leadParaRemover);
-  if (error) return { ok: false, erro: error.message };
-
-  // Marcar duplicado como resolvido
-  await supabase.from("lead_duplicados")
-    .update({ resolvido_em: new Date().toISOString() })
-    .eq("id", id);
-
-  return { ok: true };
+  return (data ?? []) as LeadDuplicadoComLeads[];
 }
 
 /* ---------- Histórico ---------- */
 
-export async function lerHistoricoLead(leadId: string): Promise<LeadHistorico[]> {
+export async function lerHistoricoLead(leadId: string): Promise<LeadHistoricoComUsuario[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("lead_historico")
     .select("*, usuario:profiles(id, nome_completo, email)")
     .eq("lead_id", leadId)
     .order("alterado_em", { ascending: false });
-  return (data ?? []) as LeadHistorico[];
+  return (data ?? []) as LeadHistoricoComUsuario[];
 }
 
 /* ---------- Score ---------- */
@@ -75,39 +79,90 @@ export async function lerScoreLead(leadId: string): Promise<LeadScore | null> {
   return data ? (data as LeadScore) : null;
 }
 
+export async function calcularScoreLead(leadId: string): Promise<LeadScore | null> {
+  const supabase = await createClient();
+  const { data: lead } = await supabase.from("leads").select("*").eq("id", leadId).single();
+  if (!lead) return null;
+
+  let score = 0;
+  const fatores: Record<string, unknown> = {};
+
+  const origemPontos: Record<string, number> = {
+    "Indicação": 25, "Site": 20, "LinkedIn": 15, "Evento": 15, "Prospecção": 10, "Outro": 5,
+  };
+  const ptsOrigem = origemPontos[lead.origem] ?? 5;
+  score += ptsOrigem;
+  fatores.origem = { pontos: ptsOrigem, origem: lead.origem };
+
+  const temTelefone = !!lead.telefone;
+  if (temTelefone) { score += 15; fatores.telefone = { pontos: 15, tem: true }; }
+  else { fatores.telefone = { pontos: 0, tem: false }; }
+
+  const temEmail = !!lead.email;
+  if (temEmail) { score += 10; fatores.email = { pontos: 10, tem: true }; }
+  else { fatores.email = { pontos: 0, tem: false }; }
+
+  const { data: atividades } = await supabase
+    .from("activities")
+    .select("id, tipo, ocorreu_em")
+    .eq("lead_id", leadId)
+    .order("ocorreu_em", { ascending: false })
+    .limit(20);
+  const ptsAtividades = Math.min((atividades?.length ?? 0) * 2, 30);
+  score += ptsAtividades;
+  fatores.atividades = { pontos: ptsAtividades, total: atividades?.length ?? 0 };
+
+  const { data: tags } = await supabase
+    .from("lead_tag_rel")
+    .select("tag_id")
+    .eq("lead_id", leadId);
+  const ptsTags = Math.min((tags?.length ?? 0) * 5, 20);
+  score += ptsTags;
+  fatores.tags = { pontos: ptsTags, total: tags?.length ?? 0 };
+
+  const { data: tarefas } = await supabase
+    .from("tarefas")
+    .select("id, concluida_em")
+    .eq("lead_id", leadId);
+  const tarefasConcluidas = (tarefas ?? []).filter((t) => t.concluida_em).length;
+  const ptsTarefas = Math.min(tarefasConcluidas * 3, 15);
+  score += ptsTarefas;
+  fatores.tarefas_concluidas = { pontos: ptsTarefas, total: tarefasConcluidas };
+
+  score = Math.min(100, score);
+
+  let classificacao: "frio" | "morno" | "quente" | "qualificado" = "frio";
+  if (score >= 76) classificacao = "qualificado";
+  else if (score >= 51) classificacao = "quente";
+  else if (score >= 26) classificacao = "morno";
+
+  const { data: existente } = await supabase
+    .from("lead_score")
+    .select("id")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+
+  if (existente) {
+    await supabase.from("lead_score")
+      .update({ score, classificacao, fatores, calculado_em: new Date().toISOString() })
+      .eq("lead_id", leadId);
+  } else {
+    await supabase.from("lead_score")
+      .insert({ org_id: lead.org_id, lead_id: lead.id, score, classificacao, fatores });
+  }
+
+  return { id: existente?.id || "", org_id: lead.org_id, lead_id: lead.id, score, classificacao, fatores, calculado_em: new Date().toISOString() };
+}
+
 /* ---------- Comissões ---------- */
 
-export async function lerComissoes(): Promise<Comissao[]> {
+export async function lerComissoes(): Promise<ComissaoComUsuario[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("comissoes")
     .select("*, usuario:profiles(id, nome_completo)")
     .order("mes", { ascending: false });
-  return (data ?? []) as Comissao[];
-}
-
-export async function salvarComissao(f: FormData): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const user_id = String(f.get("user_id") ?? "");
-  const deal_id = String(f.get("deal_id") ?? "") || null;
-  const percentual = Number(f.get("percentual") ?? 0) || 0;
-  const valor_comissao = Number(f.get("valor_comissao") ?? 0) || 0;
-  const status = String(f.get("status") ?? "pendente");
-  const mes = String(f.get("mes") ?? "");
-  const id = String(f.get("id") ?? "");
-
-  if (!user_id) return { ok: false, erro: "Vendedor obrigatório." };
-  if (!/^\d{4}-\d{2}-01$/.test(mes)) return { ok: false, erro: "Mês inválido." };
-
-  const payload = { user_id, deal_id, percentual, valor_comissao, status, mes };
-  if (!id) {
-    const { error } = await supabase.from("comissoes").insert({ ...payload, org_id: (await supabase.from("profiles").select("org_atual").eq("id", user_id).single()).data?.org_atual });
-    if (error) return { ok: false, erro: error.message };
-  } else {
-    const { error } = await supabase.from("comissoes").update(payload).eq("id", id);
-    if (error) return { ok: false, erro: error.message };
-  }
-  return { ok: true };
+  return (data ?? []) as ComissaoComUsuario[];
 }
 
 /* ---------- Campos Personalizados ---------- */
@@ -120,34 +175,6 @@ export async function lerCamposPersonalizados(tabela?: string): Promise<CampoPer
   return (data ?? []) as CampoPersonalizado[];
 }
 
-export async function salvarCampoPersonalizado(f: FormData): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const id = String(f.get("id") ?? "");
-  const tabela = String(f.get("tabela") ?? "");
-  const nome = String(f.get("nome") ?? "").trim();
-  const tipo = String(f.get("tipo") ?? "texto");
-  const obrigatorio = f.get("obrigatorio") === "on";
-  let opcoes: Record<string, unknown> | null = null;
-  if (tipo === "selecao") {
-    const opcoesStr = String(f.get("opcoes") ?? "");
-    if (opcoesStr) {
-      try { opcoes = JSON.parse(opcoesStr); } catch { opcoes = { lista: opcoesStr.split(",").map(s => s.trim()) }; }
-    }
-  }
-
-  if (!tabela || !nome) return { ok: false, erro: "Tabela e nome são obrigatórios." };
-
-  const payload = { tabela, nome, tipo, opcoes, obrigatorio };
-  if (!id) {
-    const { error } = await supabase.from("campos_personalizados").insert(payload);
-    if (error) return { ok: false, erro: error.message };
-  } else {
-    const { error } = await supabase.from("campos_personalizados").update(payload).eq("id", id);
-    if (error) return { ok: false, erro: error.message };
-  }
-  return { ok: true };
-}
-
 /* ---------- Contas ---------- */
 
 export async function lerContas(): Promise<Conta[]> {
@@ -156,66 +183,12 @@ export async function lerContas(): Promise<Conta[]> {
   return (data ?? []) as Conta[];
 }
 
-export async function salvarConta(f: FormData): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const id = String(f.get("id") ?? "");
-  const nome = String(f.get("nome") ?? "").trim();
-  if (!nome) return { ok: false, erro: "Nome é obrigatório." };
-
-  const payload = {
-    nome,
-    cnpj_cpf: String(f.get("cnpj_cpf") ?? "") || null,
-    segmento: String(f.get("segmento") ?? "") || null,
-    telefone: String(f.get("telefone") ?? "") || null,
-    email: String(f.get("email") ?? "") || null,
-    endereco: String(f.get("endereco") ?? "") || null,
-    cidade: String(f.get("cidade") ?? "") || null,
-    estado: String(f.get("estado") ?? "") || null,
-    cep: String(f.get("cep") ?? "") || null,
-  };
-
-  if (!id) {
-    const { error } = await supabase.from("contas").insert(payload);
-    if (error) return { ok: false, erro: error.message };
-  } else {
-    const { error } = await supabase.from("contas").update(payload).eq("id", id);
-    if (error) return { ok: false, erro: error.message };
-  }
-  return { ok: true };
-}
-
 /* ---------- Pessoas ---------- */
 
-export async function lerPessoas(): Promise<Pessoa[]> {
+export async function lerPessoas(): Promise<PessoaComConta[]> {
   const supabase = await createClient();
   const { data } = await supabase.from("pessoas").select("*, conta:contas(id, nome)").order("nome");
-  return (data ?? []) as Pessoa[];
-}
-
-export async function salvarPessoa(f: FormData): Promise<{ ok: boolean; erro?: string }> {
-  const supabase = await createClient();
-  const id = String(f.get("id") ?? "");
-  const nome = String(f.get("nome") ?? "").trim();
-  if (!nome) return { ok: false, erro: "Nome é obrigatório." };
-
-  const payload = {
-    conta_id: String(f.get("conta_id") ?? "") || null,
-    nome,
-    cargo: String(f.get("cargo") ?? "") || null,
-    telefone: String(f.get("telefone") ?? "") || null,
-    email: String(f.get("email") ?? "") || null,
-    telefone_whatsapp: String(f.get("telefone_whatsapp") ?? "") || null,
-    lider_decision: f.get("lider_decision") === "on",
-  };
-
-  if (!id) {
-    const { error } = await supabase.from("pessoas").insert(payload);
-    if (error) return { ok: false, erro: error.message };
-  } else {
-    const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
-    if (error) return { ok: false, erro: error.message };
-  }
-  return { ok: true };
+  return (data ?? []) as PessoaComConta[];
 }
 
 /* ---------- Tarefas Recorrentes ---------- */
@@ -226,7 +199,28 @@ export async function lerTarefasRecorrentes(): Promise<TarefaRecorrente[]> {
   return (data ?? []) as TarefaRecorrente[];
 }
 
-/* ---------- SLA ---------- */
+/* ---------- Tarefas para calendário ---------- */
+
+export async function lerTarefasCalendario(): Promise<TarefaView[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tarefas")
+    .select("*, responsavel:profiles(id, nome_completo), lead:leads(id, nome, cod)")
+    .order("vence_em", { ascending: true });
+  type Linha = { id: string; titulo: string; descricao: string | null; tipo: string; prioridade: string; vence_em: string | null; concluida_em: string | null; responsavel: { nome_completo: string | null } | null; lead: { nome: string; cod: string } | null };
+  return ((data ?? []) as unknown as Linha[]).map((t) => ({
+    id: t.id,
+    titulo: t.titulo,
+    descricao: t.descricao,
+    tipo: t.tipo,
+    prioridade: t.prioridade,
+    vence_em: t.vence_em,
+    concluida_em: t.concluida_em,
+    responsavel_nome: t.responsavel?.nome_completo || null,
+    lead_nome: t.lead?.nome || null,
+    lead_cod: t.lead?.cod || null,
+  })) as TarefaView[];
+}
 
 export async function lerSlaConfig(): Promise<SlaConfig | null> {
   const supabase = await createClient();
@@ -234,52 +228,77 @@ export async function lerSlaConfig(): Promise<SlaConfig | null> {
   return data ? (data as SlaConfig) : null;
 }
 
-export async function salvarSlaConfig(f: FormData): Promise<{ ok: boolean; erro?: string }> {
+/* Automações: lerAutomacoes/salvarAutomacao/excluirAutomacao já vivem em
+ * app/app/automacoes/actions.ts + lib/data/automacoes.ts — não duplicar aqui. */
+
+/* ---------- Atendimento por Atendente ---------- */
+
+export async function lerAtendimentoAtendente(): Promise<AtendimentoAtendente[]> {
   const supabase = await createClient();
-  const tempo_resposta_min = Number(f.get("tempo_resposta_min") ?? 15) || 15;
-  const ativo = f.get("ativo") === "on";
-  const id = String(f.get("id") ?? "");
+  const { data: membros } = await supabase
+    .from("org_membros")
+    .select("*, usuarios:profiles(id, nome_completo, email)")
+    .eq("ativo", true);
 
-  const payload = { tempo_resposta_min, ativo };
-  if (!id) {
-    const { error } = await supabase.from("sla_config").insert(payload);
-    if (error) return { ok: false, erro: error.message };
-  } else {
-    const { error } = await supabase.from("sla_config").update(payload).eq("id", id);
-    if (error) return { ok: false, erro: error.message };
-  }
-  return { ok: true };
-}
+  if (!membros || membros.length === 0) return [];
 
-/* ---------- Atendimento Atendente ---------- */
+  const ids = membros.map((m) => m.user_id);
+  const mesInicio = new Date();
+  mesInicio.setDate(1);
+  mesInicio.setHours(0, 0, 0, 0);
 
-export async function lerAtendimentoAtendente(orgId: string, userId: string) {
-  const supabase = await createClient();
-  const { data: conversas } = await supabase
-    .from("wa_conversas")
-    .select("*")
-    .eq("org_id", orgId)
-    .eq("atribuido_a", userId)
-    .eq("status", "aberta")
-    .order("ultima_em", { ascending: false });
-  const { data: tarefas } = await supabase
-    .from("tarefas")
-    .select("*")
-    .eq("org_id", orgId)
-    .eq("responsavel_id", userId)
-    .is("concluida_em", null)
-    .order("vence_em", { ascending: true });
-  return { conversas: conversas ?? [], tarefas: tarefas ?? [] };
+  const [{ data: conversasAbertas }, { data: conversasResolvidas }, { data: tempoResposta }] = await Promise.all([
+    supabase
+      .from("wa_conversas")
+      .select("atribuido_a, status")
+      .in("atribuido_a", ids)
+      .neq("status", "resolvida"),
+    supabase
+      .from("wa_conversas")
+      .select("atribuido_a, status, ultima_em")
+      .in("atribuido_a", ids)
+      .eq("status", "resolvida")
+      .gte("ultima_em", mesInicio.toISOString()),
+    supabase
+      .from("wa_mensagens")
+      .select("enviado_por, tempo_resposta_seg, created_at")
+      .in("enviado_por", ids)
+      .not("tempo_resposta_seg", "is", null)
+      .gte("created_at", mesInicio.toISOString()),
+  ]);
+
+  return membros.map((m) => {
+    const mConversasAbertas = (conversasAbertas ?? []).filter((c) => c.atribuido_a === m.user_id).length;
+    const mResolvidas = (conversasResolvidas ?? []).filter((c) => c.atribuido_a === m.user_id).length;
+    const mTempos = (tempoResposta ?? []).filter((t) => t.enviado_por === m.user_id).map((t) => t.tempo_resposta_seg).filter(Boolean) as number[];
+    const tempoMedio = mTempos.length > 0 ? Math.round(mTempos.reduce((a, b) => a + b, 0) / mTempos.length) : null;
+
+    return {
+      user_id: m.user_id,
+      nome: (m.usuarios as { nome_completo: string | null } | null)?.nome_completo || m.user_id.slice(0, 8),
+      papel: m.papel,
+      status_atendimento: m.status_atendimento,
+      conversas_abertas: mConversasAbertas,
+      conversas_atribuidas_mes: mResolvidas,
+      tempo_medio_resposta_seg: tempoMedio,
+      conversas_resolvidas_mes: mResolvidas,
+    };
+  });
 }
 
 /* ---------- Chatbot Qualificação ---------- */
 
-export async function lerChatbotQualificacao(orgId: string) {
+export async function lerChatbotQualificacao(segmento: string): Promise<ChatbotQualificacao[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("chatbot_qualificacao")
     .select("*")
-    .eq("org_id", orgId)
-    .maybeSingle();
-  return data;
+    .eq("segmento", segmento)
+    .eq("ativa", true)
+    .order("ordem", { ascending: true });
+  return (data ?? []) as ChatbotQualificacao[];
 }
+
+/* salvarChatbotQualificacao/excluirChatbotQualificacao moraram aqui, mas
+ * mutações chamadas de client component precisam de "use server" — estão
+ * em app/app/crm/actions.ts agora. */

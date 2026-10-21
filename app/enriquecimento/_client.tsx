@@ -2,7 +2,6 @@
 
 import { Suspense, useState } from "react";
 import { Cabecalho, Pagina, Painel, Vazio, Status } from "@/components/ui/base";
-import { esqueleto } from "@/components/ui/base";
 
 export default function EnriquecimentoClient() {
   const exemplos = [

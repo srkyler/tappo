@@ -1,8 +1,9 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
+import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
-import { lerDuplicados, resolverDuplicado } from "@/lib/data/crm";
+import { lerDuplicados } from "@/lib/data/crm";
+import { FormMesclarDuplicado } from "@/components/crm/form-mesclar-duplicado";
 
 export const metadata = { title: "Duplicados — Tappo" };
 
@@ -38,20 +39,8 @@ async function Conteudo() {
                       <p className="text-[11px] text-gray-500">{d.duplicado_de_lead?.telefone || d.duplicado_de_lead?.email || "—"}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <form
-                      action={async (f) => {
-                        await resolverDuplicado(d.id, f.get("manter_id") as string);
-                        location.reload();
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <input type="radio" name="manter_id" value={d.lead_id} defaultChecked className="accent-emerald-500" />
-                      <label className="text-[11px] text-gray-300">Manter este</label>
-                      <input type="radio" name="manter_id" value={d.duplicado_de} className="accent-emerald-500" />
-                      <label className="text-[11px] text-gray-300">Manter o outro</label>
-                      <button type="submit" className="btn btn-primario btn-sm">Mesclar</button>
-                    </form>
+                  <div className="mt-3">
+                    <FormMesclarDuplicado duplicadoId={d.id} leadId={d.lead_id} duplicadoDeId={d.duplicado_de} />
                   </div>
                 </div>
               ))}

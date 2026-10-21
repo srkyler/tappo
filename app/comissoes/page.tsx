@@ -1,15 +1,17 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Vazio, Kpi } from "@/components/ui/base";
+import { Cabecalho, Pagina, Vazio, Kpi } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
-import { lerComissoes, salvarComissao } from "@/lib/data/crm";
+import { lerComissoes } from "@/lib/data/crm";
+import { membrosDaEmpresa } from "@/lib/data/empresa";
 import { formatBRL } from "@/lib/data/format";
+import { FormComissao } from "@/components/crm/form-comissao";
 
 export const metadata = { title: "Comissões — Tappo" };
 
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
-  const comissoes = await lerComissoes();
+  const [comissoes, membros] = await Promise.all([lerComissoes(), membrosDaEmpresa()]);
 
   const totalPendente = comissoes.filter((c) => c.status === "pendente").reduce((s, c) => s + c.valor_comissao, 0);
   const totalPago = comissoes.filter((c) => c.status === "pago").reduce((s, c) => s + c.valor_comissao, 0);
@@ -54,37 +56,7 @@ async function Conteudo() {
 
       <section className="painel p-5">
         <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Nova comissão</h3>
-        <form action={salvarComissao} className="space-y-3 grid gap-3 sm:grid-cols-4">
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Vendedor (ID)</label>
-            <input name="user_id" placeholder="UUID do usuário" className="campo w-full" required />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Deal (ID, opcional)</label>
-            <input name="deal_id" placeholder="UUID do negócio" className="campo w-full" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Percentual (%)</label>
-            <input name="percentual" type="number" step="0.01" min="0" max="100" placeholder="10" className="campo w-full" required />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Valor (R$)</label>
-            <input name="valor_comissao" type="number" step="0.01" min="0" placeholder="0,00" className="campo w-full" required />
-          </div>
-          <div className="col-span-full sm:col-span-2">
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Mês</label>
-            <input name="mes" type="month" className="campo w-full" required />
-          </div>
-          <div className="col-span-full sm:col-span-2">
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Status</label>
-            <select name="status" className="campo w-full">
-              <option value="pendente">Pendente</option>
-              <option value="pago">Pago</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-          </div>
-          <button className="btn btn-primario w-full col-span-full sm:col-span-4">Salvar comissão</button>
-        </form>
+        <FormComissao membros={membros} />
       </section>
     </div>
   );
