@@ -6,10 +6,6 @@ import { Logo } from "@/components/ui/base";
 
 export const metadata = { title: "Convite — Tappo" };
 
-// Rota bloqueante: lê cookies/auth e redireciona em tempo de requisição —
-// não há shell estático a pré-renderizar (Next 16: instant = false).
-export const instant = false;
-
 /* Aceite de convite para uma equipe. Sem login, o proxy manda para /login?next=… */
 
 function Aviso({ titulo, texto }: { titulo: string; texto: string }) {

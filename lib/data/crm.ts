@@ -250,3 +250,36 @@ export async function salvarSlaConfig(f: FormData): Promise<{ ok: boolean; erro?
   }
   return { ok: true };
 }
+
+/* ---------- Atendimento Atendente ---------- */
+
+export async function lerAtendimentoAtendente(orgId: string, userId: string) {
+  const supabase = await createClient();
+  const { data: conversas } = await supabase
+    .from("wa_conversas")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("atribuido_a", userId)
+    .eq("status", "aberta")
+    .order("ultima_em", { ascending: false });
+  const { data: tarefas } = await supabase
+    .from("tarefas")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("responsavel_id", userId)
+    .is("concluida_em", null)
+    .order("vence_em", { ascending: true });
+  return { conversas: conversas ?? [], tarefas: tarefas ?? [] };
+}
+
+/* ---------- Chatbot Qualificação ---------- */
+
+export async function lerChatbotQualificacao(orgId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("chatbot_qualificacao")
+    .select("*")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  return data;
+}
