@@ -1,15 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { entrar, cadastrar, recuperarSenha, redefinirSenha } from "@/app/auth/actions";
+import { useActionState, useState, useTransition } from "react";
+import { entrar, cadastrar, recuperarSenha, redefinirSenha, reenviarConfirmacao } from "@/app/auth/actions";
 import { Aviso, BotaoEnviar, Campo } from "./auth-ui";
 import { SEGMENTOS } from "@/lib/segmentos";
 
 const linkMini = "text-[12px] text-gray-400 hover:text-white hover:underline underline-offset-4";
 
+function ReenviarConfirmacao({ pegarEmail }: { pegarEmail: () => string | undefined | null }) {
+  const [pendente, iniciar] = useTransition();
+  const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        disabled={pendente}
+        onClick={() =>
+          iniciar(async () => {
+            const email = (pegarEmail() ?? "").trim();
+            if (!email) {
+              setMsg({ tipo: "erro", texto: "Informe o e-mail acima." });
+              return;
+            }
+            const r = await reenviarConfirmacao(email);
+            setMsg(r.ok ? { tipo: "ok", texto: r.ok } : { tipo: "erro", texto: r.erro ?? "Não foi possível reenviar." });
+          })
+        }
+        className="btn btn-secundario btn-lg w-full"
+      >
+        {pendente ? "Enviando…" : "Reenviar e-mail de confirmação"}
+      </button>
+      {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
+    </div>
+  );
+}
+
 export function FormLogin({ next, erroInicial }: { next: string; erroInicial?: string }) {
   const [estado, acao] = useActionState(entrar, erroInicial ? { erro: erroInicial } : undefined);
+  const emailNaoConfirmado = estado?.erro?.startsWith("Confirme seu e-mail");
   return (
     <form action={acao} className="flex flex-col gap-5">
       <input type="hidden" name="next" value={next} />
@@ -19,6 +48,9 @@ export function FormLogin({ next, erroInicial }: { next: string; erroInicial?: s
         extra={<Link href="/recuperar-senha" className={linkMini}>Esqueci a senha</Link>}
       />
       {estado?.erro && <Aviso tipo="erro">{estado.erro}</Aviso>}
+      {emailNaoConfirmado && (
+        <ReenviarConfirmacao pegarEmail={() => (document.getElementById("email") as HTMLInputElement | null)?.value} />
+      )}
       <BotaoEnviar texto="Entrar" carregando="Entrando…" />
     </form>
   );
@@ -29,10 +61,15 @@ export function FormCadastro() {
   if (estado?.ok) {
     return (
       <div className="flex flex-col gap-4 text-center">
-        <Aviso tipo="ok">Enviamos um link de confirmação para {estado.ok}.</Aviso>
+        {estado.aviso ? (
+          <Aviso tipo="erro">{estado.aviso}</Aviso>
+        ) : (
+          <Aviso tipo="ok">Enviamos um link de confirmação para {estado.ok}.</Aviso>
+        )}
         <p className="text-[14px] leading-[1.6] text-gray-400">
           Abra seu e-mail e clique em <strong>Confirmar e-mail</strong> para ativar a conta. Confira também o spam.
         </p>
+        <ReenviarConfirmacao pegarEmail={() => estado.ok} />
       </div>
     );
   }
