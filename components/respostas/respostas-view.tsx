@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Check, Copy, Mail, MessageCircle, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Vazio, cn } from "@/components/ui/base";
-import { contarUsoTemplate, excluirTemplate, salvarTemplate } from "@/app/actions";
+import { contarUsoTemplate, excluirTemplate, salvarTemplate } from "@/app/app/actions";
 import { CANAL, type Lead } from "@/lib/data/types";
 
 export type Template = { id: string; titulo: string; canal: string; assunto: string | null; corpo: string; usos: number };

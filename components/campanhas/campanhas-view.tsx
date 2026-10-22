@@ -7,7 +7,7 @@ import { Barra, Rotulo, Status, Vazio, cn } from "@/components/ui/base";
 import {
   adicionarLeadsCampanha, avancarEtapa, excluirCampanha, mudarStatusCampanha,
   mudarStatusLeadCampanha, salvarCampanha, type PassoInput,
-} from "@/app/actions";
+} from "@/app/app/actions";
 import { CAMPAIGN_STATUS, CANAL, type CampaignStatus, type Canal, type Lead } from "@/lib/data/types";
 import type { CampanhaCompleta } from "@/lib/data/queries";
 import { formatData } from "@/lib/data/format";

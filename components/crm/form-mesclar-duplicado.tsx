@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { resolverDuplicado } from "@/app/crm/actions";
+import { resolverDuplicado } from "@/app/app/crm/actions";
 
 export function FormMesclarDuplicado({ duplicadoId, leadId, duplicadoDeId }: { duplicadoId: string; leadId: string; duplicadoDeId: string }) {
   const [manter, setManter] = useState(leadId);

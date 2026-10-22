@@ -4,7 +4,7 @@ import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
 import { lerTags } from "@/lib/data/tags";
 import { lerHistoricoLead, lerScoreLead } from "@/lib/data/crm";
-import { toggleTagLead } from "@/app/tags/actions";
+import { toggleTagLead } from "@/app/app/tags/actions";
 import { RecalcularScore } from "@/components/leads/recalcular-score";
 import { formatBRL, formatData, tempoRelativo } from "@/lib/data/format";
 

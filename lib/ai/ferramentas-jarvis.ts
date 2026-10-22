@@ -147,7 +147,7 @@ export async function executarFerramentaJarvis(sb: SupabaseClient, nome: string,
     }
 
     case "convidar_membro": {
-      const { convidar } = await import("@/app/empresa/actions");
+      const { convidar } = await import("@/app/app/empresa/actions");
       const r = await convidar(i.email as string, i.papel as string);
       if (!r.ok) throw new Error(r.erro);
       return ok({ convidado: true, email: i.email, direto: r.direto });

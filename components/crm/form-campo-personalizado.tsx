@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { salvarCampoPersonalizado } from "@/app/crm/actions";
+import { salvarCampoPersonalizado } from "@/app/app/crm/actions";
 
 export function FormCampoPersonalizado() {
   const [erro, setErro] = useState<string | null>(null);

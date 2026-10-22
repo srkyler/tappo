@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/components/ui/base";
-import { excluirPromocao } from "@/app/marketing/actions";
+import { excluirPromocao } from "@/app/app/marketing/actions";
 import { formatData } from "@/lib/data/format";
 import type { Promocao } from "@/lib/data/types";
 

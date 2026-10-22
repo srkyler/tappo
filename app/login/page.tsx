@@ -10,15 +10,16 @@ const ERROS: Record<string, string> = {
   link: "Link inválido ou expirado. Peça um novo.",
 };
 
-type Params = Promise<{ next?: string; erro?: string }>;
+type Params = Promise<{ next?: string; erro?: string; motivo?: string }>;
 
 async function Conteudo({ searchParams }: { searchParams: Params }) {
-  const { next = "/app", erro } = await searchParams;
+  const { next = "/app", erro, motivo } = await searchParams;
+  const mensagem = motivo ?? (erro ? ERROS[erro] : undefined);
   return (
     <>
       <BotaoGoogle next={next} />
       <Divisor />
-      <FormLogin next={next} erroInicial={erro ? ERROS[erro] : undefined} />
+      <FormLogin next={next} erroInicial={mensagem} />
     </>
   );
 }

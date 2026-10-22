@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { calcularScoreLeadAction } from "@/app/crm/actions";
+import { calcularScoreLeadAction } from "@/app/app/crm/actions";
 
 const COR: Record<string, string> = {
   frio: "text-gray-500",

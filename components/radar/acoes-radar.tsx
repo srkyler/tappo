@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import { CalendarClock, Mail, Phone, Sparkles } from "lucide-react";
-import { adiarLead, marcarContato } from "@/app/actions";
+import { adiarLead, marcarContato } from "@/app/app/actions";
 
 export function AcoesLead({ id, nome }: { id: string; nome: string }) {
   const [pendente, iniciar] = useTransition();

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
-import { salvarChatbotQualificacao, excluirChatbotQualificacao } from "@/app/crm/actions";
+import { salvarChatbotQualificacao, excluirChatbotQualificacao } from "@/app/app/crm/actions";
 import type { ChatbotQualificacao } from "@/lib/data/types";
 
 export function FormPerguntaChatbot({ segmentoId, perguntas }: { segmentoId: string; perguntas: ChatbotQualificacao[] }) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { salvarPessoa } from "@/app/crm/actions";
+import { salvarPessoa } from "@/app/app/crm/actions";
 import type { Conta } from "@/lib/data/types";
 
 export function FormPessoa({ contas }: { contas: Pick<Conta, "id" | "nome">[] }) {

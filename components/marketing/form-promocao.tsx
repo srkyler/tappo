@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Rotulo } from "@/components/ui/base";
-import { salvarPromocao } from "@/app/marketing/actions";
+import { salvarPromocao } from "@/app/app/marketing/actions";
 import type { SugestaoPromocao } from "@/lib/marketing/sugestoes-promocao";
 
 export function FormPromocao({ sugestoes, aoSalvar }: { sugestoes: SugestaoPromocao[]; aoSalvar?: () => void }) {

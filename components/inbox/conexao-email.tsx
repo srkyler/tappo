@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo } from "@/components/ui/base";
-import { salvarEmailConexao } from "@/app/inbox/email-actions";
+import { salvarEmailConexao } from "@/app/app/inbox/email-actions";
 
 export type EmailConexaoTela = {
   endereco_recebe: string | null;

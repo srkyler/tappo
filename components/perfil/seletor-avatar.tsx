@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { Rotulo, cn } from "@/components/ui/base";
-import { salvarAvatarIcone } from "@/app/actions";
+import { salvarAvatarIcone } from "@/app/app/actions";
 import { AVATARES_CARTOON, type AvatarIconeId } from "./avatares-cartoon";
 
 export function SeletorAvatar({ iconeAtual }: { iconeAtual: string | null }) {

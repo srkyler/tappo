@@ -3,7 +3,7 @@ import { Cabecalho, Pagina } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { TarefasView } from "@/components/tarefas/tarefas-view";
 import { bancoPronto } from "@/lib/data/queries";
-import { listarTarefas } from "@/app/tarefas/actions";
+import { listarTarefas } from "@/app/app/tarefas/actions";
 
 export const metadata = { title: "Tarefas — Tappo" };
 

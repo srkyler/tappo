@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { MapPin, Phone, Search, Star, Globe } from "lucide-react";
 import { Rotulo, Vazio, cn } from "@/components/ui/base";
-import { buscarEmpresasAction, importarEmpresasComoLeads } from "@/app/prospeccao/actions";
+import { buscarEmpresasAction, importarEmpresasComoLeads } from "@/app/app/prospeccao/actions";
 import type { EmpresaEncontrada } from "@/lib/prospeccao/google-maps";
 
 export function BuscaMaps() {

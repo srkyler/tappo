@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-ink: #06030f;
+  --color-ink-2: #0d061c;
+  --color-surface: #140a28;
+  --color-surface-2: #1c1038;
+  --color-line: #2a1854;
+  --color-neon: #a855f7;
+  --color-neon-2: #d946ef;
+  --color-neon-soft: #c084fc;
+  --color-text: #f4f0ff;
+  --color-muted: #a396c4;
+  --color-live: #ef4444;
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  height: 6px;
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 999px;
+}
+
+@keyframes brilho {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes flutuar {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-flutuar {
+  animation: flutuar 0.45s ease both;
+}
+
+.ponto-live {
+  animation: brilho 1.2s ease-in-out infinite;
+}

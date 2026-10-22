@@ -3,7 +3,7 @@ import { Cabecalho, Pagina, Barra, Kpi } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { lerPainelGestor, bancoPronto, lerConversaoPorOrigem } from "@/lib/data/queries";
 import { formatBRL, formatNum } from "@/lib/data/format";
-import { salvarMetas } from "@/app/empresa/actions";
+import { salvarMetas } from "@/app/app/empresa/actions";
 
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;

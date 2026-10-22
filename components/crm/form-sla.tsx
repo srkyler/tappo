@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { salvarSlaConfig } from "@/app/crm/actions";
+import { salvarSlaConfig } from "@/app/app/crm/actions";
 import type { SlaConfig } from "@/lib/data/types";
 
 export function FormSla({ sla }: { sla: SlaConfig | null }) {
