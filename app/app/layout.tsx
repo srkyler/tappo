@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense, cache } from "react";
 import { LogOut, Settings, ShieldCheck } from "lucide-react";
+import { requireAuth } from "@/lib/auth/require-auth";
 import { ehAdmin } from "@/lib/admin/guard";
 import { createClient } from "@/lib/supabase/server";
 import { sair } from "@/app/auth/actions";
@@ -66,7 +67,9 @@ function UsuarioCarregando() {
   );
 }
 
-export default function AppLayout({ children }: LayoutProps<"/app">) {
+export default async function AppLayout({ children }: LayoutProps<"/app">) {
+  await requireAuth();
+
   return (
     <div className="flex h-[100svh] overflow-hidden bg-black">
       <Suspense fallback={null}><CorDestaque /></Suspense>
