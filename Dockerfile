@@ -4,8 +4,10 @@
 # ============================================================
 
 # ---- STAGE 1: DEPENDÊNCIAS (cache máximo) ----
+# WORKDIR NÃO pode ser /app: com o folder app/ dentro, o next@15.2.0 gera
+# rotas/headers errados (colisão de paths /app/app/*).
 FROM node:22-alpine AS deps
-WORKDIR /app
+WORKDIR /srv/tappo
 
 # libc6-compat necessário para alguns native modules (ex: sharp)
 RUN apk add --no-cache libc6-compat
@@ -22,10 +24,10 @@ RUN npm ci --prefer-offline --no-audit --no-fund
 
 # ---- STAGE 2: BUILD (rebuild só se fonte mudar) ----
 FROM node:22-alpine AS build
-WORKDIR /app
+WORKDIR /srv/tappo
 
 # Reusa node_modules do stage deps (layer cached)
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /srv/tappo/node_modules ./node_modules
 
 # Copia código fonte
 COPY . .
@@ -48,17 +50,17 @@ RUN npm run build
 
 # ---- STAGE 3: RUNTIME (imagem mínima) ----
 FROM node:22-alpine AS run
-WORKDIR /app
+WORKDIR /srv/tappo
 
 # Hardening: usuário não-root, sem shell
 RUN addgroup -S -g 1001 tappo && \
-    adduser -S -u 1001 -G tappo -h /app -s /sbin/nologin tappo
+    adduser -S -u 1001 -G tappo -h /srv/tappo -s /sbin/nologin tappo
 
 # Copia APENAS o necessário do build standalone
 # --chown=tappo:tappo evita chown posterior
-COPY --from=build --chown=tappo:tappo /app/.next/standalone ./
-COPY --from=build --chown=tappo:tappo /app/.next/static ./.next/static
-COPY --from=build --chown=tappo:tappo /app/public ./public
+COPY --from=build --chown=tappo:tappo /srv/tappo/.next/standalone ./
+COPY --from=build --chown=tappo:tappo /srv/tappo/.next/static ./.next/static
+COPY --from=build --chown=tappo:tappo /srv/tappo/public ./public
 
 # Variáveis de RUNTIME (podem vir do .env no docker-compose)
 ENV NODE_ENV=production \
