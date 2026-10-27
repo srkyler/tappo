@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Diagnóstico completo do Tappo numa VPS — roda sem alterar nada.
 set -uo pipefail
-DIR="${TAPPO_DIR:-/opt/tappo}"
+DIR="${TAPPO_DIR:-/root/tappo}"
 export TAPPO_DIR="$DIR"
 cd "$DIR" 2>/dev/null || { echo "Não encontrei $DIR"; exit 1; }
 source "$DIR/deploy/_common.sh"

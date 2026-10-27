@@ -14,7 +14,7 @@ REPO="${1:-}"
 [ "${2:-}" = "--yes" ] && MODO_NAO_INTERATIVO=1
 export MODO_NAO_INTERATIVO="${MODO_NAO_INTERATIVO:-0}"
 
-DIR="${TAPPO_DIR:-/opt/tappo}"
+DIR="${TAPPO_DIR:-/root/tappo}"
 export TAPPO_DIR="$DIR"
 
 # --- 0. Código em $DIR (precisa existir antes de dar source no _common.sh) ---

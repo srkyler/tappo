@@ -2,7 +2,7 @@
 # Atualiza o Tappo pra última versão do git. Faz backup antes, e se o healthcheck
 # falhar depois do build novo, volta pra imagem anterior sozinho.
 set -euo pipefail
-DIR="${TAPPO_DIR:-/opt/tappo}"
+DIR="${TAPPO_DIR:-/root/tappo}"
 export TAPPO_DIR="$DIR"
 cd "$DIR"
 source "$DIR/deploy/_common.sh"

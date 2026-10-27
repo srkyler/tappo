@@ -2,7 +2,7 @@
 # Backup do banco (via SUPABASE_DB_URL) e das sessões do WhatsApp (volume do WAHA).
 # O plano grátis do Supabase NÃO faz backup sozinho — agende este script no cron.
 set -euo pipefail
-DIR="${TAPPO_DIR:-/opt/tappo}"
+DIR="${TAPPO_DIR:-/root/tappo}"
 export TAPPO_DIR="$DIR"
 cd "$DIR"
 source "$DIR/deploy/_common.sh"

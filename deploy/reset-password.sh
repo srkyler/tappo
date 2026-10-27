@@ -3,7 +3,7 @@
 # ninguém mais consegue entrar (ex.: e-mail de recuperação não chegou).
 # Uso: bash deploy/reset-password.sh usuario@empresa.com "nova senha com 8+ caracteres"
 set -euo pipefail
-DIR="${TAPPO_DIR:-/opt/tappo}"
+DIR="${TAPPO_DIR:-/root/tappo}"
 export TAPPO_DIR="$DIR"
 cd "$DIR"
 source "$DIR/deploy/_common.sh"

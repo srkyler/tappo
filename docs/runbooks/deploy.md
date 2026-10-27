@@ -16,7 +16,7 @@ sozinho (com um token pessoal) e pode criar a primeira conta de login.
 ## Atualizar
 
 ```bash
-cd /opt/tappo
+cd /root/tappo
 git pull
 bash deploy/update.sh
 ```

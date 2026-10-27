@@ -3,7 +3,7 @@
 # nunca execute direto.
 set -euo pipefail
 
-TAPPO_DIR="${TAPPO_DIR:-/opt/tappo}"
+TAPPO_DIR="${TAPPO_DIR:-/root/tappo}"
 ENV_FILE="$TAPPO_DIR/.env"
 
 c_verde() { printf '\033[32m%s\033[0m\n' "$1"; }

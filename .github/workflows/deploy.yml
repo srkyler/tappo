@@ -41,7 +41,7 @@ jobs:
           command_timeout: 20m
           script: |
             set -e
-            cd /opt/tappo
+            cd /root/tappo
             git fetch --all --prune
             git reset --hard origin/main
             docker compose up -d --build

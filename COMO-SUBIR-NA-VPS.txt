@@ -83,7 +83,7 @@ No seu computador (PowerShell ou terminal):
  3. BAIXAR O PROJETO DO GITHUB
 ---------------------------------------------------------------------
     apt update && apt install -y git
-    git clone https://github.com/srkyler/tappo.git /opt/tappo
+    git clone https://github.com/srkyler/tappo.git /root/tappo
 
 Se o repositório for PRIVADO, o git vai pedir usuário e senha:
   - Usuário: seu usuário do GitHub
@@ -95,17 +95,17 @@ Se o repositório for PRIVADO, o git vai pedir usuário e senha:
 ---------------------------------------------------------------------
  4. RODAR O INSTALADOR
 ---------------------------------------------------------------------
-    bash /opt/tappo/deploy/install.sh
+    bash /root/tappo/deploy/install.sh
 
 Ele instala o Docker, libera as portas 80 e 443 no firewall e cria o
-arquivo /opt/tappo/.env já com estes segredos gerados:
+arquivo /root/tappo/.env já com estes segredos gerados:
   AI_KEYS_SECRET, WAHA_API_KEY e WAHA_DASHBOARD_PASSWORD
 
 
 ---------------------------------------------------------------------
  5. PREENCHER O .env
 ---------------------------------------------------------------------
-    nano /opt/tappo/.env
+    nano /root/tappo/.env
 
 Preencha (sem espaços antes/depois do "="):
 
@@ -137,7 +137,7 @@ Para salvar no nano: Ctrl+O, Enter, Ctrl+X.
 ---------------------------------------------------------------------
  6. SUBIR O SISTEMA
 ---------------------------------------------------------------------
-    cd /opt/tappo
+    cd /root/tappo
     docker compose up -d --build
 
 O primeiro build demora uns 3 a 8 minutos. Para conferir:
@@ -170,7 +170,7 @@ URL do Supabase: https://SEU-PROJETO.supabase.co/auth/v1/callback).
 3. Vá em Inbox > ícone de engrenagem e preencha:
      URL do WAHA:  http://waha:3000
      API key:      o valor de WAHA_API_KEY do .env
-                   (veja com: grep WAHA_API_KEY /opt/tappo/.env)
+                   (veja com: grep WAHA_API_KEY /root/tappo/.env)
      Sessão:       default
      [x] IA responde os clientes
      Sobre o negócio: horários, produtos, preços, regras...
@@ -201,7 +201,7 @@ Actions > New repository secret. Crie:
 Se o repositório for privado, a VPS precisa conseguir dar "git fetch"
 sozinha. Salve o token uma vez:
 
-    cd /opt/tappo
+    cd /root/tappo
     git config credential.helper store
     git pull      (digite usuário + token; fica salvo)
 
@@ -213,7 +213,7 @@ Run workflow.
 ---------------------------------------------------------------------
  10. COMANDOS DO DIA A DIA
 ---------------------------------------------------------------------
-    cd /opt/tappo
+    cd /root/tappo
     docker compose ps                     status dos serviços
     docker compose logs -f app            logs do CRM
     docker compose logs -f waha           logs do WhatsApp
@@ -225,7 +225,7 @@ Run workflow.
     docker compose pull waha && docker compose up -d waha   atualizar WAHA
 
   Dica: agende o backup diário no cron —
-    (crontab -l 2>/dev/null; echo "0 3 * * * cd /opt/tappo && bash deploy/backup.sh >> /var/log/tappo-backup.log 2>&1") | crontab -
+    (crontab -l 2>/dev/null; echo "0 3 * * * cd /root/tappo && bash deploy/backup.sh >> /var/log/tappo-backup.log 2>&1") | crontab -
 
 ---------------------------------------------------------------------
  10b. REINSTALAR / REINICIAR TUDO NA VPS DO ZERO
@@ -234,14 +234,14 @@ Isso NÃO apaga dados do Supabase (o banco não mora nesta VPS) — só
 recria os containers Docker. A sessão do WhatsApp conectada é perdida
 (vai precisar escanear o QR code de novo).
 
-    cd /opt/tappo
+    cd /root/tappo
     docker compose down                   # para tudo
     git pull                              # traz este instalador novo
     bash deploy/install.sh --yes          # reaplica com o .env que já existe
     bash deploy/healthcheck.sh            # confirma que subiu certo
 
 Se quiser preencher os campos de novo (trocar domínio, chaves etc.),
-apague só as linhas que quer trocar do /opt/tappo/.env antes do
+apague só as linhas que quer trocar do /root/tappo/.env antes do
 install.sh — ele só pergunta o que estiver vazio.
 
 

@@ -9,10 +9,10 @@ Stack na VPS: **app** (Next.js) + **waha** (WhatsApp) + **caddy** (HTTPS automá
 ## 2. Instalar (uma vez)
 ```bash
 ssh root@IP_DA_VPS
-git clone https://github.com/srkyler/tappo.git /opt/tappo   # repo privado: use um deploy key ou token
-bash /opt/tappo/deploy/install.sh
-nano /opt/tappo/.env            # preencha DOMAIN, Supabase, ANTHROPIC_API_KEY, ADMIN_EMAILS…
-cd /opt/tappo && docker compose up -d --build
+git clone https://github.com/srkyler/tappo.git /root/tappo   # repo privado: use um deploy key ou token
+bash /root/tappo/deploy/install.sh
+nano /root/tappo/.env            # preencha DOMAIN, Supabase, ANTHROPIC_API_KEY, ADMIN_EMAILS…
+cd /root/tappo && docker compose up -d --build
 ```
 O script instala o Docker, libera as portas 80/443 e gera `AI_KEYS_SECRET`, `WAHA_API_KEY` e a senha do painel do WAHA.
 
@@ -41,7 +41,7 @@ Migrações em `supabase/migrations/`. Depois de criar uma nova: `npm run db:set
 
 ## Comandos úteis na VPS
 ```bash
-cd /opt/tappo
+cd /root/tappo
 docker compose logs -f app       # logs do app
 docker compose logs -f waha      # logs do WhatsApp
 docker compose restart app
@@ -60,5 +60,5 @@ docker compose pull waha && docker compose up -d waha   # atualizar o WAHA
 
 Reinstalar do zero (não apaga nada do Supabase, só os containers):
 ```bash
-cd /opt/tappo && docker compose down && git pull && bash deploy/install.sh --yes
+cd /root/tappo && docker compose down && git pull && bash deploy/install.sh --yes
 ```
