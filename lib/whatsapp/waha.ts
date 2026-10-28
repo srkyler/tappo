@@ -28,9 +28,21 @@ export function urlWebhook(token: string) {
   return `${app}/api/v1/waha/${token}`;
 }
 
+/** URL e API key vêm do .env do servidor; a linha no banco é só fallback local. */
+export function configWaha(c: Pick<Conexao, "base_url" | "api_key_cifrada">): { base: string; chave: string | null } {
+  const baseEnv = (process.env.WAHA_BASE_URL || (process.env.WAHA_DOMAIN ? `https://${process.env.WAHA_DOMAIN}` : "")).replace(/\/+$/, "");
+  const base = baseEnv || (c.base_url ?? "").replace(/\/+$/, "");
+  if (!base) throw new Error("WAHA não configurado no servidor (defina WAHA_BASE_URL ou WAHA_DOMAIN no .env).");
+  const chave = process.env.WAHA_API_KEY || (c.api_key_cifrada ? decifrar(c.api_key_cifrada) : null);
+  return { base, chave };
+}
+
+export const wahaServidorPronto = () =>
+  !!(process.env.WAHA_BASE_URL || process.env.WAHA_DOMAIN);
+
 async function chamar<T = unknown>(c: Conexao, metodo: string, caminho: string, corpo?: unknown): Promise<T> {
-  const chave = c.api_key_cifrada ? decifrar(c.api_key_cifrada) : null;
-  const res = await fetch(`${c.base_url.replace(/\/+$/, "")}${caminho}`, {
+  const { base, chave } = configWaha(c);
+  const res = await fetch(`${base}${caminho}`, {
     method: metodo,
     headers: {
       Accept: "application/json",

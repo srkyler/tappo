@@ -4,7 +4,6 @@ import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { InboxView, type ConexaoTela, type ConexaoTelegramTela, type ConversaTela } from "@/components/inbox/inbox-view";
 import type { EmailConexaoTela } from "@/components/inbox/conexao-email";
 import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
-import { urlWebhook } from "@/lib/whatsapp/waha";
 import { membrosDaEmpresa } from "@/lib/data/empresa";
 import { lerSlaConfig } from "@/lib/data/crm";
 
@@ -14,7 +13,7 @@ async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
   const { supabase, user } = await usuarioAtual();
   const [conexoes, conexaoTelegram, emailConexao, conversas, membros, slaConfig] = await Promise.all([
-    supabase.from("wa_conexoes").select("id, base_url, sessao, token, status, numero, ia_ativa, ia_instrucoes, distribuicao, api_key_cifrada, apelido").order("criado_at", { ascending: false }),
+    supabase.from("wa_conexoes").select("id, sessao, status, numero, ia_ativa, ia_instrucoes, distribuicao, apelido").order("criado_at", { ascending: false }),
     supabase.from("telegram_conexoes").select("status, bot_username, ia_ativa, ia_instrucoes, distribuicao, bot_token_cifrada").maybeSingle(),
     supabase.from("email_conexoes").select("endereco_recebe, endereco_envia, ia_ativa, ia_instrucoes, webhook_secret").maybeSingle(),
     supabase.from("wa_conversas")
@@ -27,8 +26,8 @@ async function Conteudo() {
 
   const telas: ConexaoTela[] = (conexoes.data ?? []).map((c) => ({
     id: c.id,
-    base_url: c.base_url, sessao: c.sessao, status: c.status, numero: c.numero,
-    ia_ativa: c.ia_ativa, ia_instrucoes: c.ia_instrucoes, tem_chave: !!c.api_key_cifrada, webhook: urlWebhook(c.token),
+    sessao: c.sessao, status: c.status, numero: c.numero,
+    ia_ativa: c.ia_ativa, ia_instrucoes: c.ia_instrucoes,
     distribuicao: c.distribuicao, apelido: c.apelido,
   }));
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Check, Copy, Loader2, LogOut, QrCode, Smartphone, Plus, Trash2, ChevronRight } from "lucide-react";
+import { Check, Loader2, LogOut, QrCode, Smartphone, Trash2, ChevronRight } from "lucide-react";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, cn } from "@/components/ui/base";
 import { conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp, salvarConexao, excluirConexao, type EstadoWhats } from "@/app/app/inbox/actions";
@@ -20,7 +20,6 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
   const [estado, setEstado] = useState<EstadoWhats | null>(null);
-  const [copiado, setCopiado] = useState(false);
   const [pendente, iniciar] = useTransition();
 
   const atualizar = useCallback(async (id: string): Promise<EstadoWhats> => {
@@ -52,7 +51,6 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
   }
 
   const status = estado?.ok ? estado.status : conexaoAtiva?.status ?? "DESCONHECIDO";
-  const conexaoSelecionada = abertas.find((c) => c.id === conexaoAtiva?.id);
 
   return (
     <Dialogo aberto={aberta} aoFechar={aoFechar} titulo="WhatsApp (WAHA)" descricao="Gerencie múltiplas conexões WAHA por empresa. Cada conexão é um número diferente." largura={640}>
@@ -89,25 +87,16 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
           )}
         </section>
 
-        {/* Formulário nova conexão / editar */}
+        {/* Formulário nova conexão / editar — sem URL nem API key: fica no .env do servidor */}
         <form action={enviar} className="space-y-4">
           <div>
             <Rotulo htmlFor="w-apelido">Apelido da conexão</Rotulo>
             <input id="w-apelido" name="apelido" defaultValue={conexaoAtiva?.apelido ?? "Conexão WhatsApp"} placeholder="Ex.: Comercial, Suporte, Vendas" className="campo" required />
           </div>
           <div>
-            <Rotulo htmlFor="w-url">URL do WAHA</Rotulo>
-            <input id="w-url" name="base_url" defaultValue={conexaoAtiva?.base_url ?? ""} placeholder="https://waha.suaempresa.com" className="campo" required />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Rotulo htmlFor="w-key">API key {conexaoAtiva?.tem_chave && <span className="text-gray-500">(salva — deixe vazio para manter)</span>}</Rotulo>
-              <input id="w-key" name="api_key" type="password" autoComplete="off" placeholder={conexaoAtiva?.tem_chave ? "••••••••" : "WAHA_API_KEY"} className="campo" />
-            </div>
-            <div>
-              <Rotulo htmlFor="w-sessao">Sessão</Rotulo>
-              <input id="w-sessao" name="sessao" defaultValue={conexaoAtiva?.sessao ?? "default"} className="campo" />
-            </div>
+            <Rotulo htmlFor="w-sessao">Sessão</Rotulo>
+            <input id="w-sessao" name="sessao" defaultValue={conexaoAtiva?.sessao ?? "default"} className="campo" placeholder="default" />
+            <p className="mt-1 text-[12px] text-gray-500">Uma sessão por número de WhatsApp. O servidor WAHA e a API key ficam só no .env — nada aqui é exposto.</p>
           </div>
           <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
             <input type="checkbox" name="ia_ativa" defaultChecked={conexaoAtiva?.ia_ativa ?? false} className="mt-1" />
@@ -157,14 +146,6 @@ export function ConexaoWhats({ abertas, aberta, aoFechar, conexaoAtiva, setConex
                 <p className="flex items-center gap-1.5 text-[12.5px] text-gray-700"><Smartphone size={14} /> WhatsApp → Aparelhos conectados → Conectar</p>
               </div>
             )}
-            <div>
-              <p className="mb-1 text-[12px] text-gray-500">Webhook</p>
-              <div className="flex gap-2">
-                <code className="campo flex items-center overflow-x-auto whitespace-nowrap text-[12px]">{conexaoAtiva.webhook}</code>
-                <button type="button" onClick={async () => { await navigator.clipboard.writeText(conexaoAtiva.webhook); setCopiado(true); setTimeout(() => setCopiado(false), 1500); }} className="btn btn-secundario btn-sm shrink-0" aria-label="Copiar webhook">{copiado ? <Check size={14} /> : <Copy size={14} />}</button>
-              </div>
-              {/localhost|127\.0\.0\.1/.test(conexaoAtiva.webhook) && <p className="mt-1.5 text-[12px] text-amber-400">O WAHA não alcança localhost. Use a URL pública do app (NEXT_PUBLIC_APP_URL) ou um túnel como ngrok.</p>}
-            </div>
           </section>
         )}
       </div>

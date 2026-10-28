@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { cifrar } from "@/lib/ai/cofre";
 import { enviarERegistrar } from "@/lib/whatsapp/atendimento";
 import { chatDoTelefone, desconectar, iniciarSessao, lerQr, lerSessao, marcarLida, type Conexao } from "@/lib/whatsapp/waha";
 import type { ActionResult } from "@/lib/data/types";
@@ -20,7 +19,7 @@ async function cliente() {
 
 function falha(e: unknown): { ok: false; erro: string } {
   const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String(e.message) : "Erro inesperado.";
-  return { ok: false, erro: /fetch failed|ECONNREFUSED|timeout/i.test(msg) ? "Não foi possível falar com o servidor WAHA. Confira a URL." : msg };
+  return { ok: false, erro: /fetch failed|ECONNREFUSED|timeout/i.test(msg) ? "Não foi possível falar com o servidor WAHA. Verifique WAHA_BASE_URL/WAHA_API_KEY no .env." : msg };
 }
 
 async function minhaConexao(): Promise<Conexao> {
@@ -37,25 +36,27 @@ export async function salvarConexao(f: FormData): Promise<ActionResult> {
     const { supabase, user } = await cliente();
     const empresa = await empresaAtual();
     if (!empresa || !ehGestor(empresa.papel)) return { ok: false, erro: "Só o dono ou um gestor pode configurar o WhatsApp." };
+    // URL e API key do WAHA vêm do .env do servidor; a UI não mostra nem pede.
     const base_url = String(f.get("base_url") ?? "").trim().replace(/\/+$/, "");
-    if (!/^https?:\/\/\S+$/.test(base_url)) return { ok: false, erro: "Informe a URL do WAHA (ex.: https://waha.suaempresa.com)." };
+    if (!base_url && !process.env.WAHA_BASE_URL && !process.env.WAHA_DOMAIN) {
+      return { ok: false, erro: "WAHA não configurado no servidor: defina WAHA_BASE_URL (ou WAHA_DOMAIN) e WAHA_API_KEY no .env." };
+    }
     const sessao = String(f.get("sessao") ?? "default").trim() || "default";
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessao)) return { ok: false, erro: "Nome da sessão: só letras, números, _ e -." };
-    const chave = String(f.get("api_key") ?? "").trim();
     const apelido = String(f.get("apelido") ?? "").trim() || "Conexão WhatsApp";
     const { error } = await supabase.from("wa_conexoes").insert({
       org_id: empresa.id,
       user_id: user.id,
       apelido,
       distribuicao: f.get("distribuicao") === "rodizio" ? "rodizio" : "manual",
-      base_url,
+      base_url: base_url || null,
       sessao,
       ia_ativa: f.get("ia_ativa") === "on",
       ia_instrucoes: String(f.get("ia_instrucoes") ?? "").slice(0, 6000),
-      ...(chave ? { api_key_cifrada: cifrar(chave) } : {}),
     });
     if (error) throw error;
     revalidatePath("/app/inbox");
+    revalidatePath("/app/conexoes");
     return { ok: true };
   } catch (e) { return falha(e); }
 }

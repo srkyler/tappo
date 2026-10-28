@@ -14,8 +14,8 @@ import { ConexaoEmail, type EmailConexaoTela } from "./conexao-email";
 
 export type ConexaoTela = {
   id: string;
-  base_url: string; sessao: string; status: string; numero: string | null;
-  ia_ativa: boolean; ia_instrucoes: string; tem_chave: boolean; webhook: string;
+  sessao: string; status: string; numero: string | null;
+  ia_ativa: boolean; ia_instrucoes: string;
   distribuicao?: string | null;
   apelido?: string | null;
 };
