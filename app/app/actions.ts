@@ -1,8 +1,10 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { dispararAutomacoes } from "@/lib/automacoes";
+import { dispararWebhooks } from "@/lib/webhooks/saida";
 import { campo, traduzErro } from "@/lib/data/format";
 import {
   CAMPAIGN_STATUS, CANAL, LEAD_ORIGEM, LEAD_STATUS,
@@ -69,6 +71,13 @@ export async function salvarLead(id: string | null, fd: FormData): Promise<Actio
       ? await supabase.from("leads").update(dados).eq("id", id).select("id").single()
       : await supabase.from("leads").insert(dados).select("id").single();
     if (error) return falha(error);
+
+    if (!id && resultado?.id) {
+      after(() => dispararWebhooks(supabase, null, "lead.criado", {
+        id: resultado.id, nome: dados.nome, empresa: dados.empresa, email: dados.email,
+        telefone: dados.telefone, origem: dados.origem, status: dados.status,
+      }));
+    }
 
     // Registrar duplicados encontrados (org_id tem DEFAULT public.org_atual())
     if (duplicados.length > 0 && resultado?.id) {
@@ -448,6 +457,10 @@ export async function moverDeal(id: string, stageId: string, motivoPerda?: strin
     }).eq("id", id).select("lead_id, user_id, valor, stage_id").single();
     if (error) return falha(error);
     await dispararAutomacoes(supabase, "deal_mudou_etapa", stageId, { dealId: id, leadId: data?.lead_id ?? null });
+    after(() => dispararWebhooks(supabase, null, "lead.etapa_mudou", {
+      deal_id: id, lead_id: data?.lead_id ?? null, stage_id: stageId,
+      de_stage_id: antes?.stage_id ?? null, motivo_perda: motivoPerda?.trim() || null,
+    }));
 
     // Calcular comissão automática quando deal vira "ganho"
     const stage = await supabase.from("pipeline_stages").select("tipo").eq("id", stageId).single();

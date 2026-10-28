@@ -1,8 +1,10 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { enviarERegistrar } from "@/lib/whatsapp/atendimento";
+import { dispararWebhooks } from "@/lib/webhooks/saida";
 import { chatDoTelefone, desconectar, iniciarSessao, lerQr, lerSessao, marcarLida, type Conexao } from "@/lib/whatsapp/waha";
 import type { ActionResult } from "@/lib/data/types";
 import { empresaAtual } from "@/lib/data/empresa";
@@ -103,6 +105,37 @@ export async function conectarWhatsApp(conexaoId?: string): Promise<ActionResult
     if (!c) return { ok: false, erro: "Conexão não encontrada." };
     await iniciarSessao(c);
     return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+/**
+ * Cria a conexão com defaults e já dispara a sessão — "1 clique → QR na tela"
+ * (fluxo inspirado no DeskcommCRM: o formulário vem depois, pela edição).
+ */
+export async function novaConexaoRapida(): Promise<ActionResult & { id?: string }> {
+  try {
+    const { supabase, user } = await cliente();
+    const empresa = await empresaAtual();
+    if (!empresa || !ehGestor(empresa.papel)) return { ok: false, erro: "Só o dono ou um gestor pode conectar o WhatsApp." };
+    if (!process.env.WAHA_BASE_URL && !process.env.WAHA_DOMAIN) {
+      return { ok: false, erro: "WAHA não configurado no servidor: defina WAHA_BASE_URL (ou WAHA_DOMAIN) e WAHA_API_KEY no .env." };
+    }
+    const sessao = `t${crypto.randomUUID().replace(/-/g, "").slice(0, 14)}`;
+    const { data: nova, error } = await supabase.from("wa_conexoes").insert({
+      org_id: empresa.id,
+      user_id: user.id,
+      apelido: "WhatsApp",
+      distribuicao: "manual",
+      sessao,
+      ia_ativa: true, // padrão: o Jarvis atende assim que o QR for lido
+      base_url: null,
+    }).select("id").single();
+    if (error) throw error;
+    // Disparo da sessão é best-effort: a linha já existe e o botão Conectar resolve se o WAHA falhar
+    await conectarWhatsApp(nova.id);
+    revalidatePath("/app/inbox");
+    revalidatePath("/app/conexoes");
+    return { ok: true, id: nova.id };
   } catch (e) { return falha(e); }
 }
 
@@ -207,6 +240,10 @@ export async function criarLeadDaConversa(conversaId: string, empresa: string): 
     if (error) throw error;
     await supabase.from("wa_conversas").update({ lead_id: lead.id }).eq("id", conversaId);
     await supabase.from("activities").insert({ user_id: user.id, lead_id: lead.id, tipo: "whatsapp", descricao: "Conversa iniciada no WhatsApp" });
+    after(() => dispararWebhooks(supabase, null, "lead.criado", {
+      id: lead.id, nome: c.nome || c.telefone || "Contato WhatsApp", telefone: c.telefone,
+      origem: "Outro", status: "Contatado",
+    }));
     revalidatePath("/app/leads");
     return { ok: true };
   } catch (e) { return falha(e); }

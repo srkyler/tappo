@@ -5,12 +5,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3, Building2, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, Plug, type LucideIcon,
+  BarChart3, Building2, Brain, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
+  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, Plug, Network, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
 type Item = { href: string; label: string; Icone: LucideIcon };
+
+/** Item exclusivo de administradores (área com chave de API — membros nem veem). */
+const ITEM_ADMIN: Item = { href: "/app/agentes", label: "Agentes (admin)", Icone: Brain };
+
+/** Grupos da navegação; `admin` acrescenta o item da área de administração. */
+export function gruposNav(admin: boolean): { titulo?: string; itens: Item[] }[] {
+  if (!admin) return GRUPOS;
+  return GRUPOS.map((g, i) => (i === 0 ? { ...g, itens: [...g.itens, ITEM_ADMIN] } : g));
+}
 
 // Grupos pequenos e coerentes em vez de uma lista única — cada um recolhe
 // independente (preferência salva no navegador, ver NavLateral).
@@ -46,6 +55,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
       { href: "/app/sla", label: "SLA atendimento", Icone: Timer },
       { href: "/app/atendimento-atendente", label: "Atendimento por Atendente", Icone: UserRound },
       { href: "/app/captacao", label: "Captação", Icone: Webhook },
+      { href: "/app/webhooks", label: "Webhooks", Icone: Network },
     ],
   },
   {
@@ -105,14 +115,16 @@ function lerRecolhidos(): Set<string> {
 }
 
 /** Navegação lateral (desktop). Cada categoria com título recolhe/expande. */
-export function NavLateral() {
+export function NavLateral({ admin = false }: { admin?: boolean }) {
   const path = usePathname();
   const [recolhidos, setRecolhidos] = useState<Set<string>>(() => (typeof window === "undefined" ? new Set() : lerRecolhidos()));
+
+  const grupos = gruposNav(admin);
 
   // A categoria da página atual nunca fica escondida, mesmo se o usuário a
   // recolheu antes — calculado no render (não em efeito: é derivado, não é
   // sincronização com sistema externo).
-  const grupoAtivo = GRUPOS.find((g) => g.itens.some((i) => ativo(path, i.href)))?.titulo;
+  const grupoAtivo = grupos.find((g) => g.itens.some((i) => ativo(path, i.href)))?.titulo;
   const recolhidosEfetivos = grupoAtivo && recolhidos.has(grupoAtivo)
     ? new Set([...recolhidos].filter((t) => t !== grupoAtivo))
     : recolhidos;
@@ -129,7 +141,7 @@ export function NavLateral() {
   return (
     <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4" aria-label="Navegação principal">
       <BotaoBusca />
-      {GRUPOS.map((g, i) => {
+      {grupos.map((g, i) => {
         const fechado = !!g.titulo && recolhidosEfetivos.has(g.titulo);
         return (
           <div key={i}>
@@ -224,7 +236,7 @@ export function NavInferior() {
 type Comando = { id: string; label: string; dica?: string; Icone: LucideIcon; acao: () => void };
 
 /** Paleta de comandos (Ctrl/⌘ + K): navegar, criar e perguntar ao agente. */
-export function PaletaComandos() {
+export function PaletaComandos({ admin = false }: { admin?: boolean }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [q, setQ] = useState("");
@@ -247,7 +259,7 @@ export function PaletaComandos() {
   const comandos = useMemo<Comando[]>(() => {
     const base: Comando[] = [
       { id: "novo-lead", label: "Novo lead", Icone: Plus, acao: ir("/app/leads?novo=1") },
-      ...TODOS.map((i) => ({ id: i.href, label: i.label, dica: "Ir para", Icone: i.Icone, acao: ir(i.href) })),
+      ...gruposNav(admin).flatMap((g) => g.itens).map((i) => ({ id: i.href, label: i.label, dica: "Ir para", Icone: i.Icone, acao: ir(i.href) })),
       { id: "conta", label: "Conta e senha", dica: "Ir para", Icone: Settings, acao: ir("/app/perfil") },
     ];
     const t = q.trim().toLowerCase();

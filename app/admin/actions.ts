@@ -62,6 +62,7 @@ export async function salvarAgente(id: string | null, entrada: EntradaAgente): P
       : await db.from("ai_agents").insert({ ...registro, created_by: user.id });
     if (error) return erro(error);
     revalidatePath("/admin");
+  revalidatePath("/app/agentes");
     return { ok: true };
   } catch (e) { return erro(e); }
 }
@@ -71,6 +72,7 @@ export async function ativarAgente(id: string): Promise<ActionResult> {
   const { error } = await createAdminClient().rpc("ativar_agente", { agente: id });
   if (error) return erro(error);
   revalidatePath("/admin");
+  revalidatePath("/app/agentes");
   revalidatePath("/app/agente");
   return { ok: true };
 }
@@ -80,6 +82,7 @@ export async function desativarAgentes(): Promise<ActionResult> {
   const { error } = await createAdminClient().from("ai_agents").update({ ativo: false }).eq("ativo", true);
   if (error) return erro(error);
   revalidatePath("/admin");
+  revalidatePath("/app/agentes");
   return { ok: true };
 }
 
@@ -88,6 +91,7 @@ export async function excluirAgente(id: string): Promise<ActionResult> {
   const { error } = await createAdminClient().from("ai_agents").delete().eq("id", id);
   if (error) return erro(error);
   revalidatePath("/admin");
+  revalidatePath("/app/agentes");
   return { ok: true };
 }
 
@@ -100,6 +104,7 @@ export async function duplicarAgente(id: string): Promise<ActionResult> {
   const { error: e2 } = await db.from("ai_agents").insert({ ...resto, nome: `${resto.nome} (cópia)`, ativo: false, created_by: user.id });
   if (e2) return erro(e2);
   revalidatePath("/admin");
+  revalidatePath("/app/agentes");
   return { ok: true };
 }
 
@@ -110,6 +115,7 @@ export async function definirAdmin(userId: string, tornarAdmin: boolean): Promis
   const { error } = await createAdminClient().from("profiles").update({ papel: tornarAdmin ? "admin" : "membro" }).eq("id", userId);
   if (error) return erro(error);
   revalidatePath("/admin");
+  revalidatePath("/app/agentes");
   return { ok: true };
 }
 

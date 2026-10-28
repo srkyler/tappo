@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LEAD_ORIGEM, type LeadOrigem } from "@/lib/data/types";
+import { dispararWebhooks } from "@/lib/webhooks/saida";
 
 /*
  * POST /api/v1/webhooks/in/<token> — recebe um lead de landing page, formulário, Zapier, n8n…
@@ -132,6 +134,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
 
   await db.from("lead_sources").update({ recebidos: fonte.recebidos + 1, ultimo_em: new Date().toISOString() }).eq("id", fonte.id);
+  after(() => dispararWebhooks(db, fonte.org_id, "lead.criado", {
+    id: lead.id, cod: lead.cod, nome, empresa, email, telefone: pegar(dados, "telefone", 40),
+    origem: origem ?? fonte.origem, status: fonte.status_inicial,
+  }));
   await registrar(true, `Lead criado: ${lead.cod}`);
   return resposta(201, { ok: true, cod: lead.cod });
 }

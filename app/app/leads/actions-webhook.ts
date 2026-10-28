@@ -1,8 +1,10 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispararWebhooks } from "@/lib/webhooks/saida";
 import type { ActionResult } from "@/lib/data/types";
 
 function falha(e: unknown): { ok: false; erro: string } {
@@ -36,7 +38,7 @@ export async function receberLead(f: FormData): Promise<ActionResult> {
       if (em?.length) duplicados.push(`E-mail já cadastrado: ${em[0].nome}`);
     }
 
-    const { error } = await supabase.from("leads").insert({
+    const { data: novo, error } = await supabase.from("leads").insert({
       nome,
       empresa,
       email,
@@ -44,9 +46,13 @@ export async function receberLead(f: FormData): Promise<ActionResult> {
       origem: "Site",
       status: "Nova",
       notas: mensagem ? `Mensagem de captação: ${mensagem}` : null,
-    });
+    }).select("id").single();
 
     if (error) return falha(error);
+
+    after(() => dispararWebhooks(supabase, null, "lead.criado", {
+      id: novo.id, nome, empresa, email, telefone, origem: "Site", status: "Nova",
+    }));
 
     // Registrar duplicados se houver
     if (duplicados.length > 0) {
@@ -80,7 +86,7 @@ export async function webhookCaptacao(token: string, body: Record<string, unknow
 
     if (!nome) return { ok: false, erro: "Nome é obrigatório." };
 
-    const { error } = await db.from("leads").insert({
+    const { data: novo, error } = await db.from("leads").insert({
       org_id: fonte.org_id,
       nome,
       empresa,
@@ -89,8 +95,12 @@ export async function webhookCaptacao(token: string, body: Record<string, unknow
       origem: "Site",
       status: fonte.status_inicial,
       notas: texto(body.mensagem) || texto(body.message),
-    });
+    }).select("id").single();
     if (error) throw error;
+
+    after(() => dispararWebhooks(db, fonte.org_id, "lead.criado", {
+      id: novo.id, nome, empresa, email, telefone, origem: "Site", status: fonte.status_inicial,
+    }));
 
     await db.from("lead_sources")
       .update({ recebidos: fonte.recebidos + 1, ultimo_em: new Date().toISOString() })

@@ -1,11 +1,17 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conversaDo, responderComIA } from "@/lib/whatsapp/atendimento";
+import { dispararWebhooks } from "@/lib/webhooks/saida";
 import type { Conexao } from "@/lib/whatsapp/waha";
 
 /*
  * POST /api/v1/waha/<token> — webhook do WAHA (eventos message.any e session.status).
  * O token identifica a conexão (e o dono). Sem sessão; escreve pela service role.
+ * Segurança (padrão DeskcommCRM): se WAHA_HMAC_SECRET estiver definido no .env
+ * E o WAHA assinar (WHATSAPP_HOOK_HMAC_KEY), a assinatura SHA-512 do corpo bruto
+ * é verificada em tempo constante; WAHA_WEBHOOK_REQUIRE_SIGNATURE=true torna
+ * assinatura obrigatória (fail-closed).
  */
 
 export const maxDuration = 60;
@@ -30,17 +36,31 @@ function tipoDa(m: MsgWaha) {
   return mt.startsWith("image/") ? "imagem" : mt.startsWith("audio/") ? "audio" : mt.startsWith("video/") ? "video" : "arquivo";
 }
 
+/** Verifica o HMAC-SHA512 do corpo (header x-webhook-hmac). Sem segredo configurado, aceita. */
+function assinaturaValida(req: Request, corpo: string): boolean {
+  const segredo = (process.env.WAHA_HMAC_SECRET ?? "").trim();
+  if (segredo.length < 16) return process.env.WAHA_WEBHOOK_REQUIRE_SIGNATURE !== "true";
+  const cab = req.headers.get("x-webhook-hmac");
+  if (!cab) return process.env.WAHA_WEBHOOK_REQUIRE_SIGNATURE !== "true";
+  const esperado = createHmac("sha512", segredo).update(corpo, "utf8").digest("hex");
+  const recebido = cab.replace(/^sha512=/i, "").trim().toLowerCase();
+  if (recebido.length !== esperado.length) return false;
+  try { return timingSafeEqual(Buffer.from(recebido, "hex"), Buffer.from(esperado, "hex")); } catch { return false; }
+}
+
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params;
   if (!/^[a-f0-9]{32,80}$/.test(token)) return Response.json({ ok: false }, { status: 404 });
+
+  const bruto = await req.text();
+  if (bruto.length > 200_000) return Response.json({ ok: false }, { status: 413 });
+  if (!assinaturaValida(req, bruto)) return Response.json({ ok: false }, { status: 401 });
 
   const db = createAdminClient();
   const { data: conexao } = await db.from("wa_conexoes").select("*").eq("token", token).maybeSingle();
   if (!conexao) return Response.json({ ok: false }, { status: 404 });
   const c = conexao as Conexao;
 
-  const bruto = await req.text();
-  if (bruto.length > 200_000) return Response.json({ ok: false }, { status: 413 });
   let ev: EventoWaha;
   try { ev = JSON.parse(bruto); } catch { return Response.json({ ok: false }, { status: 400 }); }
   if (ev.session && ev.session !== c.sessao) return ok();
@@ -79,6 +99,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     return Response.json({ ok: false }, { status: 500 });
   }
   if (!msg) return ok(); // duplicado (ex.: mensagem que o próprio Tappo enviou)
+
+  if (!m.fromMe) {
+    after(() => dispararWebhooks(db, c.org_id, "mensagem.nova", {
+      conversa_id: conversa.id, mensagem_id: msg.id, canal: "whatsapp",
+      chat_id: chatId, nome: conversa.nome, tipo, corpo,
+    }).catch((e) => console.error("[waha:webhook]", e instanceof Error ? e.message : e)));
+  }
 
   const previa = corpo ?? `[${tipo}]`;
   await db.from("wa_conversas").update({

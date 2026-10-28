@@ -5,8 +5,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enviarEmail } from "@/lib/email/resend";
+import { limitar, MSG_RATE } from "@/lib/auth/rate-limit";
 
 export type EstadoAuth = { erro?: string; ok?: string; aviso?: string } | undefined;
+
+/** IP real do chamado (proxy/Vercel) — usado só para rate limit, nunca logado. */
+async function ipAtual(): Promise<string | null> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
+}
 
 async function origem() {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
@@ -46,9 +53,11 @@ const MSG: Record<string, string> = {
 };
 
 export async function entrar(_: EstadoAuth, form: FormData): Promise<EstadoAuth> {
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  if (limitar({ acao: "auth:entrar", ip: await ipAtual(), id: email }, 8, 60)) return { erro: MSG_RATE };
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: String(form.get("email") ?? "").trim(),
+    email,
     password: String(form.get("senha") ?? ""),
   });
   if (error) return { erro: MSG[error.message] ?? "Não foi possível entrar. Tente novamente." };
@@ -78,6 +87,7 @@ export async function cadastrar(_: EstadoAuth, form: FormData): Promise<EstadoAu
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const senha = String(form.get("senha") ?? "");
   if (senha.length < 8) return { erro: "A senha deve ter pelo menos 8 caracteres." };
+  if (limitar({ acao: "auth:cadastro", ip: await ipAtual(), id: email }, 3, 300)) return { erro: MSG_RATE };
 
   const origemUrl = await origem();
 
@@ -129,6 +139,7 @@ export async function cadastrar(_: EstadoAuth, form: FormData): Promise<EstadoAu
 
 export async function recuperarSenha(_: EstadoAuth, form: FormData): Promise<EstadoAuth> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
+  if (limitar({ acao: "auth:recuperar", ip: await ipAtual(), id: email }, 3, 300)) return { erro: MSG_RATE };
   const origemUrl = await origem();
 
   if (!temResend()) {
@@ -161,6 +172,7 @@ export async function recuperarSenha(_: EstadoAuth, form: FormData): Promise<Est
 export async function reenviarConfirmacao(emailBruto: string): Promise<{ ok?: string; erro?: string }> {
   const email = String(emailBruto ?? "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { erro: "Informe um e-mail válido." };
+  if (limitar({ acao: "auth:reenviar", ip: await ipAtual(), id: email }, 3, 300)) return { erro: MSG_RATE };
   const origemUrl = await origem();
 
   if (temResend()) {

@@ -9,7 +9,7 @@ import {
 import { Rotulo, cn } from "@/components/ui/base";
 import {
   conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp,
-  excluirConexao, salvarConexao, type EstadoWhats,
+  excluirConexao, novaConexaoRapida, salvarConexao, type EstadoWhats,
 } from "@/app/app/inbox/actions";
 import { alternarMetaAds, removerMetaAds, salvarMetaAds } from "@/app/app/conexoes/actions";
 
@@ -85,10 +85,11 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
     return () => { vivo = false; };
   }, [selId]);
 
-  // QR pendente → auto-refresh até conectar (QR expira a cada ~20s)
+  // QR pendente → auto-refresh até conectar (QR expira a cada ~20s; pausa com aba oculta)
   useEffect(() => {
     if (!selId || (status !== "SCAN_QR_CODE" && status !== "STARTING")) return;
     const t = setInterval(async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       const e = await estadoWhatsApp(selId);
       setEstado(e);
     }, 4000);
@@ -121,12 +122,24 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
         <div className="space-y-4">
           {/* Lista de conexões */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <p className="text-[12px] font-medium uppercase tracking-wide text-gray-500">Conexões desta empresa</p>
-              <button type="button" onClick={() => editar(null)} className="btn btn-fantasma btn-sm text-[12px]"><Plus size={12} /> Nova</button>
+              <button
+                type="button"
+                disabled={pendente}
+                onClick={() => iniciar(async () => {
+                  setErro(null); setSalvo(false);
+                  const r = await novaConexaoRapida();
+                  if (!r.ok) setErro(r.erro);
+                  else { setSelId(r.id ?? null); setEstado(null); }
+                })}
+                className="btn btn-primario btn-sm text-[12px]"
+              >
+                {pendente ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Conectar novo WhatsApp
+              </button>
             </div>
             {conexoes.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-gray-800 px-3 py-3 text-center text-[12.5px] text-gray-500">Nenhuma conexão ainda — crie a primeira abaixo.</p>
+              <p className="rounded-lg border border-dashed border-gray-800 px-3 py-3 text-center text-[12.5px] text-gray-500">Nenhuma conexão ainda — clique em “Conectar novo WhatsApp” (1 clique) e leia o QR.</p>
             ) : (
               conexoes.map((c) => {
                 const ativa = c.id === selId;
@@ -186,30 +199,31 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
             </div>
           )}
 
-          {/* Formulário: nova conexão ou edição */}
-          <form action={enviar} key={selId ?? "nova"} className="space-y-3">
-            <p className="text-[12px] font-medium uppercase tracking-wide text-gray-500">{sel ? "Editar conexão" : "Nova conexão"}</p>
-            {sel && <input type="hidden" name="id" value={sel.id} />}
+          {/* Formulário de edição — a criação é 1 clique acima */}
+          {sel && (
+          <form action={enviar} key={sel.id} className="space-y-3">
+            <p className="text-[12px] font-medium uppercase tracking-wide text-gray-500">Editar conexão</p>
+            <input type="hidden" name="id" value={sel.id} />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Rotulo htmlFor="c-apelido">Apelido</Rotulo>
-                <input id="c-apelido" name="apelido" defaultValue={sel?.apelido ?? ""} placeholder="Ex.: Comercial, Suporte" className="campo" required />
+                <input id="c-apelido" name="apelido" defaultValue={sel.apelido ?? ""} placeholder="Ex.: Comercial, Suporte" className="campo" required />
               </div>
               <div>
                 <Rotulo htmlFor="c-sessao">Sessão</Rotulo>
-                <input id="c-sessao" name="sessao" defaultValue={sel?.sessao ?? "default"} readOnly={!!sel} placeholder="default" className={cn("campo", sel && "opacity-60")} />
-                {!sel && <p className="mt-1 text-[11.5px] text-gray-600">Uma sessão por número.</p>}
+                <input id="c-sessao" name="sessao" defaultValue={sel.sessao} readOnly placeholder="default" className="campo opacity-60" />
+                <p className="mt-1 text-[11.5px] text-gray-600">Sessão viva no WAHA — não muda na edição.</p>
               </div>
             </div>
             <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
-              <input type="checkbox" name="ia_ativa" defaultChecked={sel?.ia_ativa ?? true} className="mt-1" />
+              <input type="checkbox" name="ia_ativa" defaultChecked={sel.ia_ativa} className="mt-1" />
               <span>
                 <span className="block text-[14px] font-medium text-white">IA (Jarvis) responde os clientes</span>
                 <span className="block text-[12.5px] text-gray-500">Usa o agente ativo no admin. Em cada conversa você pode assumir e desligar a IA.</span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
-              <input type="checkbox" name="distribuicao" defaultChecked={sel?.distribuicao === "rodizio"} className="mt-1" />
+              <input type="checkbox" name="distribuicao" defaultChecked={sel.distribuicao === "rodizio"} className="mt-1" />
               <span>
                 <span className="block text-[14px] font-medium text-white">Rodízio de atendimento</span>
                 <span className="block text-[12.5px] text-gray-500">Distribui conversas novas para quem tem menos atendimentos abertos.</span>
@@ -217,15 +231,15 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
             </label>
             <div>
               <Rotulo htmlFor="c-instr">Sobre o negócio (o que a IA deve saber)</Rotulo>
-              <textarea id="c-instr" name="ia_instrucoes" rows={4} defaultValue={sel?.ia_instrucoes ?? ""} placeholder="Ex.: Somos a Loja X. Horário: seg–sex 9h–18h. Frete grátis acima de R$ 200." className="campo" />
+              <textarea id="c-instr" name="ia_instrucoes" rows={4} defaultValue={sel.ia_instrucoes} placeholder="Ex.: Somos a Loja X. Horário: seg–sex 9h–18h. Frete grátis acima de R$ 200." className="campo" />
             </div>
             <div className="flex items-center gap-3">
               <Botao type="submit" className="btn-primario" disabled={pendente}>
-                {pendente ? <Loader2 size={13} className="animate-spin" /> : salvo ? <Check size={13} /> : null} {sel ? "Salvar alterações" : "Criar conexão"}
+                {pendente ? <Loader2 size={13} className="animate-spin" /> : salvo ? <Check size={13} /> : null} Salvar alterações
               </Botao>
-              {sel && <Botao type="button" onClick={() => editar(null)} className="btn-fantasma"><Plus size={13} /> Nova conexão</Botao>}
             </div>
           </form>
+          )}
         </div>
       )}
     </Cartao>
