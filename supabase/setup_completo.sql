@@ -2142,9 +2142,10 @@ CREATE TABLE IF NOT EXISTS public.checklist_item (
 CREATE INDEX IF NOT EXISTS idx_checklist_item_tarefa ON public.checklist_item (tarefa_id);
 
 ALTER TABLE public.checklist_item ENABLE ROW LEVEL SECURITY;
+-- tabela-filha: org derivado via tarefas
 CREATE POLICY checklist_item_org ON public.checklist_item FOR ALL TO authenticated
-  USING (org_id = (SELECT public.org_atual()))
-  WITH CHECK (org_id = (SELECT public.org_atual()));
+  USING (EXISTS (SELECT 1 FROM public.tarefas t WHERE t.id = checklist_item.tarefa_id AND t.org_id = (SELECT public.org_atual())))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.tarefas t WHERE t.id = checklist_item.tarefa_id AND t.org_id = (SELECT public.org_atual())));
 
 -- =============================================================
 -- Tarefa vinculada a múltiplos leads
@@ -2158,9 +2159,10 @@ CREATE INDEX IF NOT EXISTS idx_tarefa_lead_rel_tarefa ON public.tarefa_lead_rel 
 CREATE INDEX IF NOT EXISTS idx_tarefa_lead_rel_lead ON public.tarefa_lead_rel (lead_id);
 
 ALTER TABLE public.tarefa_lead_rel ENABLE ROW LEVEL SECURITY;
+-- tabela-filha: org derivado via tarefas
 CREATE POLICY tarefa_lead_rel_org ON public.tarefa_lead_rel FOR ALL TO authenticated
-  USING (org_id = (SELECT public.org_atual()))
-  WITH CHECK (org_id = (SELECT public.org_atual()));
+  USING (EXISTS (SELECT 1 FROM public.tarefas t WHERE t.id = tarefa_lead_rel.tarefa_id AND t.org_id = (SELECT public.org_atual())))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.tarefas t WHERE t.id = tarefa_lead_rel.tarefa_id AND t.org_id = (SELECT public.org_atual())));
 
 -- =============================================================
 -- WhatsApp Template aprovado

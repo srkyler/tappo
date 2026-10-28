@@ -9,6 +9,8 @@ import { aposLogin } from "@/lib/auth/boas-vindas";
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
+  // Origem canônica do app: nunca propagar host estranho vindo do link/e-mail
+  const base = (process.env.NEXT_PUBLIC_APP_URL || origin).replace(/\/+$/, "");
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const nextParam = searchParams.get("next") ?? "/app";
@@ -28,17 +30,21 @@ export async function GET(request: Request) {
       }
       if (data.user) {
         if (t === "signup" || t === "email") await aposLogin(data.user);
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(`${base}${next}`);
       }
     }
 
+    const ehExpirado = /expired|invalid/i.test(erroFinal ?? "");
+    const ehRecuperacao = type === "recovery";
     const motivo = encodeURIComponent(
-      /expired|invalid/i.test(erroFinal ?? "")
-        ? "Link inválido ou expirado. Peça um novo e-mail de confirmação."
+      ehExpirado
+        ? ehRecuperacao
+          ? "Link inválido ou expirado. Peça um novo e-mail de recuperação."
+          : "Link inválido ou expirado. Peça um novo e-mail de confirmação."
         : "Não foi possível confirmar o link. Tente novamente."
     );
-    return NextResponse.redirect(`${origin}/login?erro=link&motivo=${motivo}`);
+    return NextResponse.redirect(`${base}/login?erro=link&motivo=${motivo}`);
   }
 
-  return NextResponse.redirect(`${origin}/login?erro=link`);
+  return NextResponse.redirect(`${base}/login?erro=link`);
 }

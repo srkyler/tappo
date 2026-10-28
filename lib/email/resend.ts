@@ -73,15 +73,24 @@ export async function enviarEmail(
   const { subject, html } = templates[tipo](dados);
   const admin = createAdminClient();
 
+  // Log é best-effort: nunca pode derrubar o envio do e-mail
+  const registrar = async (registro: Record<string, unknown>) => {
+    try {
+      await admin.from("email_log").insert(registro);
+    } catch {
+      /* tabela indisponível — envio segue mesmo assim */
+    }
+  };
+
   if (!process.env.RESEND_API_KEY) {
-    await admin.from("email_log").insert({ user_id: dados.userId, destinatario: para, tipo, status: "falhou", erro: "RESEND_API_KEY ausente" });
+    await registrar({ user_id: dados.userId, destinatario: para, tipo, status: "falhou", erro: "RESEND_API_KEY ausente" });
     return { ok: false as const, erro: "Envio de e-mail não configurado." };
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const { data, error } = await resend.emails.send({ from: FROM, to: para, subject, html });
 
-  await admin.from("email_log").insert({
+  await registrar({
     user_id: dados.userId,
     destinatario: para,
     tipo,
