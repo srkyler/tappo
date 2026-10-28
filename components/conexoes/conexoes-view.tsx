@@ -1,16 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
-  AlertTriangle, Calendar, Check, Cloud, ExternalLink, Loader2, LogOut, Mail, MessageCircle,
-  Megaphone, Plug, QrCode, Send, Smartphone, Trash2, Workflow, Zap,
+  AlertTriangle, Calendar, Check, Cloud, ExternalLink, Loader2, LogOut, Mail, Megaphone,
+  MessageCircle, Pencil, Plus, Plug, QrCode, Send, Smartphone, Trash2, Workflow, Zap,
 } from "lucide-react";
 import { Rotulo, cn } from "@/components/ui/base";
-import { conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp, type EstadoWhats } from "@/app/app/inbox/actions";
+import {
+  conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp,
+  excluirConexao, salvarConexao, type EstadoWhats,
+} from "@/app/app/inbox/actions";
 import { alternarMetaAds, removerMetaAds, salvarMetaAds } from "@/app/app/conexoes/actions";
 
-export type ConexaoWaTela = { id: string; apelido: string | null; sessao: string; status: string; numero: string | null };
+export type ConexaoWaTela = {
+  id: string; apelido: string | null; sessao: string; status: string; numero: string | null;
+  ia_ativa: boolean; ia_instrucoes: string; distribuicao: string | null;
+};
 export type MetaAdsTela = { ativo: boolean; conta: string | null; tem_chave: boolean; ultimo_sync: string | null };
 
 const ROTULO_STATUS: Record<string, string> = {
@@ -26,7 +32,7 @@ function Cartao({
   icone, nome, descricao, status, children, className,
 }: {
   icone: React.ReactNode; nome: string; descricao: string;
-  status?: { rotulo: string; tom: "verde" | "ambar" | "cinza" } | null;
+  status?: { rotulo: string; tom: "verde" | "ambar" | "cinza" };
   children?: React.ReactNode; className?: string;
 }) {
   return (
@@ -59,6 +65,174 @@ function Botao({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElem
   return <button {...props} className={cn("btn btn-sm", props.className)}>{children}</button>;
 }
 
+/* ---------------- WhatsApp (WAHA): gestão completa nesta página ---------------- */
+function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: ConexaoWaTela[] }) {
+  const [selId, setSelId] = useState<string | null>(conexoes[0]?.id ?? null);
+  const [estado, setEstado] = useState<EstadoWhats | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvo, setSalvo] = useState(false);
+  const [pendente, iniciar] = useTransition();
+
+  const sel = conexoes.find((c) => c.id === selId) ?? null;
+  const status = estado?.ok ? estado.status : sel?.status ?? "DESCONHECIDO";
+  const tomWa = status === "WORKING" ? "verde" : status === "SCAN_QR_CODE" || status === "STARTING" ? "ambar" : "cinza";
+
+  // Ao selecionar: busca o estado atual
+  useEffect(() => {
+    if (!selId) { setEstado(null); return; }
+    let vivo = true;
+    estadoWhatsApp(selId).then((e) => { if (vivo) setEstado(e); });
+    return () => { vivo = false; };
+  }, [selId]);
+
+  // QR pendente → auto-refresh até conectar (QR expira a cada ~20s)
+  useEffect(() => {
+    if (!selId || (status !== "SCAN_QR_CODE" && status !== "STARTING")) return;
+    const t = setInterval(async () => {
+      const e = await estadoWhatsApp(selId);
+      setEstado(e);
+    }, 4000);
+    return () => clearInterval(t);
+  }, [selId, status]);
+
+  function enviar(f: FormData) {
+    setErro(null); setSalvo(false);
+    iniciar(async () => {
+      const r = await salvarConexao(f);
+      if (!r.ok) setErro(r.erro); else { setSalvo(true); setTimeout(() => setSalvo(false), 2000); }
+    });
+  }
+
+  const editar = (c: ConexaoWaTela | null) => { setSelId(c?.id ?? null); setErro(null); setSalvo(false); };
+
+  return (
+    <Cartao
+      icone={<MessageCircle size={18} />}
+      nome="WhatsApp (WAHA)"
+      descricao={wahaPronto ? "Conecte aqui — depois disso Inbox e Jarvis atendem sozinhos" : "WAHA não configurado no .env"}
+      status={wahaPronto ? { rotulo: ROTULO_STATUS[status] ?? status, tom: tomWa } : { rotulo: "Sem servidor", tom: "ambar" }}
+    >
+      {!wahaPronto ? (
+        <p className="flex items-start gap-2 text-[13px] text-amber-300/90">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          Defina <code className="rounded bg-gray-950 px-1">WAHA_BASE_URL</code> (ou <code className="rounded bg-gray-950 px-1">WAHA_DOMAIN</code>) e <code className="rounded bg-gray-950 px-1">WAHA_API_KEY</code> no .env do servidor. A URL e a key nunca aparecem na interface.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {/* Lista de conexões */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-medium uppercase tracking-wide text-gray-500">Conexões desta empresa</p>
+              <button type="button" onClick={() => editar(null)} className="btn btn-fantasma btn-sm text-[12px]"><Plus size={12} /> Nova</button>
+            </div>
+            {conexoes.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-gray-800 px-3 py-3 text-center text-[12.5px] text-gray-500">Nenhuma conexão ainda — crie a primeira abaixo.</p>
+            ) : (
+              conexoes.map((c) => {
+                const ativa = c.id === selId;
+                const st = ativa && estado?.ok ? estado.status : c.status;
+                return (
+                  <div key={c.id} onClick={() => editar(c)} className={cn("flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 transition-colors", ativa ? "border-gray-500 bg-white/10" : "border-gray-800 hover:border-gray-600")}>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className={cn("h-2 w-2 shrink-0 rounded-full", st === "WORKING" ? "bg-emerald-400" : st === "SCAN_QR_CODE" || st === "STARTING" ? "bg-amber-400" : "bg-gray-600")} />
+                      <span className="truncate text-[13.5px] font-medium text-white">{c.apelido ?? "Conexão"}</span>
+                      <span className="shrink-0 text-[11px] text-gray-600">sessão {c.sessao}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 text-[11px] text-gray-500">
+                      <span>{ROTULO_STATUS[st] ?? st}</span>
+                      <button onClick={(e) => { e.stopPropagation(); editar(c); }} title="Editar" className="text-gray-400 hover:text-white"><Pencil size={12} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); iniciar(async () => { setErro(null); const r = await excluirConexao(c.id); if (!r.ok) setErro(r.erro); if (c.id === selId) editar(null); }); }} title="Excluir" className="text-red-400 hover:text-red-300"><Trash2 size={12} /></button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Status + QR da conexão selecionada */}
+          {sel && (
+            <div className="rounded-lg border border-gray-800 bg-gray-950/50 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[13.5px] text-white">
+                  {sel.apelido ?? "Conexão"}
+                  {estado?.ok && estado.numero && <span className="text-gray-500"> · +{estado.numero}</span>}
+                </p>
+                <div className="flex gap-2">
+                  {status === "WORKING" ? (
+                    <Botao onClick={() => iniciar(async () => { await desconectarWhatsApp(sel.id); const e = await estadoWhatsApp(sel.id); setEstado(e); })}><LogOut size={13} /> Desconectar</Botao>
+                  ) : (
+                    <Botao className="btn-primario" onClick={() => iniciar(async () => {
+                      setErro(null);
+                      const r = await conectarWhatsApp(sel.id);
+                      if (!r.ok) { setErro(r.erro); return; }
+                      const e = await estadoWhatsApp(sel.id);
+                      setEstado(e);
+                    })}>{pendente ? <Loader2 size={13} className="animate-spin" /> : <QrCode size={13} />} Conectar</Botao>
+                  )}
+                </div>
+              </div>
+              {erro && <p className="mt-2 text-[13px] text-red-400">{erro}</p>}
+              {estado && !estado.ok && <p className="mt-2 text-[13px] text-red-400">{estado.erro}</p>}
+              {estado?.ok && estado.qr && (
+                <div className="mt-3 flex flex-col items-center gap-2 rounded-xl bg-white p-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={estado.qr} alt="QR code do WhatsApp" className="h-52 w-52" />
+                  <p className="flex items-center gap-1.5 text-[12.5px] text-gray-700"><Smartphone size={14} /> WhatsApp → Aparelhos conectados → Conectar</p>
+                </div>
+              )}
+              {status === "WORKING" && (
+                <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-emerald-300/90"><Check size={13} /> Pronto: mensagens chegam no Inbox e a IA/Jarvis atende conforme a configuração abaixo.</p>
+              )}
+            </div>
+          )}
+
+          {/* Formulário: nova conexão ou edição */}
+          <form action={enviar} key={selId ?? "nova"} className="space-y-3">
+            <p className="text-[12px] font-medium uppercase tracking-wide text-gray-500">{sel ? "Editar conexão" : "Nova conexão"}</p>
+            {sel && <input type="hidden" name="id" value={sel.id} />}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Rotulo htmlFor="c-apelido">Apelido</Rotulo>
+                <input id="c-apelido" name="apelido" defaultValue={sel?.apelido ?? ""} placeholder="Ex.: Comercial, Suporte" className="campo" required />
+              </div>
+              <div>
+                <Rotulo htmlFor="c-sessao">Sessão</Rotulo>
+                <input id="c-sessao" name="sessao" defaultValue={sel?.sessao ?? "default"} readOnly={!!sel} placeholder="default" className={cn("campo", sel && "opacity-60")} />
+                {!sel && <p className="mt-1 text-[11.5px] text-gray-600">Uma sessão por número.</p>}
+              </div>
+            </div>
+            <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
+              <input type="checkbox" name="ia_ativa" defaultChecked={sel?.ia_ativa ?? true} className="mt-1" />
+              <span>
+                <span className="block text-[14px] font-medium text-white">IA (Jarvis) responde os clientes</span>
+                <span className="block text-[12.5px] text-gray-500">Usa o agente ativo no admin. Em cada conversa você pode assumir e desligar a IA.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
+              <input type="checkbox" name="distribuicao" defaultChecked={sel?.distribuicao === "rodizio"} className="mt-1" />
+              <span>
+                <span className="block text-[14px] font-medium text-white">Rodízio de atendimento</span>
+                <span className="block text-[12.5px] text-gray-500">Distribui conversas novas para quem tem menos atendimentos abertos.</span>
+              </span>
+            </label>
+            <div>
+              <Rotulo htmlFor="c-instr">Sobre o negócio (o que a IA deve saber)</Rotulo>
+              <textarea id="c-instr" name="ia_instrucoes" rows={4} defaultValue={sel?.ia_instrucoes ?? ""} placeholder="Ex.: Somos a Loja X. Horário: seg–sex 9h–18h. Frete grátis acima de R$ 200." className="campo" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Botao type="submit" className="btn-primario" disabled={pendente}>
+                {pendente ? <Loader2 size={13} className="animate-spin" /> : salvo ? <Check size={13} /> : null} {sel ? "Salvar alterações" : "Criar conexão"}
+              </Botao>
+              {sel && <Botao type="button" onClick={() => editar(null)} className="btn-fantasma"><Plus size={13} /> Nova conexão</Botao>}
+            </div>
+          </form>
+        </div>
+      )}
+    </Cartao>
+  );
+}
+
+/* ---------------- Página ---------------- */
 export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds }: {
   wahaPronto: boolean;
   conexoesWa: ConexaoWaTela[];
@@ -66,23 +240,9 @@ export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds 
   email: { endereco_envia: string | null } | null;
   metaAds: MetaAdsTela | null;
 }) {
-  const waAtiva = conexoesWa[0] ?? null;
-  const [estado, setEstado] = useState<EstadoWhats | null>(null);
-  const [erroWa, setErroWa] = useState<string | null>(null);
   const [erroMeta, setErroMeta] = useState<string | null>(null);
   const [salvoMeta, setSalvoMeta] = useState(false);
   const [pendente, iniciar] = useTransition();
-
-  const statusWa = estado?.ok ? estado.status : waAtiva?.status ?? "DESCONHECIDO";
-  const tomWa = statusWa === "WORKING" ? "verde" : statusWa === "SCAN_QR_CODE" || statusWa === "STARTING" ? "ambar" : "cinza";
-
-  const atualizarWa = () => iniciar(async () => {
-    if (!waAtiva) return;
-    setErroWa(null);
-    const e = await estadoWhatsApp(waAtiva.id);
-    setEstado(e);
-    if (!e.ok) setErroWa(e.erro);
-  });
 
   function enviarMeta(f: FormData) {
     setErroMeta(null); setSalvoMeta(false);
@@ -95,53 +255,7 @@ export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* ---------- WhatsApp (WAHA) ---------- */}
-        <Cartao
-          icone={<MessageCircle size={18} />}
-          nome="WhatsApp (WAHA)"
-          descricao={wahaPronto ? "Gateway configurado no servidor" : "WAHA não configurado no .env"}
-          status={wahaPronto ? { rotulo: ROTULO_STATUS[statusWa] ?? statusWa, tom: tomWa } : { rotulo: "Sem servidor", tom: "ambar" }}
-        >
-          {!wahaPronto ? (
-            <p className="flex items-start gap-2 text-[13px] text-amber-300/90">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-              Defina <code className="rounded bg-gray-950 px-1">WAHA_BASE_URL</code> (ou <code className="rounded bg-gray-950 px-1">WAHA_DOMAIN</code>) e <code className="rounded bg-gray-950 px-1">WAHA_API_KEY</code> no .env do servidor. A URL e a key nunca aparecem na interface.
-            </p>
-          ) : !waAtiva ? (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] text-gray-400">Nenhuma conexão criada ainda. Crie no Inbox e o QR aparece aqui.</p>
-              <Link href="/app/inbox" className="btn btn-primario btn-sm shrink-0">Criar no Inbox <ExternalLink size={13} /></Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13.5px] text-white">
-                  {waAtiva.apelido ?? "Conexão"} <span className="text-gray-500">· sessão {waAtiva.sessao}</span>
-                  {estado?.ok && estado.numero && <span className="text-gray-500"> · +{estado.numero}</span>}
-                </p>
-                <div className="flex gap-2">
-                  {statusWa === "WORKING" ? (
-                    <Botao onClick={() => iniciar(async () => { await desconectarWhatsApp(waAtiva.id); await atualizarWa(); })}><LogOut size={13} /> Desconectar</Botao>
-                  ) : (
-                    <Botao className="btn-primario" onClick={atualizarWa}>{pendente ? <Loader2 size={13} className="animate-spin" /> : <QrCode size={13} />} Conectar</Botao>
-                  )}
-                  <Link href="/app/inbox" className="btn btn-fantasma btn-sm" title="Abrir Inbox"><ExternalLink size={13} /></Link>
-                </div>
-              </div>
-              {erroWa && <p className="text-[13px] text-red-400">{erroWa}</p>}
-              {estado?.ok && estado.qr && (
-                <div className="flex flex-col items-center gap-2 rounded-xl bg-white p-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={estado.qr} alt="QR code do WhatsApp" className="h-52 w-52" />
-                  <p className="flex items-center gap-1.5 text-[12.5px] text-gray-700"><Smartphone size={14} /> WhatsApp → Aparelhos conectados → Conectar</p>
-                </div>
-              )}
-              {conexoesWa.length > 1 && (
-                <p className="text-[12px] text-gray-500">{conexoesWa.length} conexões — gerencie todas no <Link className="underline" href="/app/inbox">Inbox</Link>.</p>
-              )}
-            </div>
-          )}
-        </Cartao>
+        <CartaoWhats wahaPronto={wahaPronto} conexoes={conexoesWa} />
 
         {/* ---------- Meta Ads ---------- */}
         <Cartao
@@ -164,9 +278,9 @@ export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds 
                 <Botao onClick={() => iniciar(async () => { const r = await alternarMetaAds(!metaAds.ativo); if (!r.ok) setErroMeta(r.erro); })}>
                   {metaAds.ativo ? "Pausar" : "Ativar"}
                 </Botao>
-                <form action={() => iniciar(async () => { const r = await removerMetaAds(); if (!r.ok) setErroMeta(r.erro); })}>
-                  <Botao type="submit" className="text-red-400 hover:bg-red-500/10"><Trash2 size={13} /> Remover</Botao>
-                </form>
+                <Botao className="text-red-400 hover:bg-red-500/10" onClick={() => iniciar(async () => { const r = await removerMetaAds(); if (!r.ok) setErroMeta(r.erro); })}>
+                  <Trash2 size={13} /> Remover
+                </Botao>
               </div>
             </div>
           ) : (

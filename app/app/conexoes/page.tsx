@@ -11,7 +11,7 @@ async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
   const { supabase } = await usuarioAtual();
   const [wa, tg, em, meta] = await Promise.all([
-    supabase.from("wa_conexoes").select("id, apelido, sessao, status, numero").order("criado_at", { ascending: false }),
+    supabase.from("wa_conexoes").select("id, apelido, sessao, status, numero, ia_ativa, ia_instrucoes, distribuicao").order("criado_at", { ascending: false }),
     supabase.from("telegram_conexoes").select("status, bot_username").maybeSingle(),
     supabase.from("email_conexoes").select("endereco_envia").maybeSingle(),
     supabase.from("integracao").select("id, ativo, configuracao, ultimo_sync").eq("tipo", "meta_ads").maybeSingle(),
@@ -19,6 +19,7 @@ async function Conteudo() {
 
   const conexoesWa: ConexaoWaTela[] = (wa.data ?? []).map((c) => ({
     id: c.id, apelido: c.apelido, sessao: c.sessao, status: c.status, numero: c.numero,
+    ia_ativa: c.ia_ativa, ia_instrucoes: c.ia_instrucoes ?? "", distribuicao: c.distribuicao,
   }));
 
   const cfg = (meta.data?.configuracao ?? {}) as { conta?: string; chave_cifrada?: string };

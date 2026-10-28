@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock, AlertTriangle, Target } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
 import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
 import { enviarMensagemTelegram } from "@/app/app/inbox/telegram-actions";
 import { responderEmail } from "@/app/app/inbox/email-actions";
-import { ConexaoWhats } from "./conexao-whats";
 import { ConexaoTelegram } from "./conexao-telegram";
 import { ConexaoEmail, type EmailConexaoTela } from "./conexao-email";
 
@@ -50,6 +50,7 @@ const AUTOR: Record<Msg["autor"], string> = { contato: "", humano: "Você", ia: 
 
 export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, conversasIniciais, membros, slaConfig }: { userId: string; conexoes: ConexaoTela[]; conexaoTelegram: ConexaoTelegramTela | null; emailConexao: EmailConexaoTela | null; conversasIniciais: ConversaTela[]; membros: { user_id: string; nome: string; email: string | null; avatar_url: string | null; papel: string; ativo: boolean }[]; slaConfig: { tempo_resposta_min: number; ativo: boolean } | null }) {
   const sb = useMemo(() => createBrowserClient(), []);
+  const router = useRouter();
   const [conversas, setConversas] = useState(conversasIniciais);
   const [selId, setSelId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -58,14 +59,13 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
   const [busca, setBusca] = useState("");
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [config, setConfig] = useState(!conexoes.length);
   const [configTelegram, setConfigTelegram] = useState(false);
   const [configEmail, setConfigEmail] = useState(false);
   const [nova, setNova] = useState(false);
   const [pendente, iniciar] = useTransition();
   const [templates, setTemplates] = useState<{ id: string; titulo: string; corpo: string }[]>([]);
   const [slaConfigLocal, setSlaConfigLocal] = useState<{ tempo_resposta_min: number; ativo: boolean } | null>(null);
-  const [conexaoAtiva, setConexaoAtiva] = useState<ConexaoTela | null>(conexoes.length ? conexoes[0] : null);
+  const [conexaoAtiva] = useState<ConexaoTela | null>(conexoes.length ? conexoes[0] : null);
   const fim = useRef<HTMLDivElement>(null);
 
   // "Agora" pro cálculo de SLA — nunca Date.now() direto no corpo do componente
@@ -177,9 +177,10 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
 
   return (
     <>
-      {conexaoAtiva && !conectado && (
-        <button onClick={() => setConfig(true)} className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-left text-[13px] text-amber-300">
-          <Smartphone size={15} /> WhatsApp não conectado ({conexaoAtiva?.status}). Clique para conectar.
+      {!conectado && (
+        <button onClick={() => router.push("/app/conexoes")} className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-left text-[13px] text-amber-300">
+          <Smartphone size={15} />
+          {conexaoAtiva ? `WhatsApp não conectado (${conexaoAtiva.status}).` : "Nenhuma conexão de WhatsApp."} Gerenciar e ler o QR na página Conexões.
         </button>
       )}
       <div className="painel grid h-[calc(100svh-230px)] min-h-[480px] overflow-hidden md:grid-cols-[320px_1fr]">
@@ -192,7 +193,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                 <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar conversa" className="campo pl-8" aria-label="Buscar conversa" />
               </label>
               <button onClick={() => setNova(true)} aria-label="Nova conversa" className="btn btn-secundario btn-sm h-10 px-2.5"><MessageCirclePlus size={16} /></button>
-              <button onClick={() => setConfig(true)} aria-label="Configurar WhatsApp" title="WhatsApp" className="btn btn-secundario btn-sm h-10 px-2.5"><Settings size={16} /></button>
+              <button onClick={() => router.push("/app/conexoes")} aria-label="Gerenciar conexões" title="Conexões (WhatsApp etc.)" className="btn btn-secundario btn-sm h-10 px-2.5"><Settings size={16} /></button>
               <button onClick={() => setConfigTelegram(true)} aria-label="Configurar Telegram" title="Telegram" className={cn("btn btn-secundario btn-sm h-10 px-2.5", conexaoTelegram?.status === "WORKING" && "border-sky-500/40 text-sky-400")}><Send size={15} /></button>
               <button onClick={() => setConfigEmail(true)} aria-label="Configurar e-mail" title="E-mail" className={cn("btn btn-secundario btn-sm h-10 px-2.5", emailConexao?.endereco_recebe && "border-amber-500/40 text-amber-400")}><Mail size={15} /></button>
             </div>
@@ -248,7 +249,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
         {/* Conversa */}
         <section className={cn("flex min-h-0 flex-col", !sel && "hidden md:flex")}>
           {!sel ? (
-            <div className="m-auto"><Vazio icone={<Inbox size={18} />} titulo="Selecione uma conversa" texto={conversas.length ? "As mensagens chegam aqui em tempo real." : "Conecte o WhatsApp e as conversas dos clientes aparecem aqui."} /></div>
+            <div className="m-auto"><Vazio icone={<Inbox size={18} />} titulo="Selecione uma conversa" texto={conversas.length ? "As mensagens chegam aqui em tempo real." : "Conecte o WhatsApp na página Conexões e as conversas dos clientes aparecem aqui."} /></div>
           ) : (
             <>
               <header className="flex flex-wrap items-center gap-2 border-b border-gray-800 px-3 py-2.5">
@@ -336,7 +337,6 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
         </section>
       </div>
 
-      <ConexaoWhats abertas={conexoes} aberta={config} aoFechar={() => setConfig(false)} conexaoAtiva={conexaoAtiva} setConexaoAtiva={setConexaoAtiva} />
       <ConexaoTelegram aberto={configTelegram} aoFechar={() => setConfigTelegram(false)} conexao={conexaoTelegram} />
       <ConexaoEmail aberto={configEmail} aoFechar={() => setConfigEmail(false)} conexao={emailConexao} />
       {nova && <NovaConversa aoFechar={() => setNova(false)} aoCriar={(id) => { setNova(false); abrir(id); }} />}

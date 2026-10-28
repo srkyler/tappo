@@ -44,17 +44,27 @@ export async function salvarConexao(f: FormData): Promise<ActionResult> {
     const sessao = String(f.get("sessao") ?? "default").trim() || "default";
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessao)) return { ok: false, erro: "Nome da sessão: só letras, números, _ e -." };
     const apelido = String(f.get("apelido") ?? "").trim() || "Conexão WhatsApp";
-    const { error } = await supabase.from("wa_conexoes").insert({
-      org_id: empresa.id,
-      user_id: user.id,
+    const campos = {
       apelido,
-      distribuicao: f.get("distribuicao") === "rodizio" ? "rodizio" : "manual",
-      base_url: base_url || null,
-      sessao,
+      distribuicao: f.get("distribuicao") === "rodizio" ? "rodizio" as const : "manual" as const,
       ia_ativa: f.get("ia_ativa") === "on",
       ia_instrucoes: String(f.get("ia_instrucoes") ?? "").slice(0, 6000),
-    });
-    if (error) throw error;
+    };
+    const id = String(f.get("id") ?? "").trim();
+    if (id) {
+      // Edição: sessão e URL nunca mudam aqui (sessão viva no WAHA)
+      const { error } = await supabase.from("wa_conexoes").update(campos).eq("id", id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("wa_conexoes").insert({
+        org_id: empresa.id,
+        user_id: user.id,
+        ...campos,
+        base_url: base_url || null,
+        sessao,
+      });
+      if (error) throw error;
+    }
     revalidatePath("/app/inbox");
     revalidatePath("/app/conexoes");
     return { ok: true };

@@ -833,15 +833,17 @@ REVOKE EXECUTE ON FUNCTION public.ai_tokens_usados(uuid, timestamptz, uuid) FROM
 CREATE TABLE IF NOT EXISTS public.wa_conexoes (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         uuid NOT NULL UNIQUE DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
-  base_url        text NOT NULL CHECK (base_url ~ '^https?://'),
-  api_key_cifrada text,                -- AES-256-GCM (lib/ai/cofre.ts)
+  base_url        text CHECK (base_url IS NULL OR base_url ~ '^https?://'),  -- opcional: URL vem do .env (WAHA_BASE_URL/WAHA_DOMAIN)
+  api_key_cifrada text,                -- AES-256-GCM (lib/ai/cofre.ts); legado — key vem do .env (WAHA_API_KEY)
   sessao          text NOT NULL DEFAULT 'default' CHECK (sessao ~ '^[A-Za-z0-9_-]{1,64}$'),
   token           text NOT NULL UNIQUE DEFAULT replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
   status          text NOT NULL DEFAULT 'DESCONHECIDO',
   numero          text,
+  apelido         text NOT NULL DEFAULT 'Conexão WhatsApp',
   ia_ativa        boolean NOT NULL DEFAULT false,  -- IA responde clientes automaticamente
   ia_instrucoes   text NOT NULL DEFAULT '',
   created_at      timestamptz NOT NULL DEFAULT now(),
+  criado_at       timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
@@ -1263,7 +1265,9 @@ ALTER TABLE public.wa_mensagens
   ADD COLUMN IF NOT EXISTS enviado_por        uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS tempo_resposta_seg int;
 ALTER TABLE public.wa_conexoes
-  ADD COLUMN IF NOT EXISTS distribuicao text NOT NULL DEFAULT 'manual';
+  ADD COLUMN IF NOT EXISTS distribuicao text NOT NULL DEFAULT 'manual',
+  ADD COLUMN IF NOT EXISTS apelido      text NOT NULL DEFAULT 'Conexão WhatsApp',
+  ADD COLUMN IF NOT EXISTS criado_at    timestamptz NOT NULL DEFAULT now();
 DO $$ BEGIN
   ALTER TABLE public.wa_conexoes ADD CONSTRAINT wa_conexoes_distribuicao_check CHECK (distribuicao IN ('manual','rodizio'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
