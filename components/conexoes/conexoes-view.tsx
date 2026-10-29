@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
   AlertTriangle, Calendar, Check, Cloud, ExternalLink, Loader2, LogOut, Mail, Megaphone,
@@ -69,6 +70,7 @@ function Botao({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElem
 function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: ConexaoWaTela[] }) {
   const [selId, setSelId] = useState<string | null>(conexoes[0]?.id ?? null);
   const [estado, setEstado] = useState<EstadoWhats | null>(null);
+  const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
   const [pendente, iniciar] = useTransition();
@@ -131,7 +133,7 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
                   setErro(null); setSalvo(false);
                   const r = await novaConexaoRapida();
                   if (!r.ok) setErro(r.erro);
-                  else { setSelId(r.id ?? null); setEstado(null); }
+                  else { setSelId(r.id ?? null); setEstado(null); router.refresh(); }
                 })}
                 className="btn btn-primario btn-sm text-[12px]"
               >
