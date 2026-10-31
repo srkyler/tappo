@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { FerramentaNeutra } from "./ferramentas";
+import { agenteAtivoPublico } from "./agentes";
 
 function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
   if (schema instanceof z.ZodObject) {
@@ -94,24 +95,30 @@ export async function executarFerramentaJarvis(sb: SupabaseClient, nome: string,
 
   switch (nome as Nome) {
     case "diagnostico_configuracao": {
-      const [membros, waha, telegram, email, agentes, sla, automacoes, pipelines] = await Promise.all([
+      // ai_agents é só do admin da plataforma (a sessão do cliente não lê) — por isso agenteAtivoPublico()
+      const [membros, waha, telegram, email, agente, perfilIA, conhecimento, sla, automacoes, pipelines] = await Promise.all([
         sb.from("org_membros").select("user_id", { count: "exact", head: true }),
-        sb.from("wa_conexoes").select("status"),
+        sb.from("wa_conexoes").select("status, ia_ativa"),
         sb.from("telegram_conexoes").select("status").maybeSingle(),
         sb.from("email_conexoes").select("endereco_recebe").maybeSingle(),
-        sb.from("ai_agents").select("id, nome, ativo"),
+        agenteAtivoPublico(),
+        sb.from("ia_perfil").select("sobre, produtos").maybeSingle(),
+        sb.from("ia_conhecimento").select("id", { count: "exact", head: true }).eq("status", "ativo"),
         sb.from("sla_config").select("tempo_resposta_min, ativo").maybeSingle(),
         sb.from("automacoes").select("id, ativo"),
         sb.from("pipelines").select("id, nome"),
       ]);
-      const agenteAtivo = (agentes.data ?? []).find((a) => a.ativo);
       return ok({
         equipe_membros: membros.count ?? 0,
         whatsapp_conexoes: (waha.data ?? []).length,
         whatsapp_conectado: (waha.data ?? []).some((c) => c.status === "WORKING"),
+        whatsapp_com_ia: (waha.data ?? []).filter((c) => c.ia_ativa).length,
         telegram_conectado: telegram.data?.status === "WORKING",
         email_configurado: !!email.data?.endereco_recebe,
-        agente_ia_ativo: agenteAtivo?.nome ?? null,
+        ia_da_plataforma_disponivel: !!agente,
+        assistente_perfil_preenchido: !!(perfilIA.data?.sobre?.trim() && perfilIA.data?.produtos?.trim()),
+        assistente_itens_conhecimento: conhecimento.count ?? 0,
+        onde_configurar_assistente: "/app/assistente (perfil da empresa, conhecimento, memória, regras e horário)",
         sla: sla.data ?? "não configurado",
         automacoes_total: (automacoes.data ?? []).length,
         automacoes_ativas: (automacoes.data ?? []).filter((a) => a.ativo).length,

@@ -1,8 +1,7 @@
 import "server-only";
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { agenteAtivo } from "@/lib/ai/agentes";
-import { rodarAgente, type Mensagem } from "@/lib/ai/motor";
+import { gerarRespostaIA, paraConversaIA } from "@/lib/ai/atendimento";
 
 /*
  * Canal de e-mail do inbox (wa_conversas/wa_mensagens com canal='email').
@@ -95,7 +94,6 @@ export async function enviarEmailERegistrar(
   await db.from("wa_conversas").update({ ultima_mensagem: resumo(texto), ultima_em: new Date().toISOString(), aguardando_desde: null }).eq("id", conversa.id);
 }
 
-const MARCA_HUMANO = /\[HUMANO\]/gi;
 
 // Mesma ideia do rate-limit do WhatsApp, mas isolada aqui: não é sobre banimento,
 // é só pra nunca deixar a IA entrar num loop de "Re:" automático sem fim.
@@ -119,41 +117,12 @@ export async function responderComIAEmail(db: SupabaseClient, econexao: EmailCon
   if (ultima?.id !== mensagemId) return;
   if (!podeResponderIA(conversaId)) return; // guarda contra loop de autoresposta
 
-  const agente = await agenteAtivo().catch(() => null);
-  if (!agente) return;
-  if (agente.teto_tokens_mes) {
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-    const { data: usados } = await db.rpc("ai_tokens_usados", { agente: agente.id, desde: inicioMes });
-    if (Number(usados ?? 0) >= agente.teto_tokens_mes) return;
-  }
-
-  const { data: hist } = await db.from("wa_mensagens").select("direcao, corpo")
-    .eq("conversa_id", conversaId).not("corpo", "is", null)
-    .order("created_at", { ascending: false }).limit(agente.max_historico);
-  const mensagens: Mensagem[] = [];
-  for (const m of (hist ?? []).reverse()) {
-    const role = m.direcao === "entrada" ? "user" : "assistant";
-    const ant = mensagens[mensagens.length - 1];
-    if (ant?.role === role) ant.content += `\n${m.corpo}`;
-    else mensagens.push({ role, content: m.corpo as string });
-  }
-  if (mensagens[mensagens.length - 1]?.role !== "user") return;
-
-  let texto = "";
-  const uso = await rodarAgente({
-    agente, sb: null, mensagens, nomeUsuario: conversa.nome, modo: "atendimento",
-    instrucoesExtras: econexao.ia_instrucoes,
-    emitir: (e) => { if (e.t === "texto") texto += e.d; },
+  const r = await gerarRespostaIA(db, {
+    orgId: econexao.org_id, conversa: paraConversaIA(conversa, "email"), canal: "email", instrucoesCanal: econexao.ia_instrucoes,
   });
-  await db.from("ai_uso").insert({
-    org_id: econexao.org_id, agent_id: agente.id, user_id: null, modelo: agente.modelo,
-    tokens_entrada: uso.entrada, tokens_cache: uso.cache, tokens_saida: uso.saida, ferramentas: uso.ferramentas,
-  });
-
-  const passarParaHumano = /\[HUMANO\]/i.test(texto);
-  texto = texto.replace(MARCA_HUMANO, "").trim();
-  if (texto) await enviarEmailERegistrar(db, econexao, conversa, assuntoOriginal, texto, "ia");
-  if (passarParaHumano) {
+  if (!r) return;
+  if (r.texto) await enviarEmailERegistrar(db, econexao, conversa, assuntoOriginal, r.texto, "ia");
+  if (r.transferir) {
     await db.from("wa_conversas").update({ ia_ativa: false, status: "pendente", aguardando_desde: new Date().toISOString() }).eq("id", conversaId);
   }
 }

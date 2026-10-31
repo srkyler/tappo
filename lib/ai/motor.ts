@@ -24,6 +24,7 @@ export type Evento =
   | { t: "texto"; d: string }
   | { t: "ferramenta"; nome: string; rotulo: string }
   | { t: "erro"; d: string }
+  | { t: "meta"; transferiu: boolean; motivo: string | null; fontes: string[] }
   | { t: "fim"; uso: Uso };
 export type Uso = { entrada: number; cache: number; saida: number; ferramentas: number };
 
@@ -34,9 +35,16 @@ type Contexto = {
   nomeUsuario?: string | null;
   emitir: (e: Evento) => void;
   sinal?: AbortSignal;
-  /** "atendimento" = responde clientes no WhatsApp; "jarvis" = configura o Tappo (sem ferramentas de dados do CRM) */
-  modo?: "crm" | "atendimento" | "jarvis";
-  instrucoesExtras?: string;
+  /** "jarvis" = configura o Tappo (sem ferramentas de dados do CRM). Atendimento usa `sistema` + `ferramentas`. */
+  modo?: "crm" | "jarvis";
+  /** Prompt montado por quem chama (atendimento): `estavel` vai para o cache, `volatil` não. */
+  sistema?: { estavel: string; volatil: string };
+  /** Ferramentas injetadas por quem chama — substituem as do CRM/Jarvis. */
+  ferramentas?: {
+    definicoes: FerramentaNeutra[];
+    rotulos: Record<string, string>;
+    executar: (nome: string, entrada: unknown) => Promise<string>;
+  };
 };
 
 const MAX_ITERACOES = 6;
@@ -48,29 +56,18 @@ function prepararHistorico(msgs: Mensagem[], max: number): Mensagem[] {
   return h;
 }
 
-function promptAtendimento(a: Agente, extras?: string) {
-  return [
-    `Você é "${a.nome}", atendente virtual que responde clientes pelo WhatsApp.`,
-    "Responda em português do Brasil, curto e cordial, como numa conversa de WhatsApp (1 a 4 frases). Para destaque use *negrito* do WhatsApp; nada de títulos ou tabelas.",
-    "Nunca invente preços, prazos, políticas ou dados que não estejam nas instruções. Se não souber, diga que vai verificar com a equipe.",
-    "Quando o cliente pedir para falar com uma pessoa, reclamar, ou o assunto fugir do que você sabe, responda avisando que um atendente vai continuar e termine a mensagem com a marca [HUMANO].",
-    a.instrucoes.trim() ? `\nInstruções do administrador:\n${a.instrucoes.trim()}` : "",
-    extras?.trim() ? `\nSobre o negócio e como atender:\n${extras.trim()}` : "",
-  ].filter(Boolean).join("\n");
-}
-
 function promptJarvis(a: Agente) {
   return [
     `Você é o Jarvis, o assistente de configuração do Tappo. Fala como "${a.nome}" mas seu trabalho aqui é só configurar o sistema — não é o agente que atende cliente.`,
     "Responda em português do Brasil, breve e direto. Use as ferramentas pra fazer de verdade (não só explicar como fazer manualmente).",
     "Antes de criar algo, se não tiver certeza do estado atual, rode diagnostico_configuracao primeiro.",
     "Automações sempre nascem pausadas — depois de criar uma, avise a pessoa que ela precisa revisar e ativar em /app/automacoes.",
-    "Seu escopo é: diagnóstico de configuração, automações, SLA, promoções de marketing e convite de equipe. Pra qualquer outra coisa (conectar WhatsApp, cadastrar agente de IA, mudar plano, etc.), diga exatamente em qual tela a pessoa encontra isso — não invente que você fez algo que não tem ferramenta pra fazer.",
+    "Seu escopo é: diagnóstico de configuração, automações, SLA, promoções de marketing e convite de equipe. Pra qualquer outra coisa (conectar WhatsApp, mudar plano, etc.), diga exatamente em qual tela a pessoa encontra isso — não invente que você fez algo que não tem ferramenta pra fazer.",
+    "O que o assistente de atendimento sabe e como ele atende (dados da empresa, base de conhecimento, memória, regras, horário, transferência para humano) se configura em /app/assistente; ligar/desligar a IA por conexão é em /app/conexoes. O modelo de IA é gerenciado pela plataforma: o cliente não escolhe nem troca.",
   ].join("\n");
 }
 
-function promptSistema(a: Agente, comFerramentas: boolean, ctx?: Pick<Contexto, "modo" | "instrucoesExtras">) {
-  if (ctx?.modo === "atendimento") return promptAtendimento(a, ctx.instrucoesExtras);
+function promptSistema(a: Agente, comFerramentas: boolean, ctx?: Pick<Contexto, "modo">) {
   if (ctx?.modo === "jarvis") return promptJarvis(a);
   return [
     `Você é "${a.nome}", agente de IA do Tappo (CRM de prospecção B2B).`,
@@ -87,17 +84,24 @@ function contextoVolatil(nome?: string | null) {
   return `Hoje: ${hojeISO()} (America/Sao_Paulo).${nome ? ` Usuário: ${nome}.` : ""}`;
 }
 
+/** Prompt de sistema em duas partes: estável (cacheável) e volátil. */
+function sistemaDo(ctx: Contexto, comFerramentas: boolean) {
+  return ctx.sistema ?? { estavel: promptSistema(ctx.agente, comFerramentas, ctx), volatil: contextoVolatil(ctx.nomeUsuario) };
+}
+
 function chaveDo(a: Agente): string | null {
   return a.api_key_cifrada ? decifrar(a.api_key_cifrada) : null;
 }
 
 async function rodarFerramenta(ctx: Contexto, nome: string, entrada: unknown): Promise<{ conteudo: string; erro: boolean }> {
-  const rotulos = ctx.modo === "jarvis" ? ROTULO_FERRAMENTA_JARVIS : ROTULO_FERRAMENTA;
+  const rotulos = ctx.ferramentas?.rotulos ?? (ctx.modo === "jarvis" ? ROTULO_FERRAMENTA_JARVIS : ROTULO_FERRAMENTA);
   ctx.emitir({ t: "ferramenta", nome, rotulo: rotulos[nome] ?? nome });
   try {
-    const resultado = ctx.modo === "jarvis"
-      ? await executarFerramentaJarvis(ctx.sb!, nome, entrada)
-      : await executarFerramenta(ctx.sb!, nome, entrada, ctx.agente.pode_editar_dados);
+    const resultado = ctx.ferramentas
+      ? await ctx.ferramentas.executar(nome, entrada)
+      : ctx.modo === "jarvis"
+        ? await executarFerramentaJarvis(ctx.sb!, nome, entrada)
+        : await executarFerramenta(ctx.sb!, nome, entrada, ctx.agente.pode_editar_dados);
     return { conteudo: resultado, erro: false };
   } catch (e) {
     const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String(e.message) : "falha";
@@ -106,7 +110,8 @@ async function rodarFerramenta(ctx: Contexto, nome: string, entrada: unknown): P
 }
 
 export async function rodarAgente(ctx: Contexto): Promise<Uso> {
-  const ferramentas = !ctx.sb ? [] : ctx.modo === "jarvis" ? definirFerramentasJarvis() : definirFerramentas(ctx.agente.pode_editar_dados);
+  const ferramentas = ctx.ferramentas?.definicoes
+    ?? (!ctx.sb ? [] : ctx.modo === "jarvis" ? definirFerramentasJarvis() : definirFerramentas(ctx.agente.pode_editar_dados));
   const historico = prepararHistorico(ctx.mensagens, ctx.agente.max_historico);
   if (!historico.length) throw new Error("Mensagem vazia.");
   return ctx.agente.provedor === "anthropic"
@@ -133,10 +138,11 @@ async function rodarAnthropic(ctx: Contexto, historico: Mensagem[], neutras: Fer
     input_schema: f.parameters as Anthropic.Beta.BetaTool["input_schema"],
     eager_input_streaming: true,
   }));
-  // Prefixo estável (ferramentas + regras) fica em cache; data/usuário vão depois do breakpoint
+  // Prefixo estável (ferramentas + regras) fica em cache; data/usuário/contexto vão depois do breakpoint
+  const sis = sistemaDo(ctx, tools.length > 0);
   const system: Anthropic.Beta.BetaTextBlockParam[] = [
-    { type: "text", text: promptSistema(a, tools.length > 0, ctx), cache_control: { type: "ephemeral" } },
-    { type: "text", text: contextoVolatil(ctx.nomeUsuario) },
+    { type: "text", text: sis.estavel, cache_control: { type: "ephemeral" } },
+    { type: "text", text: sis.volatil },
   ];
   const messages: Anthropic.Beta.BetaMessageParam[] = historico.map((m) => ({ role: m.role, content: m.content }));
   const fallback = COM_FALLBACK.has(a.modelo);
@@ -216,8 +222,9 @@ async function rodarOpenAI(ctx: Contexto, historico: Mensagem[], neutras: Ferram
   const chave = chaveDo(a);
   const uso: Uso = { entrada: 0, cache: 0, saida: 0, ferramentas: 0 };
 
+  const sisOA = (comFerramentas: boolean) => { const x = sistemaDo(ctx, comFerramentas); return `${x.estavel}\n\n${x.volatil}`; };
   const messages: MsgOA[] = [
-    { role: "system", content: `${promptSistema(a, neutras.length > 0, ctx)}\n${contextoVolatil(ctx.nomeUsuario)}` },
+    { role: "system", content: sisOA(neutras.length > 0) },
     ...historico.map((m) => ({ role: m.role, content: m.content }) as MsgOA),
   ];
   let tools = neutras.map((f) => ({ type: "function" as const, function: { name: f.name, description: f.description, parameters: f.parameters } }));
@@ -251,7 +258,7 @@ async function rodarOpenAI(ctx: Contexto, historico: Mensagem[], neutras: Ferram
       if (res.status === 400 && comUsoNoStream) { comUsoNoStream = false; i--; continue; }
       if (res.status === 400 && tools.length && /tool|function/i.test(txt)) {
         tools = [];
-        messages[0] = { role: "system", content: `${promptSistema(a, false, ctx)}\n${contextoVolatil(ctx.nomeUsuario)}` };
+        messages[0] = { role: "system", content: sisOA(false) };
         i--; continue;
       }
       throw new Error(`Provedor respondeu ${res.status}${txt ? `: ${txt}` : ""}`);

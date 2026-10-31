@@ -108,6 +108,22 @@ export async function duplicarAgente(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/** Limite de IA por empresa: teto mensal de tokens e/ou pausa total. Só o admin da plataforma. */
+export async function salvarLimiteOrg(orgId: string, tetoTokensMes: number | null, bloqueado: boolean): Promise<ActionResult> {
+  await exigirAdmin();
+  const p = z.object({
+    orgId: z.string().uuid(),
+    teto: z.number().int().positive("O teto precisa ser maior que zero.").max(2_000_000_000).nullable(),
+    bloqueado: z.boolean(),
+  }).safeParse({ orgId, teto: tetoTokensMes, bloqueado });
+  if (!p.success) return { ok: false, erro: p.error.issues[0]?.message ?? "Dados inválidos." };
+  const { error } = await createAdminClient().from("ia_limites_org")
+    .upsert({ org_id: p.data.orgId, teto_tokens_mes: p.data.teto, bloqueado: p.data.bloqueado }, { onConflict: "org_id" });
+  if (error) return erro(error);
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 /** Só o super admin (SUPER_ADMIN_EMAIL) pode tornar — ou deixar de ser — outra pessoa admin. */
 export async function definirAdmin(userId: string, tornarAdmin: boolean): Promise<ActionResult> {
   const user = await exigirSuperAdmin();

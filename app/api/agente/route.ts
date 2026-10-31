@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { agenteAtivo } from "@/lib/ai/agentes";
 import { rodarAgente, type Evento } from "@/lib/ai/motor";
+import { motivoBloqueio } from "@/lib/ai/atendimento";
 
 /* POST /api/agente — conversa com o agente ativo. Resposta: NDJSON (um evento por linha). */
 
@@ -58,6 +59,13 @@ export async function POST(req: Request) {
     }
   }
 
+  // Limite da empresa (definido só pelo admin da plataforma em /admin)
+  const { data: orgId } = await supabase.rpc("org_atual");
+  if (orgId) {
+    const bloqueio = await motivoBloqueio(createAdminClient(), agente, orgId as string);
+    if (bloqueio) return json(429, bloqueio);
+  }
+
   const { data: perfil } = await supabase.from("profiles").select("nome_completo").eq("id", user.id).maybeSingle();
 
   const enc = new TextEncoder();
@@ -77,7 +85,7 @@ export async function POST(req: Request) {
         });
         emitir({ t: "fim", uso });
         await createAdminClient().from("ai_uso").insert({
-          agent_id: agente.id, user_id: user.id, modelo: agente.modelo,
+          org_id: orgId ?? null, agent_id: agente.id, user_id: user.id, modelo: agente.modelo,
           tokens_entrada: uso.entrada, tokens_cache: uso.cache, tokens_saida: uso.saida, ferramentas: uso.ferramentas,
         });
       } catch (e) {

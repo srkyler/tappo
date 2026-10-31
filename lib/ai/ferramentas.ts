@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ACTIVITY_TIPO, LEAD_ORIGEM, LEAD_STATUS } from "@/lib/data/types";
 import { hojeISO } from "@/lib/data/format";
+import { buscarConhecimento } from "./assistente";
 
 /*
  * Ferramentas do Agente Tappo. Todas rodam com o cliente Supabase DO USUÁRIO,
@@ -57,6 +58,7 @@ const SCHEMAS = {
     descricao: z.string().min(1),
     lead_id: z.string().uuid().optional(),
   }),
+  buscar_conhecimento: z.object({ consulta: z.string().min(2).max(300) }),
 } as const;
 
 type Nome = keyof typeof SCHEMAS;
@@ -147,6 +149,10 @@ const DEFINICOES: Record<Nome, { description: string; input_schema: Record<strin
       required: ["tipo", "descricao"],
     },
   },
+  buscar_conhecimento: {
+    description: "Busca na base de conhecimento da empresa (FAQs e documentos cadastrados em Assistente IA: produtos, preços, políticas, argumentos de venda). Use ao redigir mensagens ou responder dúvidas sobre a empresa.",
+    input_schema: { type: "object", properties: { consulta: { type: "string", description: "Palavras-chave ou pergunta" } }, required: ["consulta"] },
+  },
 };
 
 export const ROTULO_FERRAMENTA: Record<string, string> = {
@@ -162,6 +168,7 @@ export const ROTULO_FERRAMENTA: Record<string, string> = {
   listar_campanhas: "Lendo campanhas",
   listar_respostas: "Lendo respostas rápidas",
   registrar_atividade: "Registrando atividade",
+  buscar_conhecimento: "Consultando a base de conhecimento",
 };
 
 export function definirFerramentas(podeEditar: boolean): FerramentaNeutra[] {
@@ -296,6 +303,11 @@ export async function executarFerramenta(sb: SupabaseClient, nome: string, entra
       const { error } = await sb.from("activities").insert(i);
       if (error) throw error;
       return ok({ registrado: true });
+    }
+    case "buscar_conhecimento": {
+      // org null = empresa da sessão; o RLS garante que só a base da própria empresa aparece
+      const trechos = await buscarConhecimento(sb, i.consulta as string, null, 5);
+      return trechos.length ? ok(trechos.map((t) => ({ titulo: t.titulo, conteudo: t.trecho }))) : "Nada encontrado na base de conhecimento da empresa.";
     }
   }
 }

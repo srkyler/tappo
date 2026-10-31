@@ -1,7 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { agenteAtivo } from "@/lib/ai/agentes";
-import { rodarAgente, type Mensagem } from "@/lib/ai/motor";
+import { gerarRespostaIA, paraConversaIA, type ResultadoIA } from "@/lib/ai/atendimento";
 import { digitando, enviarTexto, idDaMensagem, telefoneDoChat, type Conexao } from "./waha";
 
 /* Regras do inbox: registrar mensagens, achar o lead, distribuir e responder com a IA. */
@@ -79,7 +78,6 @@ export async function enviarERegistrar(
   await db.from("wa_conversas").update({ ultima_mensagem: resumo(texto), ultima_em: new Date().toISOString(), aguardando_desde: null }).eq("id", conversa.id);
 }
 
-const MARCA_HUMANO = /\[HUMANO\]/gi;
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /* Anti-banimento: a IA nunca responde instantaneamente (parece robô disparando) e
@@ -110,59 +108,30 @@ export async function responderComIA(db: SupabaseClient, c: Conexao, conversaId:
   const { data: ultima } = await db.from("wa_mensagens").select("id").eq("conversa_id", conversaId).order("created_at", { ascending: false }).limit(1).single();
   if (ultima?.id !== mensagemId) return;
 
-  const agente = await agenteAtivo().catch(() => null);
-  if (!agente) return;
-  if (agente.teto_tokens_mes) {
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-    const { data: usados } = await db.rpc("ai_tokens_usados", { agente: agente.id, desde: inicioMes });
-    if (Number(usados ?? 0) >= agente.teto_tokens_mes) return;
-  }
-
-  const { data: hist } = await db.from("wa_mensagens").select("direcao, corpo")
-    .eq("conversa_id", conversaId).not("corpo", "is", null)
-    .order("created_at", { ascending: false }).limit(agente.max_historico);
-  const mensagens: Mensagem[] = [];
-  for (const m of (hist ?? []).reverse()) {
-    const role = m.direcao === "entrada" ? "user" : "assistant";
-    const ant = mensagens[mensagens.length - 1];
-    if (ant?.role === role) ant.content += `\n${m.corpo}`;
-    else mensagens.push({ role, content: m.corpo as string });
-  }
-  if (mensagens[mensagens.length - 1]?.role !== "user") return;
-
-  await digitando(c, conversa.chat_id, true);
-  let texto = "";
+  // Perfil, conhecimento, memória, skills, cota e registro ficam no núcleo (lib/ai/atendimento.ts)
+  let digitandoLigado = false;
+  let r: ResultadoIA | null;
   try {
-    const uso = await rodarAgente({
-      agente,
-      sb: null,
-      mensagens,
-      nomeUsuario: conversa.nome,
-      modo: "atendimento",
-      instrucoesExtras: c.ia_instrucoes,
-      emitir: (e) => { if (e.t === "texto") texto += e.d; },
-    });
-    await db.from("ai_uso").insert({
-      org_id: c.org_id, agent_id: agente.id, user_id: c.user_id, modelo: agente.modelo,
-      tokens_entrada: uso.entrada, tokens_cache: uso.cache, tokens_saida: uso.saida, ferramentas: uso.ferramentas,
+    r = await gerarRespostaIA(db, {
+      orgId: c.org_id, conversa: paraConversaIA(conversa, "whatsapp"), canal: "whatsapp", instrucoesCanal: c.ia_instrucoes,
+      antesDeRodar: async () => { digitandoLigado = true; await digitando(c, conversa.chat_id, true); },
     });
   } finally {
-    await digitando(c, conversa.chat_id, false);
+    if (digitandoLigado) await digitando(c, conversa.chat_id, false);
   }
+  if (!r) return;
 
-  const passarParaHumano = /\[HUMANO\]/i.test(texto);
-  texto = texto.replace(MARCA_HUMANO, "").trim();
   // A IA respondeu: o relógio de espera só volta a correr se ela passar para um humano
-  if (texto) {
+  if (r.texto) {
     if (!podeEnviarIA(conversaId)) {
       // Rajada demais nesta conversa: segura e devolve para um humano decidir (evita banimento por flood)
       await db.from("wa_conversas").update({ status: "pendente", atribuido_a: conversa.atribuido_a ?? (await distribuir(db, c)), aguardando_desde: new Date().toISOString() }).eq("id", conversaId);
     } else {
       await espera(jitter(800, 2500)); // não responde instantâneo como robô
-      await enviarERegistrar(db, c, conversa, texto, "ia");
+      await enviarERegistrar(db, c, conversa, r.texto, "ia");
     }
   }
-  if (passarParaHumano) {
+  if (r.transferir) {
     const atribuido_a = conversa.atribuido_a ?? (await distribuir(db, c));
     await db.from("wa_conversas").update({ ia_ativa: false, status: "pendente", atribuido_a, aguardando_desde: new Date().toISOString() }).eq("id", conversaId);
   }

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3, Building2, Brain, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, Plug, Network, type LucideIcon,
+  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, Plug, Network, BrainCircuit, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
@@ -49,6 +49,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
   {
     titulo: "Atendimento",
     itens: [
+      { href: "/app/assistente", label: "Assistente IA", Icone: BrainCircuit },
       { href: "/app/respostas", label: "Respostas rápidas", Icone: Zap },
       { href: "/app/automacoes", label: "Automações", Icone: Workflow },
       { href: "/app/chatbot-qualificacao", label: "Chatbot Qualificação", Icone: Sparkles },

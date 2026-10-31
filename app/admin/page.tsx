@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Cabecalho, Kpi, Logo, Pagina } from "@/components/ui/base";
 import { AgentesAdmin } from "@/components/admin/agentes-admin";
 import { Administradores, type MembroPlataforma } from "@/components/admin/administradores";
+import { LimitesOrg, type LinhaLimite } from "@/components/admin/limites-org";
 import { ehSuperAdmin, exigirAdmin } from "@/lib/admin/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { semSegredo, type Agente } from "@/lib/ai/agentes";
@@ -20,6 +21,21 @@ async function Conteudo() {
     db.from("ai_uso").select("agent_id, tokens_entrada, tokens_cache, tokens_saida").gte("created_at", desde).limit(20000),
     db.from("profiles").select("id", { count: "exact", head: true }),
   ]);
+  // Limites de IA por empresa: consumo do mês corrente x teto definido aqui
+  const agora = new Date();
+  const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+  const [{ data: orgs }, { data: limites }, { data: usoMes }] = await Promise.all([
+    db.from("organizacoes").select("id, nome, plano").order("nome").limit(2000),
+    db.from("ia_limites_org").select("org_id, teto_tokens_mes, bloqueado"),
+    db.from("ai_uso").select("org_id, tokens_entrada, tokens_saida").gte("created_at", inicioMes).not("org_id", "is", null).limit(50000),
+  ]);
+  const tokensPorOrg: Record<string, number> = {};
+  for (const u of usoMes ?? []) tokensPorOrg[u.org_id as string] = (tokensPorOrg[u.org_id as string] ?? 0) + u.tokens_entrada + u.tokens_saida;
+  const linhasLimite: LinhaLimite[] = (orgs ?? []).map((o) => {
+    const l = limites?.find((x) => x.org_id === o.id);
+    return { id: o.id, nome: o.nome, plano: o.plano, tokens: tokensPorOrg[o.id] ?? 0, teto: l?.teto_tokens_mes ?? null, bloqueado: !!l?.bloqueado };
+  });
+
   const souSuperAdmin = ehSuperAdmin(user);
   const { data: todosMembros } = souSuperAdmin
     ? await db.from("profiles").select("id, email, nome_completo, papel").order("created_at")
@@ -53,6 +69,9 @@ async function Conteudo() {
         <Kpi rotulo="Tokens · 30d" valor={formatNum(totalTokens)} detalhe="entrada + saída (sem cache)" />
       </div>
       <AgentesAdmin agentes={(agentes as Agente[]).map(semSegredo)} uso={uso} />
+      <div className="mt-8">
+        <LimitesOrg linhas={linhasLimite} />
+      </div>
       {souSuperAdmin && (
         <div className="mt-8">
           <Administradores membros={(todosMembros ?? []) as MembroPlataforma[]} euId={user.id} />
@@ -75,7 +94,7 @@ export default function AdminPage() {
         </div>
       </header>
       <Pagina>
-        <Cabecalho rotulo="Administração" titulo="Agentes de IA" descricao="Cadastre agentes com qualquer provedor (Claude, NVIDIA NIM, OpenAI, Groq, OpenRouter…) e escolha qual atende os membros. Membros não têm acesso a esta área." />
+        <Cabecalho rotulo="Administração" titulo="Agentes de IA" descricao="Cadastre agentes com qualquer provedor (Claude, NVIDIA NIM, OpenAI, Groq, OpenRouter…), escolha qual fica ativo e defina limites por empresa. Clientes nunca veem nem trocam o modelo — eles só configuram o conhecimento e as regras do próprio assistente em /app/assistente." />
         <Suspense fallback={<div className="grid gap-3 lg:grid-cols-2">{[0, 1].map((i) => <div key={i} className="esqueleto h-64" />)}</div>}>
           <Conteudo />
         </Suspense>
