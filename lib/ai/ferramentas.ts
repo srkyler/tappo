@@ -464,7 +464,7 @@ export async function executarFerramenta(sb: SupabaseClient, nome: string, entra
       return ok({ filtro: f, total: data.length, conversas: data.map(({ atribuido_a, ...c }) => ({ ...c, minha: atribuido_a === user!.id, sem_dono: !atribuido_a })) });
     }
     case "listar_propostas": {
-      let q = sb.from("propostas").select("id, titulo, valor, status, created_at").order("created_at", { ascending: false }).limit(30);
+      let q = sb.from("propostas").select("id, titulo, valor, status, criado_em").order("criado_em", { ascending: false }).limit(30);
       if (i.status) q = q.eq("status", i.status);
       const { data, error } = await q;
       if (error) throw error;

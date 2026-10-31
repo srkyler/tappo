@@ -42,6 +42,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Oculta o badge "N" do indicador de dev no canto da tela
   devIndicators: false,
+  // Importação de leads (até 5.000 linhas) passa do 1 MB padrão das Server Actions
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   async redirects() {
     return [
       ...Object.entries(FUNDIDAS).flatMap(([r, destino]) => [`/${r}`, `/app/${r}`].map((source) => ({ source, destination: destino, permanent: false }))),

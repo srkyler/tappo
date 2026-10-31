@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dispararAutomacoes } from "@/lib/automacoes";
 import { dispararWebhooks } from "@/lib/webhooks/saida";
 import { campo, traduzErro } from "@/lib/data/format";
+import { chaveTelefone } from "@/lib/csv-ler";
 import {
   CAMPAIGN_STATUS, CANAL, LEAD_ORIGEM, LEAD_STATUS,
   type ActionResult, type CampaignStatus, type Canal, type CampaignStep, type LeadOrigem, type LeadStatus,
@@ -133,65 +134,83 @@ export async function excluirLead(id: string): Promise<ActionResult> {
 }
 
 /** Importa CSV simples: cabeçalho com nome,empresa,cargo,email,telefone,segmento */
-export async function importarLeads(csv: string): Promise<ActionResult & { total?: number; duplicados?: { linha: number; campo: string; valor: string; lead_id: string; lead_nome: string }[] }> {
+/* ---------------- Importação com mapeamento de colunas (plano 4.2) ---------------- */
+
+export type LinhaImportacao = { nome: string; empresa: string; cargo?: string | null; email?: string | null; telefone?: string | null; segmento?: string | null; notas?: string | null };
+export type ResultadoImportacao = {
+  criados: number; atualizados: number; ignorados: number; invalidos: number;
+  duplicados: { linha: number; campo: string; valor: string; lead_id: string; lead_nome: string }[];
+};
+
+const MAX_IMPORTACAO = 5000;
+
+export async function importarLeadsMapeados(
+  linhas: LinhaImportacao[],
+  opcoes: { origem: LeadOrigem; duplicados: "ignorar" | "completar" },
+): Promise<(ActionResult & { resultado?: ResultadoImportacao })> {
   try {
     const { supabase } = await cliente();
-    const linhas = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (linhas.length < 2) return { ok: false, erro: "O arquivo precisa de cabeçalho e ao menos uma linha." };
-    const sep = linhas[0].includes(";") ? ";" : ",";
-    const cab = linhas[0].split(sep).map((c) => c.trim().toLowerCase().replace(/"/g, ""));
-    const idx = (n: string) => cab.indexOf(n);
-    if (idx("nome") < 0 || idx("empresa") < 0) return { ok: false, erro: "Cabeçalho precisa ter as colunas nome e empresa." };
-    const val = (cols: string[], n: string) => {
-      const i = idx(n);
-      const v = i >= 0 ? cols[i]?.trim().replace(/^"|"$/g, "") : "";
-      return v ? v : null;
-    };
-    const registros = linhas.slice(1, 1001).map((l) => {
-      const cols = l.split(sep);
-      return {
-        nome: val(cols, "nome") ?? "",
-        empresa: val(cols, "empresa") ?? "",
-        cargo: val(cols, "cargo"),
-        email: val(cols, "email"),
-        telefone: val(cols, "telefone"),
-        segmento: val(cols, "segmento"),
-        origem: "Prospecção" as LeadOrigem,
-      };
-    }).filter((r) => r.nome && r.empresa);
-    if (!registros.length) return { ok: false, erro: "Nenhuma linha válida (nome e empresa são obrigatórios)." };
+    if (!Array.isArray(linhas) || !linhas.length) return { ok: false, erro: "Nenhuma linha para importar." };
+    if (linhas.length > MAX_IMPORTACAO) return { ok: false, erro: `Máximo de ${MAX_IMPORTACAO} linhas por importação.` };
+    const origem = (LEAD_ORIGEM as readonly string[]).includes(opcoes.origem) ? opcoes.origem : "Prospecção";
+    const corta = (v: unknown, n: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, n) : null);
+    const emailOk = (v: string | null) => (v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v.toLowerCase() : null);
 
-    // Detectar duplicados por telefone e email
-    const duplicados: { linha: number; campo: string; valor: string; lead_id: string; lead_nome: string }[] = [];
-    const registrosValidos: typeof registros = [];
-    for (let i = 0; i < registros.length; i++) {
-      const r = registros[i];
-      let ehDuplicado = false;
-      if (r.telefone) {
-        const { data: tel } = await supabase.from("leads").select("id, nome, telefone").eq("telefone", r.telefone);
-        if (tel?.length) {
-          duplicados.push({ linha: i + 2, campo: "telefone", valor: r.telefone, lead_id: tel[0].id, lead_nome: tel[0].nome });
-          ehDuplicado = true;
-        }
-      }
-      if (!ehDuplicado && r.email) {
-        const { data: em } = await supabase.from("leads").select("id, nome, email").eq("email", r.email);
-        if (em?.length) {
-          duplicados.push({ linha: i + 2, campo: "email", valor: r.email, lead_id: em[0].id, lead_nome: em[0].nome });
-          ehDuplicado = true;
-        }
-      }
-      if (!ehDuplicado) registrosValidos.push(r);
-    }
-
-    // Inserção sequencial em lotes pequenos: o código GAR-xxxx é gerado por trigger
-    for (let i = 0; i < registrosValidos.length; i += 100) {
-      const { error } = await supabase.from("leads").insert(registrosValidos.slice(i, i + 100));
+    // Base atual da empresa (RLS) para achar duplicados de uma vez, sem 1 consulta por linha
+    const existentes: { id: string; nome: string; email: string | null; telefone: string | null; cargo: string | null; segmento: string | null; notas: string | null }[] = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await supabase.from("leads").select("id, nome, email, telefone, cargo, segmento, notas").range(de, de + 999);
       if (error) return falha(error);
+      existentes.push(...(data ?? []));
+      if (!data || data.length < 1000 || existentes.length >= 50000) break;
     }
-    await supabase.from("activities").insert({ tipo: "importacao", descricao: `${registrosValidos.length} leads importados via CSV${duplicados.length > 0 ? ` (${duplicados.length} duplicados ignorados)` : ""}` });
+    const porEmail = new Map(existentes.filter((l) => l.email).map((l) => [l.email!.toLowerCase(), l]));
+    const porFone = new Map(existentes.map((l) => [chaveTelefone(l.telefone), l] as const).filter(([k]) => k.length >= 8));
+
+    const r: ResultadoImportacao = { criados: 0, atualizados: 0, ignorados: 0, invalidos: 0, duplicados: [] };
+    const novos: Record<string, unknown>[] = [];
+    const vistos = new Set<string>();
+    const completar: { id: string; campos: Record<string, string> }[] = [];
+
+    linhas.forEach((bruta, i) => {
+      const l = {
+        nome: corta(bruta.nome, 120), empresa: corta(bruta.empresa, 160), cargo: corta(bruta.cargo, 120),
+        email: emailOk(corta(bruta.email, 160)), telefone: corta(bruta.telefone, 40), segmento: corta(bruta.segmento, 80), notas: corta(bruta.notas, 4000),
+      };
+      if (!l.nome || !l.empresa) { r.invalidos++; return; }
+      const fone = chaveTelefone(l.telefone);
+      const chaves = [l.email ? `e:${l.email}` : "", fone.length >= 8 ? `t:${fone}` : ""].filter(Boolean);
+      if (chaves.some((k) => vistos.has(k))) { r.ignorados++; r.duplicados.push({ linha: i + 2, campo: "repetido no arquivo", valor: l.email ?? l.telefone ?? l.nome, lead_id: "", lead_nome: l.nome }); return; }
+      chaves.forEach((k) => vistos.add(k));
+
+      const ja = (l.email && porEmail.get(l.email)) || (fone.length >= 8 && porFone.get(fone)) || null;
+      if (ja) {
+        r.duplicados.push({ linha: i + 2, campo: l.email && porEmail.get(l.email) ? "email" : "telefone", valor: (l.email && porEmail.get(l.email) ? l.email : l.telefone) ?? "", lead_id: ja.id, lead_nome: ja.nome });
+        if (opcoes.duplicados === "completar") {
+          const campos: Record<string, string> = {};
+          for (const k of ["email", "telefone", "cargo", "segmento", "notas"] as const) if (l[k] && !ja[k]) campos[k] = l[k]!;
+          if (Object.keys(campos).length) completar.push({ id: ja.id, campos }); else r.ignorados++;
+        } else r.ignorados++;
+        return;
+      }
+      novos.push({ ...l, origem });
+    });
+
+    // Inserção em lotes: o código GAR-xxxx é gerado por trigger
+    for (let i = 0; i < novos.length; i += 200) {
+      const { error } = await supabase.from("leads").insert(novos.slice(i, i + 200));
+      if (error) return falha(error);
+      r.criados += Math.min(200, novos.length - i);
+    }
+    for (const c of completar) {
+      const { error } = await supabase.from("leads").update(c.campos).eq("id", c.id);
+      if (!error) r.atualizados++;
+    }
+    if (r.criados || r.atualizados) {
+      await supabase.from("activities").insert({ tipo: "importacao", descricao: `Importação: ${r.criados} novos, ${r.atualizados} completados, ${r.ignorados} duplicados ignorados, ${r.invalidos} sem nome/empresa.` });
+    }
     revalidar("/app/leads");
-    return { ok: true, total: registrosValidos.length, duplicados };
+    return { ok: true, resultado: { ...r, duplicados: r.duplicados.slice(0, 300) } };
   } catch (e) { return falha(e); }
 }
 

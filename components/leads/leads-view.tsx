@@ -6,7 +6,8 @@ import { Download, Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-re
 import { celulaCsv } from "@/lib/csv";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Status, Vazio, cn } from "@/components/ui/base";
-import { excluirLead, importarLeads, mudarStatusLead, salvarLead, detectarDuplicadosLead } from "@/app/app/actions";
+import { excluirLead, mudarStatusLead, salvarLead, detectarDuplicadosLead } from "@/app/app/actions";
+import { ImportarLeads } from "./importar-leads";
 import { LEAD_ORIGEM, LEAD_STATUS, type Lead, type LeadStatus } from "@/lib/data/types";
 import { segmentoPorId } from "@/lib/segmentos";
 import { formatData } from "@/lib/data/format";
@@ -197,8 +198,8 @@ export function LeadsView({ leads }: { leads: Lead[] }) {
         <FormLead key={editando?.id ?? "novo"} lead={editando} aoSalvar={fechar} />
       </Dialogo>
 
-      <Dialogo aberto={importar} aoFechar={() => setImportar(false)} titulo="Importar leads" descricao="Arquivo CSV com cabeçalho. Colunas aceitas: nome, empresa, cargo, email, telefone, segmento.">
-        <FormImportar aoConcluir={() => setImportar(false)} />
+      <Dialogo aberto={importar} aoFechar={() => setImportar(false)} titulo="Importar leads" descricao="CSV do Excel, Google Planilhas ou de outro CRM. Você escolhe qual coluna vira cada campo.">
+        <ImportarLeads aoConcluir={() => setImportar(false)} />
       </Dialogo>
     </>
   );
@@ -303,52 +304,3 @@ function FormLead({ lead, aoSalvar }: { lead: Lead | null; aoSalvar: () => void 
   );
 }
 
-function FormImportar({ aoConcluir }: { aoConcluir: () => void }) {
-  const [msg, setMsg] = useState<{ ok: boolean; t: string; duplicados?: { linha: number; campo: string; valor: string; lead_id: string; lead_nome: string }[] } | null>(null);
-  const [pendente, iniciar] = useTransition();
-
-  return (
-    <div className="space-y-4">
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-700 px-6 py-10 text-center transition-colors hover:border-gray-400">
-        <Upload size={20} className="text-gray-400" />
-        <span className="text-[14px] text-white">{pendente ? "Importando…" : "Escolher arquivo .csv"}</span>
-        <span className="text-[12px] text-gray-500">Até 1.000 linhas · separador vírgula ou ponto-e-vírgula</span>
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          className="sr-only"
-          disabled={pendente}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            iniciar(async () => {
-              const r = await importarLeads(await f.text());
-              setMsg(r.ok ? { ok: true, t: `${r.total} leads importados${r.duplicados?.length ? ` · ${r.duplicados.length} duplicados ignorados` : ""}.`, duplicados: r.duplicados } : { ok: false, t: r.erro });
-            });
-          }}
-        />
-      </label>
-      <pre className="overflow-x-auto rounded-lg bg-gray-900 p-3 font-mono text-[11.5px] text-gray-400">nome,empresa,cargo,email{"\n"}Ana Lima,Lima Agro,Diretora,ana@limaagro.com.br</pre>
-      {msg && (
-        <>
-          <p role="status" className={cn("text-[13px]", msg.ok ? "text-emerald-400" : "text-gray-300")}>{msg.ok ? "✓" : "⚠"} {msg.t}</p>
-          {msg.ok && msg.duplicados?.length && (
-            <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <p className="text-[11px] text-amber-400 mb-2 uppercase font-bold">Duplicados ignorados ({msg.duplicados.length})</p>
-              <ul className="space-y-1 text-[11px]">
-                {msg.duplicados.map((d) => (
-                  <li key={`${d.linha}-${d.campo}`} className="flex justify-between gap-2">
-                    <span className="text-gray-400">Linha {d.linha} · {d.campo}</span>
-                    <span className="text-white truncate max-w-[200px]">{d.valor}</span>
-                    <span className="text-gray-500 truncate">→ {d.lead_nome}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </>
-      )}
-      {msg?.ok && <button onClick={aoConcluir} className="btn btn-primario btn-sm w-full">Concluir</button>}
-    </div>
-  );
-}

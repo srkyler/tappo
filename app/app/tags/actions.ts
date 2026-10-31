@@ -54,7 +54,7 @@ export async function toggleTagLead(leadId: string, tagId: string): Promise<Acti
       if (error) throw error;
       await dispararAutomacoes(supabase, "tag_adicionada", tagId, { leadId });
     }
-    revalidatePath("/app/leads");
+    revalidatePath("/app/leads"); revalidatePath(`/app/leads/${leadId}`);
     return { ok: true };
   } catch (e) { return falha(e); }
 }
