@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Ban, Bot, Check, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock, AlertTriangle, Target } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
@@ -78,7 +78,9 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
   const sb = useMemo(() => createBrowserClient(), []);
   const router = useRouter();
   const [conversas, setConversas] = useState(conversasIniciais);
-  const [selId, setSelId] = useState<string | null>(null);
+  // ?c=<id> abre a conversa direto (links do sino de notificações)
+  const pedida = useSearchParams().get("c");
+  const [selId, setSelId] = useState<string | null>(() => (pedida && conversasIniciais.some((c) => c.id === pedida) ? pedida : null));
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [filtro, setFiltro] = useState<(typeof FILTROS)[number]["id"]>("ativas");

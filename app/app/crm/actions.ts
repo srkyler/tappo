@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { limitar } from "@/lib/auth/rate-limit";
 
 /* Mutações das telas de Bloco 2 (contas, pessoas, campos personalizados,
  * comissões, SLA, duplicados) — chamadas direto de componentes de cliente. */
@@ -299,5 +300,38 @@ export async function alternarTarefaRecorrente(id: string, ativa: boolean): Prom
     if (error) return { ok: false, erro: error.message };
     revalidatePath("/app/tarefas-recorrentes");
     return { ok: true };
+  } catch (e) { return erro(e); }
+}
+
+/* ---------- Enriquecimento por CNPJ (BrasilAPI, dados públicos da Receita) ---------- */
+
+export type DadosCnpj = {
+  nome: string; fantasia: string | null; segmento: string | null; telefone: string | null; email: string | null;
+  endereco: string | null; cidade: string | null; estado: string | null; cep: string | null; situacao: string | null;
+};
+
+export async function buscarCnpj(bruto: string): Promise<{ ok: true; dados: DadosCnpj } | { ok: false; erro: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, erro: "Sessão expirada." };
+    const cnpj = bruto.replace(/\D/g, "");
+    if (cnpj.length !== 14) return { ok: false, erro: "Digite os 14 números do CNPJ." };
+    if (limitar({ acao: "buscar-cnpj", id: user.id }, 30, 3600)) return { ok: false, erro: "Muitas consultas seguidas. Tente mais tarde." };
+    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
+    if (res.status === 404) return { ok: false, erro: "CNPJ não encontrado na Receita." };
+    if (!res.ok) return { ok: false, erro: "Consulta indisponível agora. Tente de novo em instantes." };
+    const j = (await res.json()) as Record<string, unknown>;
+    const t = (k: string) => (typeof j[k] === "string" && (j[k] as string).trim() ? (j[k] as string).trim() : null);
+    const tel = t("ddd_telefone_1")?.replace(/\D/g, "") ?? null;
+    return {
+      ok: true,
+      dados: {
+        nome: t("razao_social") ?? "", fantasia: t("nome_fantasia"), segmento: t("cnae_fiscal_descricao"),
+        telefone: tel && tel.length >= 10 ? tel : null, email: t("email")?.toLowerCase() ?? null,
+        endereco: [t("descricao_tipo_de_logradouro"), t("logradouro"), t("numero"), t("complemento"), t("bairro")].filter(Boolean).join(", ") || null,
+        cidade: t("municipio"), estado: t("uf"), cep: t("cep"), situacao: t("descricao_situacao_cadastral"),
+      },
+    };
   } catch (e) { return erro(e); }
 }

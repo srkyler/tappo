@@ -1,3 +1,4 @@
+import { Sino } from "@/components/dashboard/sino";
 import Link from "next/link";
 import { Suspense, cache } from "react";
 import { LogOut, Settings, ShieldCheck } from "lucide-react";
@@ -76,8 +77,9 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
     <div className="flex h-[100svh] overflow-hidden bg-black">
       <Suspense fallback={null}><CorDestaque /></Suspense>
       <aside className="hidden w-[240px] shrink-0 flex-col border-r border-gray-800 bg-[#070707] lg:flex">
-        <div className="px-6 pb-2 pt-6">
+        <div className="flex items-center justify-between px-6 pb-2 pt-6">
           <Link href="/app"><Logo /></Link>
+          <Sino />
         </div>
 
         {/* usePathname é dado de runtime: fora de Suspense o prerender quebra (Next 16) */}
@@ -105,6 +107,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         <header className="flex items-center justify-between border-b border-gray-800 bg-black/80 px-4 py-3 backdrop-blur-xl lg:hidden" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}>
           <Link href="/app"><Logo /></Link>
           <div className="flex items-center gap-1">
+            <Sino compacto />
             <Suspense fallback={null}><LinkAdmin compacto /></Suspense>
             <Link href="/app/perfil" aria-label="Conta" className="rounded-full p-2 text-gray-300 hover:bg-gray-900"><Settings size={18} /></Link>
             <form action={sair}><button type="submit" aria-label="Sair" className="rounded-full p-2 text-gray-300 hover:bg-gray-900"><LogOut size={18} /></button></form>

@@ -97,10 +97,10 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 | Aprovação de proposta | Fundir | Propostas (fluxo de aprovação + link para o cliente aceitar) | M |
 | Previsão IA | Fundir | Pipeline: probabilidade por negócio + previsão do mês | M |
 | Funil (editor) | Fundir | Pipeline: editar etapas na própria tela | M |
-| Enriquecimento | Fundir | ficha do lead: botão "buscar CNPJ" (BrasilAPI, gratuita) | M |
+| Enriquecimento ✅ | Fundido (botão Buscar CNPJ em Contas) | ficha do lead: botão "buscar CNPJ" (BrasilAPI, gratuita) | M |
 | Permissões | Fundir | Empresa e equipe (tabela `permissao_tela`), aplicada no menu e no servidor | M |
-| Notificações | Implementar | sino no topo (tabela `notificacao`): conversa atribuída, tarefa vencendo, SLA estourado | M |
-| Integrações | Fundir | Conexões (Google Agenda, Meta Ads, webhooks) | P |
+| Notificações ✅ | Implementado (sino + página, calculado na hora) | sino no topo (tabela `notificacao`): conversa atribuída, tarefa vencendo, SLA estourado | M |
+| Integrações ✅ | Fundido (Google Agenda em Assistente IA; resto em Conexões) | Conexões (Google Agenda, Meta Ads, webhooks) | P |
 | E-mail de boas-vindas | Fundir | Automações: gatilho "lead criado" → ação "enviar e-mail" | P |
 | Gravação de chamada ✅ | Apagada | sem telefonia integrada não há o que gravar | P |
 | Assinaturas / Assinatura recorrente ✅ | Escondidas (redirecionam) | só faz sentido quando houver cobrança; esconder | P |

@@ -1,51 +1,44 @@
 import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
-import { AvisoBanco } from "@/components/dashboard/aviso-banco";
-import { bancoPronto } from "@/lib/data/queries";
+import Link from "next/link";
+import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
+import { minhasPendencias } from "./actions";
 
 export const metadata = { title: "Notificações — Tappo" };
 
-async function Conteudo() {
-  if (!(await bancoPronto())) return <AvisoBanco />;
+const fmt = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+const GRUPOS = [
+  { tipo: "transferida", titulo: "Aguardando atendente" },
+  { tipo: "mensagem", titulo: "Mensagens não lidas nas suas conversas" },
+  { tipo: "tarefa", titulo: "Suas tarefas vencidas ou para hoje" },
+] as const;
 
+async function Conteudo() {
+  const itens = await minhasPendencias();
+  if (!itens.length) return <section className="painel"><Vazio titulo="Nada pendente" texto="Quando algo precisar de você — mensagem, transferência da IA ou tarefa — aparece aqui e no sino." /></section>;
   return (
     <div className="space-y-6">
-      <Cabecalho rotulo="Sistema" titulo="Notificações" descricao="Gerencie notificações push, e-mail e WhatsApp para leads e equipe." />
-
-      <section className="painel p-5">
-        <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Configurar notificações</h3>
-        <form className="space-y-3">
-          <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
-            <input type="checkbox" name="novo_lead" defaultChecked className="mt-1" />
-            <span>
-              <span className="block text-[14px] font-medium text-white">Novo lead capturado</span>
-              <span className="block text-[12.5px] text-gray-500">Notificar o responsável quando um lead é criado.</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
-            <input type="checkbox" name="tarefa_vencendo" defaultChecked className="mt-1" />
-            <span>
-              <span className="block text-[14px] font-medium text-white">Tarefa vencendo</span>
-              <span className="block text-[12.5px] text-gray-500">Alerta 30 minutos antes do vencimento.</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
-            <input type="checkbox" name="proposta_visualizada" className="mt-1" />
-            <span>
-              <span className="block text-[14px] font-medium text-white">Proposta visualizada</span>
-              <span className="block text-[12.5px] text-gray-500">Notificar quando o cliente abrir a proposta.</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-3 rounded-lg border border-gray-800 p-3">
-            <input type="checkbox" name="sla_estouro" defaultChecked className="mt-1" />
-            <span>
-              <span className="block text-[14px] font-medium text-white">SLA estouro</span>
-              <span className="block text-[12.5px] text-gray-500">Alerta quando o prazo de resposta estiver prestes a expirar.</span>
-            </span>
-          </label>
-          <button className="btn btn-primario w-full">Salvar configurações</button>
-        </form>
-      </section>
+      {GRUPOS.map((g) => {
+        const lista = itens.filter((i) => i.tipo === g.tipo);
+        if (!lista.length) return null;
+        return (
+          <section key={g.tipo} className="painel">
+            <h2 className="border-b border-gray-800 px-5 py-3 text-[13px] font-medium text-white">{g.titulo} ({lista.length})</h2>
+            <ul className="divide-y divide-gray-800">
+              {lista.map((i) => (
+                <li key={i.id}>
+                  <Link href={i.href} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-900/60">
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] text-white">{i.titulo}</span>
+                      <span className={`block truncate text-[12.5px] ${i.urgente ? "text-red-300" : "text-gray-500"}`}>{i.detalhe}</span>
+                    </span>
+                    <span className="shrink-0 text-[12px] text-gray-500">{fmt(i.em)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -53,7 +46,8 @@ async function Conteudo() {
 export default function NotificacoesPage() {
   return (
     <Pagina>
-      <Suspense fallback={<div className="esqueleto h-[70vh]" />}>
+      <Cabecalho rotulo="Sistema" titulo="Notificações" descricao="O que precisa de você agora. O sino no topo mostra o mesmo, atualizado a cada minuto." />
+      <Suspense fallback={<div className="esqueleto h-[50vh]" />}>
         <Conteudo />
       </Suspense>
     </Pagina>
