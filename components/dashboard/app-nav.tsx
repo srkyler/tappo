@@ -9,6 +9,7 @@ import {
   Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, MapPin, Megaphone, Bot, Plug, Network, BrainCircuit, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
+import { buscarGlobal, type ResultadoBusca } from "@/app/app/busca/actions";
 
 type Item = { href: string; label: string; Icone: LucideIcon };
 
@@ -233,6 +234,8 @@ export function NavInferior() {
   );
 }
 
+const ICONE_BUSCA: Record<ResultadoBusca["tipo"], LucideIcon> = { lead: Users, conversa: Inbox, negocio: KanbanSquare, conta: Building2 };
+
 type Comando = { id: string; label: string; dica?: string; Icone: LucideIcon; acao: () => void };
 
 /** Paleta de comandos (Ctrl/⌘ + K): navegar, criar e perguntar ao agente. */
@@ -242,6 +245,16 @@ export function PaletaComandos({ admin = false }: { admin?: boolean }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const [achados, setAchados] = useState<ResultadoBusca[]>([]);
+
+  // Busca nos registros (leads, conversas, negócios, contas) com 250 ms de folga entre teclas
+  useEffect(() => {
+    const t = q.trim();
+    if (!aberto || t.length < 2) return;
+    let vivo = true;
+    const id = setTimeout(() => { buscarGlobal(t).then((r) => { if (vivo) setAchados(r); }).catch(() => {}); }, 250);
+    return () => { vivo = false; clearTimeout(id); };
+  }, [q, aberto]);
 
   useEffect(() => {
     const abrir = () => { setQ(""); setSel(0); setAberto(true); setTimeout(() => input.current?.focus(), 30); };
@@ -264,10 +277,13 @@ export function PaletaComandos({ admin = false }: { admin?: boolean }) {
     ];
     const t = q.trim().toLowerCase();
     const filtrados = t ? base.filter((c) => c.label.toLowerCase().includes(t)) : base;
+    const registros: Comando[] = t.length >= 2
+      ? achados.map((r) => ({ id: r.id, label: r.titulo, dica: r.detalhe, Icone: ICONE_BUSCA[r.tipo], acao: ir(r.href) }))
+      : [];
     if (t) filtrados.push({ id: "ia", label: `Perguntar ao agente: “${q.trim()}”`, Icone: Sparkles, acao: ir(`/app/agente?q=${encodeURIComponent(q.trim())}`) });
-    return filtrados;
+    return [...filtrados.slice(0, t ? 5 : undefined), ...registros, ...(t ? filtrados.slice(5) : [])];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, achados]);
 
   return (
     <AnimatePresence>
@@ -294,7 +310,7 @@ export function PaletaComandos({ admin = false }: { admin?: boolean }) {
                   if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
                   if (e.key === "Enter") { e.preventDefault(); comandos[sel]?.acao(); }
                 }}
-                placeholder="Digite um comando ou pergunte ao agente…"
+                placeholder="Busque um lead, conversa, negócio… ou pergunte ao agente"
                 className="h-12 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-gray-600"
                 aria-label="Comando"
               />
@@ -309,7 +325,7 @@ export function PaletaComandos({ admin = false }: { admin?: boolean }) {
                   >
                     <c.Icone size={15} />
                     <span className="flex-1 truncate">{c.label}</span>
-                    {c.dica && <span className={cn("text-[11.5px]", i === sel ? "text-gray-600" : "text-gray-600")}>{c.dica}</span>}
+                    {c.dica && <span className="max-w-[45%] truncate text-[11.5px] text-gray-600">{c.dica}</span>}
                     {i === sel && <CornerDownLeft size={13} />}
                   </button>
                 </li>
