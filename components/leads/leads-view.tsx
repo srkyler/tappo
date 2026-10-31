@@ -12,6 +12,17 @@ import { formatData } from "@/lib/data/format";
 
 type Filtro = "Todos" | LeadStatus;
 
+/**
+ * Célula CSV: sempre entre aspas (quebra de linha e vírgula ficam dentro), aspas
+ * dobradas, e valor começando com = + - @ prefixado com ' — senão o Excel o
+ * executa como fórmula (injeção de CSV com dado vindo de formulário público).
+ */
+function celulaCsv(v: unknown) {
+  let t = String(v ?? "");
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
+  return `"${t.replace(/"/g, '""')}"`;
+}
+
 export function LeadsView({ leads }: { leads: Lead[] }) {
   const params = useSearchParams();
   const router = useRouter();
@@ -50,9 +61,10 @@ export function LeadsView({ leads }: { leads: Lead[] }) {
       linhas.push([
         l.nome, l.empresa, l.cargo ?? "", l.email ?? "", l.telefone ?? "", l.segmento ?? "",
         l.origem, l.status, l.cod, l.proximo_contato_em ?? "",
-      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+      ].map(celulaCsv).join(","));
     }
-    const csv = linhas.join("\n");
+    // BOM: sem ele o Excel abre acentos quebrados; \r\n é o fim de linha do RFC 4180
+    const csv = "\uFEFF" + linhas.join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

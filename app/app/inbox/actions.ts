@@ -239,11 +239,12 @@ export async function atribuirConversa(conversaId: string, userId: string | null
     const empresa = await empresaAtual();
     // Vendedor/atendente só pode puxar para si; gestor distribui ou transfere para qualquer um
     if (userId && userId !== user.id && !ehGestor(empresa?.papel)) return { ok: false, erro: "Só gestores podem atribuir conversas a outras pessoas." };
-    const { data: antes } = await supabase.from("wa_conversas").select("atribuido_a, lead_id").eq("id", conversaId).single();
+    const { data: antes } = await supabase.from("wa_conversas").select("atribuido_a, lead_id").eq("id", conversaId).maybeSingle();
+    if (!antes) return { ok: false, erro: "Conversa não encontrada." };
     const { error } = await supabase.from("wa_conversas").update({ atribuido_a: userId }).eq("id", conversaId);
     if (error) throw error;
     // Auditoria: toda troca de responsável (atribuição ou transferência) vira atividade
-    if (antes && antes.atribuido_a !== userId) {
+    if (antes.atribuido_a !== userId) {
       let rotulo = "ninguém";
       if (userId) {
         const { data: perfil } = await supabase.from("profiles").select("nome_completo, email").eq("id", userId).single();

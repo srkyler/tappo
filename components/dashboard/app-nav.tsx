@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3, Building2, Brain, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
-  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, Calendar, RefreshCw, MapPin, Megaphone, Bot, Plug, Network, BrainCircuit, type LucideIcon,
+  Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, MapPin, Megaphone, Bot, Plug, Network, BrainCircuit, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 
@@ -70,15 +70,12 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
     titulo: "Tarefas e agenda",
     itens: [
       { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
-      { href: "/app/calendario", label: "Calendário", Icone: Calendar },
-      { href: "/app/tarefas-recorrentes", label: "Tarefas Recorrentes", Icone: RefreshCw },
     ],
   },
   {
     titulo: "Gestão",
     itens: [
       { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
-      { href: "/app/executivo", label: "Dashboard Executivo", Icone: LayoutGrid },
       { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
     ],
   },

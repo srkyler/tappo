@@ -59,6 +59,7 @@ function Entrega({ status }: { status?: string | null }) {
 
 const FILTROS = [
   { id: "ativas", rotulo: "Ativas" },
+  { id: "sem_dono", rotulo: "Sem responsável" },
   { id: "minhas", rotulo: "Minhas conversas" },
   { id: "pendente", rotulo: "Precisam de você" },
   { id: "resolvida", rotulo: "Resolvidas" },
@@ -160,6 +161,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
   const visiveis = conversas.filter((c) => {
     let passa = true;
     if (filtro === "ativas") passa = c.status !== "resolvida";
+    else if (filtro === "sem_dono") passa = c.status !== "resolvida" && !c.atribuido_a;
     else if (filtro === "minhas") passa = c.atribuido_a === userId;
     else passa = c.status === filtro;
     if (!passa) return false;
@@ -170,6 +172,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
   }));
   const contagem = (id: string) => conversas.filter((c) => {
     if (id === "ativas") return c.status !== "resolvida";
+    if (id === "sem_dono") return c.status !== "resolvida" && !c.atribuido_a;
     if (id === "minhas") return c.atribuido_a === userId;
     return c.status === id;
   }).length;
@@ -195,6 +198,10 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
     });
   }
 
+  const iaNoCanal = (canal?: CanalInbox) =>
+    canal === "telegram" ? !!conexaoTelegram?.ia_ativa && conexaoTelegram.status === "WORKING"
+    : canal === "email" ? !!emailConexao?.ia_ativa && !!emailConexao.endereco_recebe
+    : conexoes.some((c) => c.ia_ativa && c.status === "WORKING");
   const conectado = sel?.canal === "telegram" ? conexaoTelegram?.status === "WORKING"
     : sel?.canal === "email" ? !!emailConexao?.endereco_envia
     : conexoes.some((c) => c.status === "WORKING");
@@ -250,7 +257,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-[12.5px] text-gray-500">{c.ultima_mensagem ?? "—"}</span>
                       <span className="flex shrink-0 items-center gap-1">
-                        {c.ia_ativa && conexaoAtiva?.ia_ativa && <Bot size={12} className="text-gray-500" aria-label="IA ativa" />}
+                        {c.ia_ativa && iaNoCanal(c.canal) && <Bot size={12} className="text-gray-500" aria-label="IA ativa" />}
                         {c.status === "pendente" && <span className="h-2 w-2 rounded-full bg-amber-400" aria-label="Precisa de você" />}
                         {c.atribuido_a && (
                           <span className="flex items-center gap-1 text-[11px] text-gray-400">
@@ -285,7 +292,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                     {sel.leads && <> · <Link href={`/app/leads?q=${encodeURIComponent(sel.leads.cod)}`} className="underline underline-offset-2 hover:text-white">{sel.leads.cod} · {sel.leads.empresa}</Link></>}
                   </p>
                 </div>
-                {conexaoAtiva?.ia_ativa && (
+                {iaNoCanal(sel.canal) && (
                   <button onClick={() => mudar({ ia_ativa: !sel.ia_ativa })} className={cn("btn btn-sm", sel.ia_ativa ? "btn-secundario" : "btn-fantasma")} title={sel.ia_ativa ? "A IA está respondendo. Clique para assumir." : "Você está atendendo. Clique para devolver à IA."}>
                     {sel.ia_ativa ? <><Bot size={14} /> IA atendendo</> : <><UserRound size={14} /> Você atendendo</>}
                   </button>

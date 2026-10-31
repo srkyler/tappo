@@ -47,10 +47,10 @@ Comparado item a item com o DeskcommCRM (`lib/waha/*`, `lib/channels/*`, `docker
 |---|---|---|---|
 | 0.1 | Rodar no Supabase as migrations `20261018120000` e `20261031000000` | P | `/app/assistente` abre sem aviso de tabela faltando |
 | 0.2 | Consertar o deploy automático (secrets `VPS_*` / chave SSH) | P | push na `main` termina verde no Actions |
-| 0.3 | Corrigir bugs 1–6 e 8–10 de `BUGS-TAPP0-CRM.md` | M | cada bug com correção e marcado como resolvido no arquivo |
-| 0.4 | Tirar do menu as 3 fachadas até a Fase 3 entregar | P | nenhum item do menu leva a tela que não funciona |
+| 0.3 | ✅ Corrigir bugs 1–6 e 8–10 de `BUGS-TAPP0-CRM.md` (status de cada um no arquivo) | M | cada bug com correção e marcado como resolvido no arquivo |
+| 0.4 | ✅ Tirar do menu as 3 fachadas até a Fase 3 entregar | P | nenhum item do menu leva a tela que não funciona |
 | 0.5 | Decidir visibilidade do repositório (hoje **público**) | P | decisão tomada |
-| 0.6 | Roteiro de teste manual (cadastro → lead → pipeline → inbox → IA) em `docs/` | P | roteiro executado do começo ao fim sem erro |
+| 0.6 | ✅ Roteiro de teste manual em `docs/ROTEIRO-TESTE.md` | P | roteiro executado do começo ao fim sem erro |
 
 ## Fase 1 — Fundação técnica
 
