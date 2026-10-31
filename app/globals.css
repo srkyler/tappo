@@ -242,6 +242,8 @@
   }
   textarea.campo { height: auto; padding: 10px 12px; resize: vertical; min-height: 88px; }
   select.campo { appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+  /* iPhone dá zoom em campo com fonte < 16px: no celular, 16px */
+  @media (max-width: 639px) { .campo { font-size: 16px; } }
   .campo::placeholder { color: #5A5A5A; }
   .campo:hover { border-color: #3A3A3A; }
   .campo:focus { border-color: var(--acento, #FAFAFA); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento, #FAFAFA) 20%, transparent); }

@@ -116,7 +116,7 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 | 4.3 ✅ | **Busca global** (leads, empresas, conversas, negócios) na paleta de comandos | P | Ctrl+K acha qualquer registro |
 | 4.4 ✅ | Pipeline com arrastar e soltar, filtros salvos e valores por etapa | M | gestor move e filtra sem recarregar |
 | 4.5 ✅ | **Alertas de SLA** reais (usa 1.1 + notificações) | P | conversa parada além do SLA notifica o responsável e o gestor |
-| 4.6 | Revisão mobile das telas principais (Inbox, Leads, Pipeline, Tarefas) | M | uso completo pelo celular |
+| 4.6 ✅ | Revisão mobile das telas principais (Inbox, Leads, Pipeline, Tarefas) | M | uso completo pelo celular |
 
 ## Fase 5 — Agente do CRM "tipo Claude Code"
 

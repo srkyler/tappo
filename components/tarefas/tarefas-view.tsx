@@ -89,13 +89,13 @@ export function TarefasView({ inicial }: { inicial: { tarefas: Tarefa[]; empresa
             <h2 className="text-[14px] font-medium text-white">Tarefas pendentes ({pendentes.length})</h2>
 
           <div className="overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-left text-[11px] uppercase text-gray-500">
                   <th className="pb-3 font-medium">Tarefa</th>
                   <th className="pb-3 font-medium text-right w-24">Vence</th>
-                  <th className="pb-3 font-medium text-right w-16">Prioridade</th>
-                  <th className="pb-3 font-medium w-20"></th>
+                  <th className="hidden w-20 pb-3 text-right font-medium sm:table-cell">Prioridade</th>
+                  <th className="w-12 pb-3 font-medium sm:w-16"><span className="sr-only">Concluir</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -107,7 +107,7 @@ export function TarefasView({ inicial }: { inicial: { tarefas: Tarefa[]; empresa
                   pendentes.map((t) => (
                     <tr key={t.id} className="hover:bg-gray-900/30">
                       <td className="py-3 pr-2">
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           {(() => { const Comp = IconeTipo(t.tipo); return <Comp size={14} className="text-gray-500 shrink-0" />; })()}
                           <span className="truncate text-[13px] font-medium text-white">{t.titulo}</span>
                           {t.descricao && <span className="text-[11px] text-gray-500 ml-auto hidden sm:block">· {t.descricao}</span>}
@@ -118,12 +118,12 @@ export function TarefasView({ inicial }: { inicial: { tarefas: Tarefa[]; empresa
                           <div className={`text-[12px] font-medium ${new Date(t.vence_em) < new Date() ? "text-red-400" : "text-white"}`}>{new Date(t.vence_em).toLocaleDateString("pt-BR")}</div>
                         ) : <span className="text-gray-500">—</span>}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="hidden py-3 text-right sm:table-cell">
                         <span className={`inline-flex h-6 items-center rounded-full border px-2 font-mono text-[10px] uppercase ${t.prioridade === "alta" ? "border-red-500 text-red-400" : t.prioridade === "media" ? "border-white text-white" : "border-gray-500 text-gray-500"}`}>{t.prioridade}</span>
                       </td>
                       <td className="py-3 text-right">
-                        <button onClick={() => toggle(t.id, false)} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-800 hover:text-white" aria-label="Concluir tarefa">
-                          <CheckCircle size={14} strokeWidth={0} fill="currentColor" />
+                        <button onClick={() => toggle(t.id, false)} className="rounded-md p-2.5 text-gray-500 hover:bg-gray-800 hover:text-white" aria-label="Concluir tarefa">
+                          <CheckCircle size={16} strokeWidth={0} fill="currentColor" />
                         </button>
                       </td>
                     </tr>

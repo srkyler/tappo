@@ -98,7 +98,8 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
   },
 ];
 const TODOS = GRUPOS.flatMap((g) => g.itens);
-const MOBILE = ["/app", "/app/agente", "/app/leads", "/app/pipeline"];
+// Barra do celular: o que se usa na rua — atender, leads, negócios. O resto fica em "Mais" (Ctrl+K).
+const MOBILE = ["/app", "/app/inbox", "/app/leads", "/app/pipeline"];
 
 function ativo(path: string, href: string) {
   return href === "/app" ? path === "/app" : path.startsWith(href);

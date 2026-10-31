@@ -217,7 +217,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
           {conexaoAtiva ? `WhatsApp não conectado (${conexaoAtiva.status}).` : "Nenhuma conexão de WhatsApp."} Gerenciar e ler o QR na página Conexões.
         </button>
       )}
-      <div className="painel grid h-[calc(100svh-230px)] min-h-[480px] overflow-hidden md:grid-cols-[320px_1fr]">
+      <div className="painel grid h-[calc(100svh-290px)] min-h-[420px] overflow-hidden md:h-[calc(100svh-230px)] md:min-h-[480px] md:grid-cols-[320px_1fr]">
         {/* Lista */}
         <aside className={cn("flex min-h-0 flex-col border-gray-800 md:border-r", sel && "hidden md:flex")}>
           <div className="space-y-2 border-b border-gray-800 p-3">
