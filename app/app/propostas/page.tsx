@@ -3,85 +3,50 @@ import { Cabecalho, Pagina, Vazio } from "@/components/ui/base";
 import { AvisoBanco } from "@/components/dashboard/aviso-banco";
 import { bancoPronto } from "@/lib/data/queries";
 import { lerPropostas } from "@/lib/data/tags";
-import { salvarProposta, excluirProposta, enviarProposta } from "@/app/app/propostas/actions";
-import { gerarPdfProposta } from "@/app/app/propostas/actions-pdf";
+import { createClient } from "@/lib/supabase/server";
+import { LinhaProposta } from "@/components/propostas/linha-proposta";
+import { FormProposta } from "@/components/propostas/form-proposta";
 import { formatBRL } from "@/lib/data/format";
 
 export const metadata = { title: "Propostas — Tappo" };
 
 async function Conteudo() {
   if (!(await bancoPronto())) return <AvisoBanco />;
-  const propostas = await lerPropostas();
+  const supabase = await createClient();
+  const [propostas, { data: leads }] = await Promise.all([
+    lerPropostas(),
+    supabase.from("leads").select("id, nome, empresa").order("created_at", { ascending: false }).limit(500),
+  ]);
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
+  const soma = (st: string[]) => propostas.filter((p) => st.includes(p.status)).reduce((a, p) => a + Number(p.valor ?? 0), 0);
 
   return (
     <div className="space-y-6">
-      <Cabecalho rotulo="Vendas" titulo="Propostas" descricao="Crie e acompanhe orçamentos e propostas comerciais." />
+      <Cabecalho rotulo="Vendas" titulo="Propostas" descricao="Crie a proposta, gere o link e o cliente aceita ou recusa sem precisar de login. Você é avisado no sino." />
 
-      <div className="grid lg:grid-cols-[1fr_420px] gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {[["Em aberto", soma(["enviado", "visualizado"])], ["Aceitas", soma(["aceito"])], ["Recusadas", soma(["rejeitado"])]].map(([r, v]) => (
+          <div key={r as string} className="painel p-4"><p className="text-[11px] text-gray-500">{r}</p><p className="text-[18px] font-semibold text-white tabular">{formatBRL(v as number)}</p></div>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
         <section className="painel">
           <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3">
             <h2 className="text-[13px] font-medium text-white">Propostas ({propostas.length})</h2>
           </div>
-          <div className="px-5 py-3 space-y-2">
+          <div className="space-y-2 px-5 py-3">
             {propostas.length === 0 ? (
               <Vazio titulo="Sem propostas" texto="Crie sua primeira proposta para um lead ou negócio." />
             ) : (
-              <div className="space-y-2">
-                {propostas.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-900/30">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-white">{p.titulo}</p>
-                      <p className="text-[11px] text-gray-500">{formatBRL(p.valor)} · {p.status}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <form action={async (f) => { await enviarProposta(f.get("id") as string); }} className="flex" style={{ display: "contents" }}>
-                        <input type="hidden" name="id" value={p.id} />
-                        <button disabled={p.status !== "rascunho"} className={`text-[10px] px-2 py-1 rounded ${p.status === "rascunho" ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-600"}`} title="Enviar">Enviar</button>
-                      </form>
-                      {p.pdf_url ? (
-                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="text-[10px] text-emerald-400 hover:bg-emerald-500/10 px-2 py-1 rounded" title="Abrir PDF">PDF</a>
-                      ) : (
-                        <form action={async (f) => { await gerarPdfProposta(f.get("id") as string); }} className="flex" style={{ display: "contents" }}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <button disabled={p.status !== "rascunho"} className="text-[10px] px-2 py-1 rounded text-blue-400 hover:bg-blue-500/10" title="Gerar PDF">Gerar PDF</button>
-                        </form>
-                      )}
-                      <form action={async (f) => { await excluirProposta(f.get("id") as string); }} className="flex" style={{ display: "contents" }}>
-                        <input type="hidden" name="id" value={p.id} />
-                        <button className="text-[10px] text-red-400 hover:bg-red-500/10 px-2 py-1 rounded" title="Excluir">Excluir</button>
-                      </form>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              propostas.map((p) => <LinhaProposta key={p.id} p={p} base={base} />)
             )}
           </div>
         </section>
 
         <section className="painel p-5">
-          <h3 className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">Nova proposta</h3>
-          <form action={async (f) => { await salvarProposta(f); }} className="space-y-3">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Título</label>
-              <input name="titulo" placeholder="Ex.: Proposta comercial" className="campo w-full" required />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Valor (R$)</label>
-              <input name="valor" type="number" step="0.01" min="0" placeholder="0,00" className="campo w-full" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Status</label>
-              <select name="status" className="campo w-full">
-                <option value="rascunho">Rascunho</option>
-                <option value="enviado">Enviado</option>
-                <option value="visualizado">Visualizado</option>
-                <option value="aceito">Aceito</option>
-                <option value="rejeitado">Rejeitado</option>
-                <option value="expirado">Expirado</option>
-              </select>
-            </div>
-            <button className="btn btn-primario w-full">Criar proposta</button>
-          </form>
+          <h3 className="mb-3 text-[12px] font-medium uppercase tracking-wide text-gray-400">Nova proposta</h3>
+          <FormProposta leads={(leads ?? []) as { id: string; nome: string; empresa: string }[]} />
         </section>
       </div>
     </div>

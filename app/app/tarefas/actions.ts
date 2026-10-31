@@ -126,3 +126,77 @@ export async function enviarLembreteTarefaVencida(): Promise<{ ok: boolean; erro
     return { ok: true, enviadas };
   } catch (e) { return { ok: false, erro: falha(e).erro, enviadas: 0 }; }
 }
+
+/* ---------- Checklist e vários leads por tarefa (antigas telas "Checklist" e "Multi-lead") ---------- */
+
+export type DetalheTarefa = {
+  checklist: { id: string; titulo: string; concluido: boolean; ordem: number }[];
+  leads: { id: string; nome: string; empresa: string }[];
+};
+
+export async function detalheTarefa(tarefaId: string): Promise<DetalheTarefa> {
+  const { supabase } = await cliente();
+  const [{ data: itens }, { data: rel }] = await Promise.all([
+    supabase.from("checklist_item").select("id, titulo, concluido, ordem").eq("tarefa_id", tarefaId).order("ordem"),
+    supabase.from("tarefa_lead_rel").select("lead:leads(id, nome, empresa)").eq("tarefa_id", tarefaId),
+  ]);
+  return {
+    checklist: itens ?? [],
+    leads: ((rel ?? []) as unknown as { lead: { id: string; nome: string; empresa: string } | null }[]).map((r) => r.lead).filter((l): l is NonNullable<typeof l> => !!l),
+  };
+}
+
+export async function adicionarItemChecklist(tarefaId: string, titulo: string): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const t = titulo.trim().slice(0, 200);
+    if (!t) return { ok: false, erro: "Escreva o item." };
+    const { count } = await supabase.from("checklist_item").select("id", { count: "exact", head: true }).eq("tarefa_id", tarefaId);
+    const { error } = await supabase.from("checklist_item").insert({ tarefa_id: tarefaId, titulo: t, ordem: count ?? 0 });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function marcarItemChecklist(id: string, concluido: boolean): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const { error } = await supabase.from("checklist_item").update({ concluido }).eq("id", id);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function excluirItemChecklist(id: string): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const { error } = await supabase.from("checklist_item").delete().eq("id", id);
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function buscarLeadsParaTarefa(q: string): Promise<{ id: string; nome: string; empresa: string }[]> {
+  const { supabase } = await cliente();
+  const t = q.replace(/[%_,()*.:"]/g, " ").trim().slice(0, 60);
+  if (t.length < 2) return [];
+  const { data } = await supabase.from("leads").select("id, nome, empresa").or(`nome.ilike.%${t}%,empresa.ilike.%${t}%`).limit(8);
+  return data ?? [];
+}
+
+export async function vincularLeadTarefa(tarefaId: string, leadId: string, vincular: boolean): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    if (vincular) {
+      const { data: ja } = await supabase.from("tarefa_lead_rel").select("id").eq("tarefa_id", tarefaId).eq("lead_id", leadId).maybeSingle();
+      if (!ja) {
+        const { error } = await supabase.from("tarefa_lead_rel").insert({ tarefa_id: tarefaId, lead_id: leadId });
+        if (error) throw error;
+      }
+    } else {
+      const { error } = await supabase.from("tarefa_lead_rel").delete().eq("tarefa_id", tarefaId).eq("lead_id", leadId);
+      if (error) throw error;
+    }
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}

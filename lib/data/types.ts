@@ -232,6 +232,13 @@ export type Proposta = {
   pdf_url: string | null;
   enviado_em: string | null;
   criado_em: string;
+  descricao?: string | null;
+  token_publico?: string | null;
+  link_expira_em?: string | null;
+  visualizado_em?: string | null;
+  respondido_em?: string | null;
+  resposta_nome?: string | null;
+  resposta_mensagem?: string | null;
       atualizado_em: string;
 };
 

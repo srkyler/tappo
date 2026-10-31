@@ -50,6 +50,7 @@ export async function middleware(request: NextRequest) {
     "/redefinir-senha",
     "/convite", // convite por token
     "/captar", // captação por token
+    "/p", // proposta para o cliente aceitar (por token)
   ];
   const isPublic =
     publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith("/auth/")) ||

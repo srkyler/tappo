@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
+import { DetalheTarefa } from "./detalhe-tarefa";
 import { Phone, Activity, Mail, Video, MapPin, CheckCircle, Clock, Plus, type LucideIcon } from "lucide-react";
 import { criarTarefa, concluirTarefa, listarTarefas } from "@/app/app/tarefas/actions";
 import type { Tarefa } from "@/lib/data/types";
@@ -25,6 +26,7 @@ type EmpresaRes = { id: string; nome: string } | null;
 export function TarefasView({ inicial }: { inicial: { tarefas: Tarefa[]; empresa: EmpresaRes } | null }) {
   const [tarefas, setTarefas] = useState<Tarefa[]>(inicial?.tarefas ?? []);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
   const pendentes = tarefas.filter((t) => !t.concluida_em);
@@ -105,11 +107,12 @@ export function TarefasView({ inicial }: { inicial: { tarefas: Tarefa[]; empresa
                   </tr>
                 ) : (
                   pendentes.map((t) => (
-                    <tr key={t.id} className="hover:bg-gray-900/30">
+                    <Fragment key={t.id}>
+                    <tr className="hover:bg-gray-900/30">
                       <td className="py-3 pr-2">
                         <div className="flex min-w-0 items-center gap-3">
                           {(() => { const Comp = IconeTipo(t.tipo); return <Comp size={14} className="text-gray-500 shrink-0" />; })()}
-                          <span className="truncate text-[13px] font-medium text-white">{t.titulo}</span>
+                          <button onClick={() => setAberta(aberta === t.id ? null : t.id)} aria-expanded={aberta === t.id} className="truncate text-left text-[13px] font-medium text-white hover:underline" title="Checklist e leads">{t.titulo}</button>
                           {t.descricao && <span className="text-[11px] text-gray-500 ml-auto hidden sm:block">· {t.descricao}</span>}
                         </div>
                       </td>
@@ -127,6 +130,10 @@ export function TarefasView({ inicial }: { inicial: { tarefas: Tarefa[]; empresa
                         </button>
                       </td>
                     </tr>
+                    {aberta === t.id && (
+                      <tr><td colSpan={4} className="border-t-0 bg-gray-900/20 px-3"><DetalheTarefa tarefaId={t.id} /></td></tr>
+                    )}
+                    </Fragment>
                   ))
                 )}
               </tbody>
