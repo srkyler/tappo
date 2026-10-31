@@ -10,6 +10,8 @@ import { agenteAtivoPublico } from "@/lib/ai/agentes";
 import { perfilDaEmpresa } from "@/lib/ai/assistente";
 import type { Atendente, Execucao, ItemConhecimento, Memoria } from "@/lib/ai/assistente-tipos";
 import type { CanalAtendente } from "@/components/assistente/atendentes";
+import type { AgendaIA } from "@/components/assistente/google-agenda";
+import { googleConfigurado } from "@/lib/google/agenda";
 
 export const metadata = { title: "Assistente IA — Tappo" };
 
@@ -22,7 +24,7 @@ async function Conteudo() {
   const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
   const contar = (t: string) => supabase.from(t).select("id", { count: "exact", head: true }).eq("org_id", empresa.id).eq("ia_ativa", true);
 
-  const [perfil, conhecimento, memorias, execucoes, limite, usados, agente, wa, tg, em, qualificacao, atendentes, waCanais, tgCanais, emCanais] = await Promise.all([
+  const [perfil, conhecimento, memorias, execucoes, limite, usados, agente, wa, tg, em, qualificacao, atendentes, waCanais, tgCanais, emCanais, gAgenda] = await Promise.all([
     perfilDaEmpresa(supabase, empresa.id),
     supabase.from("ia_conhecimento").select("id, tipo, titulo, conteudo, status, origem, usos, ultimo_uso_em, updated_at")
       .eq("org_id", empresa.id).order("updated_at", { ascending: false }).limit(500),
@@ -44,7 +46,10 @@ async function Conteudo() {
     supabase.from("wa_conexoes").select("id, apelido, numero, status, atendente_id").eq("org_id", empresa.id).order("criado_at"),
     supabase.from("telegram_conexoes").select("id, bot_username, status, atendente_id").eq("org_id", empresa.id),
     supabase.from("email_conexoes").select("id, endereco_recebe, atendente_id").eq("org_id", empresa.id),
+    // google_agenda é só da service role: lido aqui sem o token, filtrado pela empresa
+    createAdminClient().from("google_agenda").select("email, duracao_min, antecedencia_horas, dias_a_frente, ativo").eq("org_id", empresa.id).maybeSingle(),
   ]);
+  const agenda: AgendaIA = { disponivel: googleConfigurado(), conectada: gAgenda.data ?? null };
   // Sem a migration dos atendentes, as colunas atendente_id não existem: a aba aparece vazia
   const canais: CanalAtendente[] = [
     ...(waCanais.data ?? []).map((c) => ({ canal: "whatsapp" as const, id: c.id, nome: `WhatsApp ${c.apelido ?? ""}${c.numero ? ` (+${c.numero})` : ""}`.trim(), status: c.status, atendente_id: c.atendente_id })),
@@ -76,6 +81,7 @@ async function Conteudo() {
       perguntasQualificacao={qualificacao.count ?? 0}
       atendentes={(atendentes.data ?? []) as Atendente[]}
       canais={canais}
+      agenda={agenda}
     />
   );
 }

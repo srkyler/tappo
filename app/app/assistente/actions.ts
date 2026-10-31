@@ -339,3 +339,40 @@ export async function aplicarImportacao(dados: DadosDoSite, sobrescrever: boolea
     return { ok: true };
   } catch (e) { return falha(e); }
 }
+
+/* ---------------- Google Agenda (a IA vê horários livres e marca reuniões) ---------------- */
+
+export async function salvarAgendaIA(fd: FormData): Promise<ActionResult> {
+  try {
+    const { empresa } = await gestor();
+    const n = (k: string, min: number, max: number, padrao: number) => {
+      const v = Number(fd.get(k));
+      return Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : padrao;
+    };
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { error } = await createAdminClient().from("google_agenda").update({
+      duracao_min: n("duracao_min", 10, 240, 30),
+      antecedencia_horas: n("antecedencia_horas", 0, 168, 2),
+      dias_a_frente: n("dias_a_frente", 1, 60, 14),
+      ativo: marcado(fd, "ativo"),
+      updated_at: new Date().toISOString(),
+    }).eq("org_id", empresa.id);
+    if (error) throw error;
+    revalidar();
+    return { ok: true };
+  } catch (e) {
+    return falha(e);
+  }
+}
+
+export async function desconectarGoogleAgenda(): Promise<ActionResult> {
+  try {
+    const { empresa } = await gestor();
+    const [{ createAdminClient }, { desconectarAgenda }] = await Promise.all([import("@/lib/supabase/admin"), import("@/lib/google/agenda")]);
+    await desconectarAgenda(createAdminClient(), empresa.id);
+    revalidar();
+    return { ok: true };
+  } catch (e) {
+    return falha(e);
+  }
+}

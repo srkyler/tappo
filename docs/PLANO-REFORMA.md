@@ -74,7 +74,7 @@ Comparado item a item com o DeskcommCRM (`lib/waha/*`, `lib/channels/*`, `docker
 |---|---|---|---|
 | 2.1 | ✅ **Áudio**: transcrever mensagem de voz antes da IA responder (provedor de transcrição configurado no `/admin`, ex.: Whisper via Groq/OpenAI) | M | cliente manda áudio e a IA responde ao conteúdo; transcrição aparece no Inbox |
 | 2.2 | ✅ **Imagem**: IA lê foto/print (modelos com visão) | M | cliente manda foto de produto/comprovante e a IA entende |
-| 2.3 | **Agendamento real**: Google Agenda por empresa; IA consulta horários livres e marca | G | IA oferece 3 horários, cliente escolhe, evento criado na agenda e tarefa no CRM |
+| 2.3 ✅ | **Agendamento real**: Google Agenda por empresa; IA consulta horários livres e marca | G | IA oferece 3 horários, cliente escolhe, evento criado na agenda e tarefa no CRM |
 | 2.4 | ✅ **Resumo na transferência**: ao passar para humano, a IA deixa nota com resumo + o que o cliente quer | P | atendente abre a conversa e lê o resumo no topo |
 | 2.5 | ✅ **Follow-up automático** (usa 1.1): lead sem resposta há X dias recebe mensagem personalizada com base na memória | M | regra configurável em `/app/assistente`, respeitando horário e limite anti-flood |
 | 2.6 | ✅ **Sugestão automática de FAQ**: perguntas repetidas sem resposta viram sugestões (status `sugerido`) para aprovar | P | aba Conhecimento › Sugestões se preenche sozinha |
@@ -87,7 +87,7 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 
 | Tela | Decisão | Onde fica | Tam. |
 |---|---|---|---|
-| Calendário *(menu)* | Implementar | visão mês/semana de tarefas e reuniões (`tarefas.vence_em` + Google Agenda da 2.3) | M |
+| Calendário *(menu)* ✅ | Implementado (mês) | visão mês/semana de tarefas e reuniões (`tarefas.vence_em` + Google Agenda da 2.3) | M |
 | Dashboard Executivo *(menu)* | Implementar | receita prevista, conversão por etapa, ciclo de venda, IA vs. humano | M |
 | Tarefas Recorrentes *(menu)* | Implementar | dentro de Tarefas, gerada pelo agendador (1.1) | M |
 | Checklist de tarefa / Tarefa multi-lead | Fundir | dentro de Tarefas (tabelas `checklist_item`, `tarefa_lead_rel` já existem) | M |

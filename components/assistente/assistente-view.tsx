@@ -13,6 +13,7 @@ import { TestarAssistente } from "./testar";
 import { Atividade } from "./atividade";
 import { Atendentes, type CanalAtendente } from "./atendentes";
 import { ImportarSite } from "./importar-site";
+import { GoogleAgenda, type AgendaIA } from "./google-agenda";
 
 type Aba = "empresa" | "atendentes" | "conhecimento" | "memoria" | "regras" | "testar" | "atividade";
 
@@ -33,6 +34,7 @@ export function AssistenteView(p: {
   perguntasQualificacao: number;
   atendentes: Atendente[];
   canais: CanalAtendente[];
+  agenda: AgendaIA;
 }) {
   const [aba, setAba] = useState<Aba>("empresa");
   // Atalho do log de atividade: "Ensinar resposta" abre o cadastro de FAQ já preenchido
@@ -117,6 +119,7 @@ export function AssistenteView(p: {
         <Conhecimento itens={p.conhecimento} gestor={p.gestor} ensinar={ensinar} aoUsarEnsinar={() => setEnsinar(null)} />
       )}
       {aba === "memoria" && <MemoriaIA memorias={p.memorias} gestor={p.gestor} />}
+      {aba === "regras" && <GoogleAgenda agenda={p.agenda} gestor={p.gestor} />}
       {aba === "regras" && (
         <FormRegras perfil={p.perfil} gestor={p.gestor} perguntasQualificacao={p.perguntasQualificacao} />
       )}

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Agente } from "./agentes";
 import { agenteDoAtendente, atendenteQueResponde, colegasDe, perfilComAtendente } from "./atendentes";
+import { configAgenda, googleConfigurado } from "@/lib/google/agenda";
 import { registrarErro } from "@/lib/erros";
 import { enfileirar } from "@/lib/jobs/fila";
 import { rodarAgente, type Evento, type Mensagem } from "./motor";
@@ -134,12 +135,13 @@ export async function gerarRespostaIA(db: SupabaseClient, p: {
   if (ultima?.role !== "user") return null;
 
   const contato = chaveDoContato(p.conversa.telefone, p.conversa.chat_id);
-  const [perfilEmpresa, { data: org }, memorias, trechos] = await Promise.all([
+  const [perfilEmpresa, { data: org }, memorias, trechos, cfgAgenda] = await Promise.all([
     perfilDaEmpresa(db, p.orgId),
     db.from("organizacoes").select("nome, segmento").eq("id", p.orgId).single(),
     memoriasDoContexto(db, p.orgId, teste ? null : contato),
     // RAG proativo: os trechos mais relevantes para a última mensagem já vão no contexto
     buscarConhecimento(db, ultima.content, p.orgId, 3).catch((): Trecho[] => []),
+    googleConfigurado() ? configAgenda(db, p.orgId).catch(() => null) : Promise.resolve(null),
   ]);
   const colegas = await colegasDe(db, p.orgId, atendente);
   const perfil = perfilComAtendente(perfilEmpresa, atendente, colegas);
@@ -148,7 +150,10 @@ export async function gerarRespostaIA(db: SupabaseClient, p: {
   const ligadas = { lead: perfil.pode_criar_lead, tarefa: perfil.pode_criar_tarefa, memoria: perfil.aprender_contatos };
 
   const registro: RegistroExecucao = { ferramentas: [], conhecimento: new Map(trechos.map((t) => [t.conhecimento_id, t.titulo])), transferir: null, outroAtendente: null };
-  const ferramentas = ferramentasAtendimento({ db, orgId: p.orgId, conversa: p.conversa, contato, teste, ligadas, registro, colegas });
+  const ferramentas = ferramentasAtendimento({
+    db, orgId: p.orgId, conversa: p.conversa, contato, teste, ligadas, registro, colegas,
+    agenda: cfgAgenda ? { cfg: cfgAgenda, horario: perfil.horario } : null,
+  });
   const sistema = {
     estavel: promptAtendimentoEstavel({
       perfil, nomeEmpresa: org?.nome ?? "a empresa", segmento, canal: p.canal, qualificacao,
@@ -159,7 +164,10 @@ export async function gerarRespostaIA(db: SupabaseClient, p: {
     }) + (p.instrucaoExtra ? `
 
 # Instrução para esta mensagem
-${p.instrucaoExtra}` : ""),
+${p.instrucaoExtra}` : "") + (cfgAgenda ? `
+
+# Agendamento
+Hoje é ${new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date())} (Brasília). Você pode marcar reuniões de ${cfgAgenda.duracao_min} min: consulte ver_horarios_livres, ofereça 2 ou 3 opções, e só chame agendar_reuniao depois que o cliente escolher. Nunca prometa um horário sem consultar a agenda.` : ""),
   };
 
   await p.antesDeRodar?.();

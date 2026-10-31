@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { FerramentaNeutra } from "./ferramentas";
 import { buscarConhecimento, type FerramentasLigadas } from "./assistente";
+import type { Horario } from "./assistente-tipos";
+import { criarEvento, deBrasilia, horarioCabe, horariosLivres, rotuloHorario, type ConfigAgenda } from "@/lib/google/agenda";
 
 /*
  * Ferramentas do assistente no atendimento (WhatsApp, Telegram, e-mail, teste).
@@ -45,6 +47,8 @@ type Ctx = {
   registro: RegistroExecucao;
   /** Outros atendentes de IA ativos da empresa (sem o atual). Vazio = ferramenta some. */
   colegas?: ColegaIA[];
+  /** Google Agenda conectada e ligada: liga ver_horarios_livres/agendar_reuniao. */
+  agenda?: { cfg: ConfigAgenda; horario: Horario } | null;
 };
 
 const SCHEMAS = {
@@ -64,6 +68,12 @@ const SCHEMAS = {
   }),
   transferir_para_humano: z.object({ motivo: z.string().min(3).max(300) }),
   transferir_para_atendente: z.object({ atendente: z.string().min(1).max(60), motivo: z.string().min(3).max(300) }),
+  ver_horarios_livres: z.object({ dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "use AAAA-MM-DD").optional() }),
+  agendar_reuniao: z.object({
+    inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "use AAAA-MM-DDTHH:MM"),
+    assunto: z.string().min(3).max(140),
+    email_cliente: z.string().email().max(160).optional(),
+  }),
 } as const;
 type Nome = keyof typeof SCHEMAS;
 
@@ -120,6 +130,22 @@ const DEFINICOES: Record<Nome, { description: string; parameters: Record<string,
       required: ["atendente", "motivo"],
     },
   },
+  ver_horarios_livres: {
+    description: "Horários livres na agenda da empresa para uma reunião/atendimento. Sem 'dia', traz as próximas opções; com 'dia', as opções daquele dia. Ofereça 2 ou 3 ao cliente — nunca invente horários.",
+    parameters: { type: "object", properties: { dia: { type: "string", description: "AAAA-MM-DD (opcional)" } } },
+  },
+  agendar_reuniao: {
+    description: "Marca a reunião na agenda da empresa num horário que o cliente ESCOLHEU entre os livres, e cria a tarefa para a equipe. Confirme data e hora com o cliente antes.",
+    parameters: {
+      type: "object",
+      properties: {
+        inicio: { type: "string", description: "AAAA-MM-DDTHH:MM (horário de Brasília), exatamente um dos horários livres" },
+        assunto: { type: "string", description: "Do que se trata (ex.: 'Demonstração do produto')" },
+        email_cliente: { type: "string", description: "E-mail do cliente para receber o convite (opcional)" },
+      },
+      required: ["inicio", "assunto"],
+    },
+  },
 };
 
 export const ROTULO_FERRAMENTA_ATENDIMENTO: Record<string, string> = {
@@ -130,20 +156,24 @@ export const ROTULO_FERRAMENTA_ATENDIMENTO: Record<string, string> = {
   criar_tarefa_equipe: "Criando tarefa para a equipe",
   transferir_para_humano: "Transferindo para um humano",
   transferir_para_atendente: "Passando para outro atendente",
+  ver_horarios_livres: "Consultando a agenda",
+  agendar_reuniao: "Marcando a reunião",
 };
 
-function disponiveis(l: FerramentasLigadas, temColegas: boolean): Nome[] {
+function disponiveis(l: FerramentasLigadas, temColegas: boolean, temAgenda: boolean): Nome[] {
   return (Object.keys(DEFINICOES) as Nome[]).filter((n) =>
     (n !== "salvar_cliente" || l.lead) && (n !== "criar_tarefa_equipe" || l.tarefa) && (n !== "lembrar_sobre_cliente" || l.memoria)
-    && (n !== "transferir_para_atendente" || temColegas));
+    && (n !== "transferir_para_atendente" || temColegas)
+    && ((n !== "ver_horarios_livres" && n !== "agendar_reuniao") || temAgenda));
 }
+const MAX_REUNIOES_FUTURAS_POR_CONVERSA = 2;
 
 const TIPO_TAREFA: Record<string, string> = { whatsapp: "whatsapp", telegram: "outro", email: "email" };
 const MAX_MEMORIAS_POR_CONTATO = 40;
 const ok = (v: unknown) => JSON.stringify(v, (_k, val) => (val === null || val === "" ? undefined : val));
 
 async function executar(ctx: Ctx, nome: string, entrada: unknown): Promise<string> {
-  if (!(nome in SCHEMAS) || !disponiveis(ctx.ligadas, !!ctx.colegas?.length).includes(nome as Nome)) throw new Error(`Ferramenta indisponível: ${nome}`);
+  if (!(nome in SCHEMAS) || !disponiveis(ctx.ligadas, !!ctx.colegas?.length, !!ctx.agenda).includes(nome as Nome)) throw new Error(`Ferramenta indisponível: ${nome}`);
   const p = SCHEMAS[nome as Nome].safeParse(entrada);
   if (!p.success) throw new Error(`Entrada inválida: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
   const i = p.data as Record<string, string | undefined>;
@@ -236,6 +266,41 @@ async function executar(ctx: Ctx, nome: string, entrada: unknown): Promise<strin
       ctx.registro.outroAtendente = { id: alvo.id, nome: alvo.nome };
       return `Conversa passada para ${alvo.nome}${teste ? " (teste: nada foi gravado)" : ""}. Avise o cliente, numa frase, que ${alvo.nome} vai continuar o atendimento a partir da próxima mensagem.`;
     }
+    case "ver_horarios_livres": {
+      const { cfg, horario } = ctx.agenda!;
+      const livres = await horariosLivres(db, cfg, horario, { dia: i.dia });
+      if (!livres.length) return ok({ livres: [], aviso: i.dia ? "Sem horários livres nesse dia. Ofereça outro dia." : "Sem horários livres nos próximos dias. Ofereça transferir para a equipe." });
+      return ok({ duracao_min: cfg.duracao_min, livres: livres.map((t) => ({ inicio: new Date(t - 3 * 3_600_000).toISOString().slice(0, 16), quando: rotuloHorario(t) })) });
+    }
+    case "agendar_reuniao": {
+      const { cfg, horario } = ctx.agenda!;
+      const inicio = deBrasilia(i.inicio!);
+      const problema = await horarioCabe(db, cfg, horario, inicio);
+      if (problema) return ok({ agendado: false, motivo: `${problema} Consulte ver_horarios_livres e ofereça outro.` });
+      if (teste) return ok({ simulado: true, quando: rotuloHorario(inicio), mensagem: "Teste: a reunião seria marcada na agenda e a tarefa criada." });
+      // O contato do outro lado controla o texto: no máximo N reuniões futuras por conversa
+      if (conversa.id) {
+        const { count } = await db.from("tarefas").select("id", { count: "exact", head: true })
+          .eq("org_id", orgId).eq("conversa_id", conversa.id).not("google_evento_id", "is", null).is("concluida_em", null)
+          .gt("vence_em", new Date().toISOString());
+        if ((count ?? 0) >= MAX_REUNIOES_FUTURAS_POR_CONVERSA) return ok({ agendado: false, motivo: "Este cliente já tem reuniões marcadas. Para remarcar, transfira para a equipe." });
+      }
+      const quem = [conversa.nome, conversa.telefone ? `+${conversa.telefone}` : null].filter(Boolean).join(" · ") || "cliente";
+      const titulo = `${i.assunto} — ${conversa.nome ?? "cliente"}`;
+      const evento = await criarEvento(db, cfg, {
+        inicio, titulo,
+        descricao: `Marcado pelo assistente de IA do Tappo (${conversa.canal}).\nCliente: ${quem}${i.email_cliente ? `\nE-mail: ${i.email_cliente}` : ""}`,
+        convidado: i.email_cliente ?? null,
+      });
+      const { error } = await db.from("tarefas").insert({
+        org_id: orgId, user_id: conversa.user_id, responsavel_id: conversa.atribuido_a ?? conversa.user_id,
+        lead_id: conversa.lead_id, conversa_id: conversa.id, titulo,
+        descricao: `Reunião marcada pelo assistente de IA (Google Agenda).\nCliente: ${quem}`,
+        tipo: "reuniao", prioridade: "alta", vence_em: new Date(inicio).toISOString(), google_evento_id: evento.id,
+      });
+      if (error) throw error;
+      return ok({ agendado: true, quando: rotuloHorario(inicio), duracao_min: cfg.duracao_min, convite_enviado: !!i.email_cliente });
+    }
   }
 }
 
@@ -245,7 +310,7 @@ export function ferramentasAtendimento(ctx: Ctx): {
   executar: (nome: string, entrada: unknown) => Promise<string>;
 } {
   return {
-    definicoes: disponiveis(ctx.ligadas, !!ctx.colegas?.length).map((name) => ({ name, description: DEFINICOES[name].description, parameters: DEFINICOES[name].parameters })),
+    definicoes: disponiveis(ctx.ligadas, !!ctx.colegas?.length, !!ctx.agenda).map((name) => ({ name, description: DEFINICOES[name].description, parameters: DEFINICOES[name].parameters })),
     rotulos: ROTULO_FERRAMENTA_ATENDIMENTO,
     executar: (nome, entrada) => executar(ctx, nome, entrada),
   };

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3, Building2, Brain, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
+  BarChart3, Building2, Brain, CalendarDays, ChevronDown, CornerDownLeft, Inbox, KanbanSquare, LayoutGrid, MoreHorizontal, Plus, Radar, Search, Send,
   Settings, Sparkles, Users, UserRound, Webhook, Zap, Activity, Clock, CreditCard, Timer, Briefcase, Copy, Workflow, MapPin, Megaphone, Bot, Plug, Network, BrainCircuit, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
@@ -70,6 +70,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
     titulo: "Tarefas e agenda",
     itens: [
       { href: "/app/tarefas", label: "Tarefas", Icone: Clock },
+      { href: "/app/calendario", label: "Calendário", Icone: CalendarDays },
     ],
   },
   {
