@@ -172,3 +172,75 @@ export async function excluirMemoria(id: string): Promise<ActionResult> {
     return { ok: true };
   } catch (e) { return falha(e); }
 }
+
+/* ---------------- Atendentes de IA (vários por empresa) ---------------- */
+
+const CANAIS_ATENDENTE = { whatsapp: "wa_conexoes", telegram: "telegram_conexoes", email: "email_conexoes" } as const;
+
+export async function salvarAtendente(f: FormData): Promise<ActionResult> {
+  try {
+    const { supabase, empresa } = await gestor();
+    const id = texto(f, "id", 40) || null;
+    const nome = texto(f, "nome", 60);
+    if (!nome) return { ok: false, erro: "Dê um nome ao atendente." };
+    const tom = texto(f, "tom", 20);
+    const objetivo = texto(f, "objetivo", 20);
+    const padrao = marcado(f, "padrao");
+    const campos = {
+      nome,
+      funcao: texto(f, "funcao", 200),
+      saudacao: texto(f, "saudacao", 500),
+      tom: tom in TONS ? tom : null,
+      objetivo: objetivo in OBJETIVOS ? objetivo : null,
+      instrucoes: texto(f, "instrucoes", 8000),
+      transferir_quando: texto(f, "transferir_quando", 2000),
+      ativo: marcado(f, "ativo"),
+      padrao,
+    };
+    // Um padrão por empresa: desmarca o anterior antes (o índice único recusaria)
+    if (padrao) {
+      let q = supabase.from("ia_atendentes").update({ padrao: false }).eq("org_id", empresa.id).eq("padrao", true);
+      if (id) q = q.neq("id", id);
+      const { error } = await q;
+      if (error) throw error;
+    }
+    const { error } = id
+      ? await supabase.from("ia_atendentes").update(campos).eq("id", id).eq("org_id", empresa.id)
+      : await supabase.from("ia_atendentes").insert({ ...campos, org_id: empresa.id });
+    if (error) throw error;
+    revalidar();
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+export async function excluirAtendente(id: string): Promise<ActionResult> {
+  try {
+    const { supabase, empresa } = await gestor();
+    const { error } = await supabase.from("ia_atendentes").delete().eq("id", id).eq("org_id", empresa.id);
+    if (error) throw error;
+    revalidar();
+    revalidatePath("/app/conexoes");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+/** Qual atendente responde em cada número/canal. atendenteId null = o padrão da empresa. */
+export async function atribuirAtendenteCanal(
+  canal: keyof typeof CANAIS_ATENDENTE, conexaoId: string, atendenteId: string | null,
+): Promise<ActionResult> {
+  try {
+    const { supabase, empresa } = await gestor();
+    if (!(canal in CANAIS_ATENDENTE)) return { ok: false, erro: "Canal inválido." };
+    if (atendenteId) {
+      // O atendente precisa ser desta empresa (a FK não confere a empresa)
+      const { data } = await supabase.from("ia_atendentes").select("id").eq("id", atendenteId).eq("org_id", empresa.id).maybeSingle();
+      if (!data) return { ok: false, erro: "Atendente não encontrado." };
+    }
+    const { error } = await supabase.from(CANAIS_ATENDENTE[canal]).update({ atendente_id: atendenteId })
+      .eq("id", conexaoId).eq("org_id", empresa.id);
+    if (error) throw error;
+    revalidar();
+    revalidatePath("/app/conexoes");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}

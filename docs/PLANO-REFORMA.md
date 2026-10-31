@@ -41,6 +41,12 @@ Comparado item a item com o DeskcommCRM (`lib/waha/*`, `lib/channels/*`, `docker
 (`openssl rand -hex 32` cada); `docker compose up -d`. Em até 5 min o vigia reconfigura as sessões existentes
 (assinatura + ack) sem pedir QR. Trocar `WAHA_ENGINE` para `NOWEB` exige ler o QR de novo — fazer num horário calmo.
 
+## Vários atendentes de IA (estilo DeskcommCRM) — feito
+
+- **Cliente** (`/app/assistente` › Atendentes): cria quantos atendentes quiser (nome, função, saudação, tom, objetivo, instruções, quando passar para humano), marca um como padrão e escolhe quem atende cada número de WhatsApp, Telegram e e-mail. Todos compartilham perfil, conhecimento e memória da empresa. Um atendente passa a conversa para outro (`transferir_para_atendente`).
+- **Admin** (`/admin` › Atendentes de IA das empresas): escolhe o modelo (agente da plataforma) de cada atendente; sem escolha, usa o agente ativo. O cliente nunca vê o modelo.
+- **IA que não respondia**: modelos que recusam ferramentas (NIM, Groq, OpenRouter, Ollama…) faziam o atendimento falhar calado. Agora a IA cai no modo simples e responde; o motivo real aparece em `/admin` › Falhas recentes, e o botão Testar do agente informa se o modelo aceita ferramentas.
+
 ## Fase 0 — Estabilizar (fazer primeiro)
 
 | # | Item | Tam. | Pronto quando |
@@ -57,17 +63,17 @@ Comparado item a item com o DeskcommCRM (`lib/waha/*`, `lib/channels/*`, `docker
 | # | Item | Tam. | Pronto quando |
 |---|---|---|---|
 | 1.1 | ✅ **Agendador**: rota `/api/v1/cron/[tarefa]` protegida por `CRON_SECRET` + serviço `agendador` no `docker-compose` (tick a cada minuto, histórico em `cron_execucoes`) | M | feito — primeira tarefa: vigia do WhatsApp |
-| 1.2 | **Fila de jobs** (`jobs`: tipo, payload, executar_em, tentativas, erro) com retentativa — o agendador consome | M | job que falha é retentado e o erro fica visível |
-| 1.3 | **Testes**: Vitest para `lib/` (motor de IA, busca, horário, ferramentas) + Playwright para o roteiro da 0.6 | M | `npm test` no CI do GitHub Actions, bloqueando deploy se falhar |
-| 1.4 | **Registro de erros** (tabela `erros_app` ou Sentry) em Server Actions e webhooks | P | erro em produção aparece com rota, empresa e mensagem |
-| 1.5 | Checagem de saúde `/api/health` (banco, WAHA, IA) + aviso no `/admin` | P | admin vê na hora o que está fora do ar |
+| 1.2 | ✅ **Fila de jobs** (`jobs`: tipo, payload, executar_em, tentativas, erro) com retentativa — o agendador consome | M | job que falha é retentado e o erro fica visível |
+| 1.3 | 🟡 **Testes**: Vitest em `tests/` (WAHA, mídia, horário, atendentes, CSV) rodando no CI antes do deploy. Falta: Playwright para o roteiro da 0.6 | M | `npm test` no CI do GitHub Actions, bloqueando deploy se falhar |
+| 1.4 | ✅ **Registro de erros** (`erros_app`, painel Falhas recentes no /admin) (tabela `erros_app` ou Sentry) em Server Actions e webhooks | P | erro em produção aparece com rota, empresa e mensagem |
+| 1.5 | ✅ Checagem de saúde `/api/health` (banco, WAHA, IA) + aviso no `/admin` | P | admin vê na hora o que está fora do ar |
 
 ## Fase 2 — IA de atendimento completa
 
 | # | Item | Tam. | Pronto quando |
 |---|---|---|---|
-| 2.1 | **Áudio**: transcrever mensagem de voz antes da IA responder (provedor de transcrição configurado no `/admin`, ex.: Whisper via Groq/OpenAI) | M | cliente manda áudio e a IA responde ao conteúdo; transcrição aparece no Inbox |
-| 2.2 | **Imagem**: IA lê foto/print (modelos com visão) | M | cliente manda foto de produto/comprovante e a IA entende |
+| 2.1 | ✅ **Áudio**: transcrever mensagem de voz antes da IA responder (provedor de transcrição configurado no `/admin`, ex.: Whisper via Groq/OpenAI) | M | cliente manda áudio e a IA responde ao conteúdo; transcrição aparece no Inbox |
+| 2.2 | ✅ **Imagem**: IA lê foto/print (modelos com visão) | M | cliente manda foto de produto/comprovante e a IA entende |
 | 2.3 | **Agendamento real**: Google Agenda por empresa; IA consulta horários livres e marca | G | IA oferece 3 horários, cliente escolhe, evento criado na agenda e tarefa no CRM |
 | 2.4 | **Resumo na transferência**: ao passar para humano, a IA deixa nota com resumo + o que o cliente quer | P | atendente abre a conversa e lê o resumo no topo |
 | 2.5 | **Follow-up automático** (usa 1.1): lead sem resposta há X dias recebe mensagem personalizada com base na memória | M | regra configurável em `/app/assistente`, respeitando horário e limite anti-flood |

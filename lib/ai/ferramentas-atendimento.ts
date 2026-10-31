@@ -20,13 +20,20 @@ export type ConversaIA = {
   telefone: string | null;
   lead_id: string | null;
   atribuido_a: string | null;
+  /** Atendente de IA para quem a conversa foi passada (sobrepõe o do canal). */
+  atendente_id?: string | null;
 };
 
 export type RegistroExecucao = {
   ferramentas: string[];
   conhecimento: Map<string, string>; // id → título (fontes usadas na resposta)
   transferir: { motivo: string } | null;
+  /** Conversa passada para outro atendente de IA (multiagente, estilo DeskcommCRM). */
+  outroAtendente: { id: string; nome: string } | null;
 };
+
+/** Outro atendente de IA da empresa para quem esta IA pode passar a conversa. */
+export type ColegaIA = { id: string; nome: string; funcao: string };
 
 type Ctx = {
   db: SupabaseClient;
@@ -36,6 +43,8 @@ type Ctx = {
   teste: boolean;
   ligadas: FerramentasLigadas;
   registro: RegistroExecucao;
+  /** Outros atendentes de IA ativos da empresa (sem o atual). Vazio = ferramenta some. */
+  colegas?: ColegaIA[];
 };
 
 const SCHEMAS = {
@@ -54,6 +63,7 @@ const SCHEMAS = {
     quando: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, "use AAAA-MM-DD ou AAAA-MM-DDTHH:MM").optional(),
   }),
   transferir_para_humano: z.object({ motivo: z.string().min(3).max(300) }),
+  transferir_para_atendente: z.object({ atendente: z.string().min(1).max(60), motivo: z.string().min(3).max(300) }),
 } as const;
 type Nome = keyof typeof SCHEMAS;
 
@@ -99,6 +109,17 @@ const DEFINICOES: Record<Nome, { description: string; parameters: Record<string,
     description: "Passa a conversa para um atendente humano. Use junto com uma mensagem avisando o cliente.",
     parameters: { type: "object", properties: { motivo: { type: "string", description: "Por que precisa de um humano" } }, required: ["motivo"] },
   },
+  transferir_para_atendente: {
+    description: "Passa a conversa para outro atendente de IA da empresa, mais adequado ao assunto (a lista de colegas e a função de cada um está nas suas instruções). Use junto com uma mensagem avisando o cliente.",
+    parameters: {
+      type: "object",
+      properties: {
+        atendente: { type: "string", description: "Nome exato do colega" },
+        motivo: { type: "string", description: "Assunto que o colega vai tratar" },
+      },
+      required: ["atendente", "motivo"],
+    },
+  },
 };
 
 export const ROTULO_FERRAMENTA_ATENDIMENTO: Record<string, string> = {
@@ -108,11 +129,13 @@ export const ROTULO_FERRAMENTA_ATENDIMENTO: Record<string, string> = {
   lembrar_sobre_cliente: "Guardando na memória",
   criar_tarefa_equipe: "Criando tarefa para a equipe",
   transferir_para_humano: "Transferindo para um humano",
+  transferir_para_atendente: "Passando para outro atendente",
 };
 
-function disponiveis(l: FerramentasLigadas): Nome[] {
+function disponiveis(l: FerramentasLigadas, temColegas: boolean): Nome[] {
   return (Object.keys(DEFINICOES) as Nome[]).filter((n) =>
-    (n !== "salvar_cliente" || l.lead) && (n !== "criar_tarefa_equipe" || l.tarefa) && (n !== "lembrar_sobre_cliente" || l.memoria));
+    (n !== "salvar_cliente" || l.lead) && (n !== "criar_tarefa_equipe" || l.tarefa) && (n !== "lembrar_sobre_cliente" || l.memoria)
+    && (n !== "transferir_para_atendente" || temColegas));
 }
 
 const TIPO_TAREFA: Record<string, string> = { whatsapp: "whatsapp", telegram: "outro", email: "email" };
@@ -120,7 +143,7 @@ const MAX_MEMORIAS_POR_CONTATO = 40;
 const ok = (v: unknown) => JSON.stringify(v, (_k, val) => (val === null || val === "" ? undefined : val));
 
 async function executar(ctx: Ctx, nome: string, entrada: unknown): Promise<string> {
-  if (!(nome in SCHEMAS) || !disponiveis(ctx.ligadas).includes(nome as Nome)) throw new Error(`Ferramenta indisponível: ${nome}`);
+  if (!(nome in SCHEMAS) || !disponiveis(ctx.ligadas, !!ctx.colegas?.length).includes(nome as Nome)) throw new Error(`Ferramenta indisponível: ${nome}`);
   const p = SCHEMAS[nome as Nome].safeParse(entrada);
   if (!p.success) throw new Error(`Entrada inválida: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
   const i = p.data as Record<string, string | undefined>;
@@ -203,6 +226,16 @@ async function executar(ctx: Ctx, nome: string, entrada: unknown): Promise<strin
       ctx.registro.transferir = { motivo: i.motivo! };
       return "Transferência registrada. Avise o cliente, numa frase, que um atendente vai continuar a conversa.";
     }
+    case "transferir_para_atendente": {
+      const alvo = ctx.colegas?.find((c) => c.nome.toLowerCase() === i.atendente!.trim().toLowerCase());
+      if (!alvo) throw new Error(`Não há colega chamado "${i.atendente}". Colegas: ${(ctx.colegas ?? []).map((c) => c.nome).join(", ")}`);
+      if (!teste && conversa.id) {
+        const { error } = await db.from("wa_conversas").update({ atendente_id: alvo.id }).eq("id", conversa.id).eq("org_id", orgId);
+        if (error) throw error;
+      }
+      ctx.registro.outroAtendente = { id: alvo.id, nome: alvo.nome };
+      return `Conversa passada para ${alvo.nome}${teste ? " (teste: nada foi gravado)" : ""}. Avise o cliente, numa frase, que ${alvo.nome} vai continuar o atendimento a partir da próxima mensagem.`;
+    }
   }
 }
 
@@ -212,7 +245,7 @@ export function ferramentasAtendimento(ctx: Ctx): {
   executar: (nome: string, entrada: unknown) => Promise<string>;
 } {
   return {
-    definicoes: disponiveis(ctx.ligadas).map((name) => ({ name, description: DEFINICOES[name].description, parameters: DEFINICOES[name].parameters })),
+    definicoes: disponiveis(ctx.ligadas, !!ctx.colegas?.length).map((name) => ({ name, description: DEFINICOES[name].description, parameters: DEFINICOES[name].parameters })),
     rotulos: ROTULO_FERRAMENTA_ATENDIMENTO,
     executar: (nome, entrada) => executar(ctx, nome, entrada),
   };

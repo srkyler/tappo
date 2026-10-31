@@ -108,3 +108,18 @@ export type Execucao = {
   erro: string | null;
   created_at: string;
 };
+
+/** Atendente de IA da empresa (vários por empresa, estilo DeskcommCRM). O modelo nunca vem aqui. */
+export type Atendente = {
+  id: string;
+  org_id: string;
+  nome: string;
+  funcao: string;
+  saudacao: string;
+  tom: Tom | null;         // null = herda do perfil da empresa
+  objetivo: Objetivo | null;
+  instrucoes: string;
+  transferir_quando: string;
+  ativo: boolean;
+  padrao: boolean;
+};

@@ -1,5 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { processarFila } from "@/lib/jobs/fila";
+import "@/lib/jobs/tipos";
 import {
   ErroWaha, iniciarSessao, lerSessao, religarSessao, sessaoConfigurada, wahaServidorPronto, type Conexao,
 } from "@/lib/whatsapp/waha";
@@ -66,10 +68,13 @@ async function whatsappSaude(db: SupabaseClient) {
 async function limparExecucoes(db: SupabaseClient) {
   const corte = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const { count } = await db.from("cron_execucoes").delete({ count: "exact" }).lt("inicio", corte);
-  return { apagadas: count ?? 0 };
+  // Jobs concluídos também saem depois de 30 dias (os que falharam ficam para análise)
+  const { count: jobs } = await db.from("jobs").delete({ count: "exact" }).eq("status", "feito").lt("updated_at", corte);
+  return { apagadas: count ?? 0, jobs_apagados: jobs ?? 0 };
 }
 
 export const TAREFAS: Record<string, Tarefa> = {
+  fila: { aCadaMin: 1, rodar: (db) => processarFila(db, 25) },
   "whatsapp-saude": { aCadaMin: 5, rodar: whatsappSaude },
   "limpar-execucoes": { aCadaMin: 1440, rodar: limparExecucoes },
 };

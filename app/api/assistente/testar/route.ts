@@ -18,6 +18,7 @@ const Corpo = z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string().min(1).max(4000),
   })).min(1).max(30),
+  atendente_id: z.string().uuid().nullable().optional(),
 });
 
 const json = (status: number, erro: string) => Response.json({ erro }, { status });
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
           teste: true,
           emitir,
           sinal: req.signal,
+          atendenteId: corpo.data.atendente_id ?? null,
         });
         if (!r) emitir({ t: "erro", d: "Nenhum agente de IA está ativo na plataforma no momento." });
       } catch (e) {

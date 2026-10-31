@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Activity, BookOpen, Brain, Building2, FlaskConical, ShieldCheck } from "lucide-react";
+import { Activity, BookOpen, Bot, Brain, Building2, FlaskConical, ShieldCheck } from "lucide-react";
 import { Barra, Kpi, cn } from "@/components/ui/base";
-import { completudePerfil, type Execucao, type ItemConhecimento, type Memoria, type PerfilIA } from "@/lib/ai/assistente-tipos";
+import { completudePerfil, type Atendente, type Execucao, type ItemConhecimento, type Memoria, type PerfilIA } from "@/lib/ai/assistente-tipos";
 import { FormPerfil } from "./form-perfil";
 import { FormRegras } from "./form-regras";
 import { Conhecimento } from "./conhecimento";
 import { MemoriaIA } from "./memoria";
 import { TestarAssistente } from "./testar";
 import { Atividade } from "./atividade";
+import { Atendentes, type CanalAtendente } from "./atendentes";
 
-type Aba = "empresa" | "conhecimento" | "memoria" | "regras" | "testar" | "atividade";
+type Aba = "empresa" | "atendentes" | "conhecimento" | "memoria" | "regras" | "testar" | "atividade";
 
 const fmt = (n: number) => new Intl.NumberFormat("pt-BR", { notation: n >= 100000 ? "compact" : "standard" }).format(n);
 
@@ -29,6 +30,8 @@ export function AssistenteView(p: {
   tetoMes: number | null;
   canaisComIA: number;
   perguntasQualificacao: number;
+  atendentes: Atendente[];
+  canais: CanalAtendente[];
 }) {
   const [aba, setAba] = useState<Aba>("empresa");
   // Atalho do log de atividade: "Ensinar resposta" abre o cadastro de FAQ já preenchido
@@ -50,6 +53,7 @@ export function AssistenteView(p: {
 
   const abas: { id: Aba; label: string; Icone: typeof Brain; badge?: number; so?: boolean }[] = [
     { id: "empresa", label: "Empresa", Icone: Building2 },
+    { id: "atendentes", label: "Atendentes", Icone: Bot, badge: p.atendentes.length || undefined },
     { id: "conhecimento", label: "Conhecimento", Icone: BookOpen, badge: sugeridos || undefined },
     { id: "memoria", label: "Memória", Icone: Brain },
     { id: "regras", label: "Regras e horário", Icone: ShieldCheck },
@@ -106,6 +110,7 @@ export function AssistenteView(p: {
       </nav>
 
       {aba === "empresa" && <FormPerfil perfil={p.perfil} nomeEmpresa={p.nomeEmpresa} gestor={p.gestor} />}
+      {aba === "atendentes" && <Atendentes atendentes={p.atendentes} canais={p.canais} gestor={p.gestor} />}
       {aba === "conhecimento" && (
         <Conhecimento itens={p.conhecimento} gestor={p.gestor} ensinar={ensinar} aoUsarEnsinar={() => setEnsinar(null)} />
       )}
@@ -113,7 +118,7 @@ export function AssistenteView(p: {
       {aba === "regras" && (
         <FormRegras perfil={p.perfil} gestor={p.gestor} perguntasQualificacao={p.perguntasQualificacao} />
       )}
-      {aba === "testar" && p.gestor && <TestarAssistente nomeAssistente={p.perfil.nome_assistente} />}
+      {aba === "testar" && p.gestor && <TestarAssistente nomeAssistente={p.perfil.nome_assistente} atendentes={p.atendentes.filter((a) => a.ativo)} />}
       {aba === "atividade" && p.gestor && (
         <Atividade
           execucoes={p.execucoes}

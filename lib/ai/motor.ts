@@ -256,7 +256,9 @@ async function rodarOpenAI(ctx: Contexto, historico: Mensagem[], neutras: Ferram
       const txt = (await res.text().catch(() => "")).slice(0, 400);
       // Provedores que não aceitam stream_options ou ferramentas: tenta de novo sem eles
       if (res.status === 400 && comUsoNoStream) { comUsoNoStream = false; i--; continue; }
-      if (res.status === 400 && tools.length && /tool|function/i.test(txt)) {
+      // Muitos modelos (NIM, Groq, OpenRouter, Ollama…) recusam `tools` com 400/404/422/500 e
+      // texto variado; só credencial e cota não se resolvem tirando as ferramentas
+      if (tools.length && ![401, 403, 429].includes(res.status)) {
         tools = [];
         messages[0] = { role: "system", content: sisOA(false) };
         i--; continue;

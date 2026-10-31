@@ -66,7 +66,7 @@ export async function responderComIATelegram(db: SupabaseClient, c: ConexaoTeleg
   const token = tokenDa(c);
   // Se a IA falhar, o núcleo devolve null e a conversa fica como está — sem resposta travada
   const r: ResultadoIA | null = await gerarRespostaIA(db, {
-    orgId: c.org_id, conversa: paraConversaIA(conversa, "telegram"), canal: "telegram", instrucoesCanal: c.ia_instrucoes,
+    orgId: c.org_id, conversa: paraConversaIA(conversa, "telegram"), canal: "telegram", instrucoesCanal: c.ia_instrucoes, atendenteCanalId: c.atendente_id,
     antesDeRodar: () => digitandoTelegram(token, conversa.chat_id),
   }).catch(() => null);
   if (!r) return;

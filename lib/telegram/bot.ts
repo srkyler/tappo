@@ -17,6 +17,7 @@ export type ConexaoTelegram = {
   status: string;
   ia_ativa: boolean;
   ia_instrucoes: string;
+  atendente_id?: string | null;
 };
 
 export function urlWebhookTelegram(webhookSecret: string) {

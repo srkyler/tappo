@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ArrowUp, BookOpen, Loader2, RotateCcw, UserRound, Wrench } from "lucide-react";
+import type { Atendente } from "@/lib/ai/assistente-tipos";
 import { cn } from "@/components/ui/base";
 import type { Evento } from "@/lib/ai/motor";
 
@@ -21,8 +22,10 @@ const SUGESTOES = [
   "Onde vocês ficam?",
 ];
 
-export function TestarAssistente({ nomeAssistente }: { nomeAssistente: string }) {
+export function TestarAssistente({ nomeAssistente, atendentes = [] }: { nomeAssistente: string; atendentes?: Atendente[] }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  // Com vários atendentes, escolhe qual testar ("" = quem atende por padrão)
+  const [atendenteId, setAtendenteId] = useState("");
   const [texto, setTexto] = useState("");
   const [rodando, setRodando] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
@@ -43,7 +46,7 @@ export function TestarAssistente({ nomeAssistente }: { nomeAssistente: string })
       const res = await fetch("/api/assistente/testar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensagens: historico.map(({ role, content }) => ({ role, content })) }),
+        body: JSON.stringify({ mensagens: historico.map(({ role, content }) => ({ role, content })), atendente_id: atendenteId || null }),
       });
       if (!res.ok || !res.body) {
         const j = await res.json().catch(() => null) as { erro?: string } | null;
@@ -92,7 +95,13 @@ export function TestarAssistente({ nomeAssistente }: { nomeAssistente: string })
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
         {msgs.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <p className="text-[14px] text-gray-300">Teste o {nomeAssistente} antes de ligar a IA para seus clientes.</p>
+            <p className="text-[14px] text-gray-300">Teste o {atendentes.find((a) => a.id === atendenteId)?.nome ?? nomeAssistente} antes de ligar a IA para seus clientes.</p>
+            {atendentes.length > 0 && (
+              <select value={atendenteId} onChange={(e) => setAtendenteId(e.target.value)} className="campo mt-3 w-auto text-[13px]" aria-label="Atendente a testar">
+                <option value="">Atendente padrão</option>
+                {atendentes.map((a) => <option key={a.id} value={a.id}>{a.nome}{a.funcao ? ` — ${a.funcao}` : ""}</option>)}
+              </select>
+            )}
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {SUGESTOES.map((s) => (
                 <button key={s} onClick={() => enviar(s)} className="rounded-full border border-gray-800 px-3 py-1.5 text-[12.5px] text-gray-300 hover:border-gray-600 hover:text-white">{s}</button>

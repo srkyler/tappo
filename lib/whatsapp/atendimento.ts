@@ -123,7 +123,7 @@ export async function responderComIA(db: SupabaseClient, c: Conexao, conversaId:
   let r: ResultadoIA | null;
   try {
     r = await gerarRespostaIA(db, {
-      orgId: c.org_id, conversa: paraConversaIA(conversa, "whatsapp"), canal: "whatsapp", instrucoesCanal: c.ia_instrucoes,
+      orgId: c.org_id, conversa: paraConversaIA(conversa, "whatsapp"), canal: "whatsapp", instrucoesCanal: c.ia_instrucoes, atendenteCanalId: c.atendente_id,
       antesDeRodar: async () => { digitandoLigado = true; await digitando(c, conversa.chat_id, true); },
     });
   } finally {

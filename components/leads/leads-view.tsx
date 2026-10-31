@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-react";
+import { celulaCsv } from "@/lib/csv";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, Status, Vazio, cn } from "@/components/ui/base";
 import { excluirLead, importarLeads, mudarStatusLead, salvarLead, detectarDuplicadosLead } from "@/app/app/actions";
@@ -11,17 +12,6 @@ import { segmentoPorId } from "@/lib/segmentos";
 import { formatData } from "@/lib/data/format";
 
 type Filtro = "Todos" | LeadStatus;
-
-/**
- * Célula CSV: sempre entre aspas (quebra de linha e vírgula ficam dentro), aspas
- * dobradas, e valor começando com = + - @ prefixado com ' — senão o Excel o
- * executa como fórmula (injeção de CSV com dado vindo de formulário público).
- */
-function celulaCsv(v: unknown) {
-  let t = String(v ?? "");
-  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
-  return `"${t.replace(/"/g, '""')}"`;
-}
 
 export function LeadsView({ leads }: { leads: Lead[] }) {
   const params = useSearchParams();

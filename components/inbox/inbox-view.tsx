@@ -32,7 +32,7 @@ export type ConversaTela = {
   leads?: { nome: string; empresa: string; cod: string } | null;
 };
 type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string;
-  status?: string | null; apagada?: boolean };
+  status?: string | null; apagada?: boolean; transcricao?: string | null };
 
 /** Foto, áudio e vídeo aparecem na própria bolha; o resto vira link. */
 function Midia({ m, url }: { m: Msg; url: string }) {
@@ -137,7 +137,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
   useEffect(() => {
     if (!selId) return;
     let vivo = true;
-    sb.from("wa_mensagens").select("id, direcao, autor, tipo, corpo, midia_url, created_at, status, apagada").eq("conversa_id", selId).order("created_at", { ascending: false }).limit(200)
+    sb.from("wa_mensagens").select("id, direcao, autor, tipo, corpo, midia_url, created_at, status, apagada, transcricao").eq("conversa_id", selId).order("created_at", { ascending: false }).limit(200)
       .then(({ data }) => { if (vivo) { setMsgs(((data ?? []) as Msg[]).reverse()); setCarregando(false); } });
     marcarComoLida(selId);
     const canal = sb.channel(`wa-msgs-${selId}`)
@@ -323,8 +323,13 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                 {msgs.map((m) => (
                   <div key={m.id} className={cn("flex", m.direcao === "saida" ? "justify-end" : "justify-start")}>
                     <div className={cn("max-w-[80%] rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed", m.direcao === "saida" ? "rounded-br-md bg-white text-black" : "rounded-bl-md bg-gray-800 text-gray-100")}>
-                      {m.corpo ? <p className="whitespace-pre-wrap break-words">{m.corpo}</p> : <p className="italic opacity-70">[{m.tipo}]</p>}
+                      {m.corpo ? <p className="whitespace-pre-wrap break-words">{m.corpo}</p> : !m.midia_url && <p className="italic opacity-70">[{m.tipo}]</p>}
                       {m.midia_url && <Midia m={m} url={(sel.canal ?? "whatsapp") === "whatsapp" ? `/api/whatsapp/midia/${m.id}` : m.midia_url} />}
+                      {m.transcricao && (
+                        <p className="mt-1 border-l-2 border-gray-600 pl-2 text-[12.5px] italic opacity-80">
+                          {m.tipo === "audio" ? "Transcrição: " : "A IA viu: "}{m.transcricao}
+                        </p>
+                      )}
                       {m.apagada && <p className="mt-0.5 flex items-center gap-1 text-[11px] italic opacity-60"><Ban size={10} /> apagada pelo contato</p>}
                       <p className={cn("mt-0.5 flex items-center justify-end gap-1 text-[10.5px]", m.direcao === "saida" ? "text-gray-500" : "text-gray-400")}>
                         {AUTOR[m.autor] && <span>{m.autor === "ia" && <Bot size={10} className="mr-0.5 inline" />}{AUTOR[m.autor]} ·</span>}

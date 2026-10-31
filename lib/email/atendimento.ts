@@ -119,6 +119,7 @@ export async function responderComIAEmail(db: SupabaseClient, econexao: EmailCon
 
   const r = await gerarRespostaIA(db, {
     orgId: econexao.org_id, conversa: paraConversaIA(conversa, "email"), canal: "email", instrucoesCanal: econexao.ia_instrucoes,
+    atendenteCanalId: (econexao as { atendente_id?: string | null }).atendente_id,
   });
   if (!r) return;
   if (r.texto) await enviarEmailERegistrar(db, econexao, conversa, assuntoOriginal, r.texto, "ia");

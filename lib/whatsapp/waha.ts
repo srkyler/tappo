@@ -21,6 +21,8 @@ export type Conexao = {
   numero: string | null;
   ia_ativa: boolean;
   ia_instrucoes: string;
+  /** Atendente de IA deste número (null = o padrão da empresa). */
+  atendente_id?: string | null;
 };
 
 /** message.ack = enviada/entregue/lida; message.revoked = apagada pelo contato. */

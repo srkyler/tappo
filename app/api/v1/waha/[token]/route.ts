@@ -3,6 +3,9 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conversaDo, responderComIA } from "@/lib/whatsapp/atendimento";
 import { dispararWebhooks } from "@/lib/webhooks/saida";
+import { registrarErro } from "@/lib/erros";
+import { enfileirar, processarFila } from "@/lib/jobs/fila";
+import "@/lib/jobs/tipos";
 import { idsEquivalentes, segredoHmac, telefoneDoChat, telefoneDoLid, type Conexao } from "@/lib/whatsapp/waha";
 
 /*
@@ -180,8 +183,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
         }),
   }).eq("id", conversa.id);
 
-  if (!m.fromMe && c.ia_ativa && conversa.ia_ativa && tipo === "texto" && corpo) {
-    after(() => responderComIA(db, c, conversa.id, msg.id).catch((e) => console.error("[waha:ia]", e instanceof Error ? e.message : e)));
+  const iaAtende = !m.fromMe && c.ia_ativa && conversa.ia_ativa;
+  if (iaAtende && tipo === "texto" && corpo) {
+    after(() => responderComIA(db, c, conversa.id, msg.id).catch((e) => registrarErro("waha:ia", e, { orgId: c.org_id })));
+  } else if (!m.fromMe && tipo !== "texto" && (iaAtende || tipo === "audio")) {
+    // Áudio/imagem: transcreve ou descreve na fila (com retentativa) e só então a IA responde.
+    // Áudio é transcrito mesmo sem IA, para o atendente ler no Inbox.
+    after(async () => {
+      try {
+        await enfileirar(db, {
+          tipo: "midia_whatsapp", orgId: c.org_id, chave: `midia:${msg.id}`, maxTentativas: 3,
+          payload: { mensagem_id: msg.id, conexao_id: c.id, responder: iaAtende },
+        });
+        await processarFila(db, 3);
+      } catch (e) {
+        // Fila indisponível (migration pendente): a IA responde assim mesmo e pede texto
+        await registrarErro("waha:midia", e, { orgId: c.org_id });
+        if (iaAtende) await responderComIA(db, c, conversa.id, msg.id).catch(() => null);
+      }
+    });
   }
   return ok();
 }
