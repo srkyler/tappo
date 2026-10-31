@@ -54,7 +54,8 @@ export async function middleware(request: NextRequest) {
   const isPublic =
     publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith("/auth/")) ||
     pathname.startsWith("/api/v1/webhooks/") || // captação pública (autenticada pelo token da fonte)
-    pathname.startsWith("/api/v1/waha/"); // webhook do WhatsApp (autenticado pelo token da conexão)
+    pathname.startsWith("/api/v1/waha/") || // webhook do WhatsApp (autenticado pelo token da conexão)
+    pathname.startsWith("/api/v1/cron/"); // agendador (autenticado por CRON_SECRET)
 
   // Arquivos estáticos e assets do Next: nunca redirecionar
   if (

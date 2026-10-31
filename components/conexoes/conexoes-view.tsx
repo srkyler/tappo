@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Rotulo, cn } from "@/components/ui/base";
 import {
-  conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp,
+  codigoPareamentoWhatsApp, conectarWhatsApp, desconectarWhatsApp, estadoWhatsApp,
   excluirConexao, novaConexaoRapida, salvarConexao, type EstadoWhats,
 } from "@/app/app/inbox/actions";
 import { alternarMetaAds, removerMetaAds, salvarMetaAds } from "@/app/app/conexoes/actions";
@@ -28,6 +28,32 @@ const ROTULO_STATUS: Record<string, string> = {
   FAILED: "Falhou — reconecte",
   DESCONHECIDO: "Não verificado",
 };
+
+/** Alternativa ao QR (celular sem câmera boa, atendimento remoto): o WhatsApp pede um código de 8 caracteres. */
+function PareamentoPorCodigo({ conexaoId }: { conexaoId: string }) {
+  const [fone, setFone] = useState("");
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  return (
+    <div className="mt-3 rounded-lg border border-gray-800 p-3">
+      <p className="text-[12.5px] text-gray-400">Sem câmera? Receba um código e digite no celular em <span className="text-gray-300">Aparelhos conectados → Conectar com número de telefone</span>.</p>
+      <form
+        className="mt-2 flex gap-2"
+        action={() => iniciar(async () => {
+          setErro(null); setCodigo(null);
+          const r = await codigoPareamentoWhatsApp(conexaoId, fone);
+          if (!r.ok) setErro(r.erro); else setCodigo(r.codigo);
+        })}
+      >
+        <input value={fone} onChange={(e) => setFone(e.target.value)} placeholder="DDD + número do WhatsApp" inputMode="tel" className="campo flex-1" required />
+        <button type="submit" disabled={pendente} className="btn btn-secundario btn-sm">{pendente ? <Loader2 size={13} className="animate-spin" /> : "Gerar código"}</button>
+      </form>
+      {codigo && <p className="mt-2 text-center font-mono text-[22px] tracking-[0.3em] text-white">{codigo}</p>}
+      {erro && <p className="mt-2 text-[12.5px] text-red-400">{erro}</p>}
+    </div>
+  );
+}
 
 function Cartao({
   icone, nome, descricao, status, children, className,
@@ -195,6 +221,7 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
                   <p className="flex items-center gap-1.5 text-[12.5px] text-gray-700"><Smartphone size={14} /> WhatsApp → Aparelhos conectados → Conectar</p>
                 </div>
               )}
+              {estado?.ok && estado.status === "SCAN_QR_CODE" && <PareamentoPorCodigo key={sel.id} conexaoId={sel.id} />}
               {status === "WORKING" && (
                 <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-emerald-300/90"><Check size={13} /> Pronto: mensagens chegam no Inbox e a IA/Jarvis atende conforme a configuração abaixo.</p>
               )}

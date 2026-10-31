@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { enviarERegistrar } from "@/lib/whatsapp/atendimento";
 import { dispararWebhooks } from "@/lib/webhooks/saida";
-import { chatDoTelefone, desconectar, iniciarSessao, lerQr, lerSessao, marcarLida, type Conexao } from "@/lib/whatsapp/waha";
+import { apagarSessao, chatDoTelefone, codigoDePareamento, desconectar, iniciarSessao, lerQr, lerSessao, marcarLida, type Conexao } from "@/lib/whatsapp/waha";
 import type { ActionResult } from "@/lib/data/types";
 import { empresaAtual } from "@/lib/data/empresa";
 import { ehGestor } from "@/lib/segmentos";
@@ -24,11 +24,23 @@ function falha(e: unknown): { ok: false; erro: string } {
   return { ok: false, erro: /fetch failed|ECONNREFUSED|timeout/i.test(msg) ? "Não foi possível falar com o servidor WAHA. Verifique WAHA_BASE_URL/WAHA_API_KEY no .env." : msg };
 }
 
-async function minhaConexao(): Promise<Conexao> {
+/**
+ * Conexão que fala com o contato: a que recebeu a conversa (wa_conversas.conexao_id);
+ * sem ela (conversa nova, ou a conexão foi excluída), o primeiro número conectado da empresa.
+ * A empresa pode ter vários números — `.maybeSingle()` sem filtro quebrava com 2+.
+ */
+async function minhaConexao(conexaoId?: string | null): Promise<Conexao> {
   const { supabase } = await cliente();
-  const { data } = await supabase.from("wa_conexoes").select("*").maybeSingle();
-  if (!data) throw new Error("Configure a conexão com o WAHA primeiro.");
-  return data as Conexao;
+  if (conexaoId) {
+    const { data } = await supabase.from("wa_conexoes").select("*").eq("id", conexaoId).maybeSingle();
+    if (data) return data as Conexao;
+  }
+  const { data } = await supabase.from("wa_conexoes").select("*")
+    .order("status", { ascending: false }) // WORKING antes de STOPPED/SCAN_QR_CODE…
+    .order("created_at", { ascending: true }).limit(5);
+  const conexao = data?.find((c) => c.status === "WORKING") ?? data?.[0];
+  if (!conexao) throw new Error("Configure a conexão com o WAHA primeiro.");
+  return conexao as Conexao;
 }
 
 /* ---------------- Conexão ---------------- */
@@ -108,6 +120,23 @@ export async function conectarWhatsApp(conexaoId?: string): Promise<ActionResult
   } catch (e) { return falha(e); }
 }
 
+/** Vincular sem QR: o WhatsApp do celular pede o código de 8 caracteres (Conectar com número de telefone). */
+export async function codigoPareamentoWhatsApp(conexaoId: string, telefone: string): Promise<{ ok: true; codigo: string } | { ok: false; erro: string }> {
+  try {
+    const empresa = await empresaAtual();
+    if (!empresa || !ehGestor(empresa.papel)) return { ok: false, erro: "Só o dono ou um gestor pode conectar o WhatsApp." };
+    const chat = chatDoTelefone(telefone);
+    if (!chat) return { ok: false, erro: "Telefone inválido. Use DDD + número." };
+    const c = await conexaoPorId(conexaoId);
+    if (!c) return { ok: false, erro: "Conexão não encontrada." };
+    const s = await lerSessao(c);
+    if (s.status !== "SCAN_QR_CODE") return { ok: false, erro: "Clique em Conectar e espere o QR aparecer; aí peça o código." };
+    const codigo = await codigoDePareamento(c, chat.split("@")[0]);
+    if (!codigo) return { ok: false, erro: "O WAHA não devolveu o código. Tente o QR." };
+    return { ok: true, codigo };
+  } catch (e) { return falha(e); }
+}
+
 /**
  * Cria a conexão com defaults e já dispara a sessão — "1 clique → QR na tela"
  * (fluxo inspirado no DeskcommCRM: o formulário vem depois, pela edição).
@@ -154,6 +183,11 @@ export async function desconectarWhatsApp(conexaoId?: string): Promise<ActionRes
 export async function excluirConexao(id: string): Promise<ActionResult> {
   try {
     const supabase = await createClient();
+    const c = await conexaoPorId(id);
+    if (!c) return { ok: false, erro: "Conexão não encontrada." };
+    // Apaga a sessão no WAHA antes: viva, ela seguiria recebendo mensagens para um token morto.
+    // Best-effort: WAHA fora do ar não pode impedir de excluir a linha.
+    await apagarSessao(c).catch((e) => console.error("[waha:excluir]", e instanceof Error ? e.message : e));
     const { error } = await supabase.from("wa_conexoes").delete().eq("id", id);
     if (error) throw error;
     revalidatePath("/app/inbox");
@@ -169,9 +203,9 @@ export async function enviarMensagem(conversaId: string, texto: string): Promise
     if (!t) return { ok: false, erro: "Mensagem vazia." };
     if (t.length > 4000) return { ok: false, erro: "Mensagem longa demais (máx. 4000 caracteres)." };
     const { supabase, user } = await cliente();
-    const { data: conversa } = await supabase.from("wa_conversas").select("id, chat_id, status, aguardando_desde, atribuido_a").eq("id", conversaId).single();
+    const { data: conversa } = await supabase.from("wa_conversas").select("id, chat_id, status, aguardando_desde, atribuido_a, conexao_id").eq("id", conversaId).single();
     if (!conversa) return { ok: false, erro: "Conversa não encontrada." };
-    await enviarERegistrar(supabase, await minhaConexao(), conversa, t, "humano", user.id);
+    await enviarERegistrar(supabase, await minhaConexao(conversa.conexao_id), conversa, t, "humano", user.id);
     // Quem responde uma conversa sem dono passa a ser o responsável
     const mudanca = { ...(conversa.status === "resolvida" ? { status: "aberta" } : {}), ...(!conversa.atribuido_a ? { atribuido_a: user.id } : {}) };
     if (Object.keys(mudanca).length) await supabase.from("wa_conversas").update(mudanca).eq("id", conversaId);
@@ -182,8 +216,8 @@ export async function enviarMensagem(conversaId: string, texto: string): Promise
 export async function marcarComoLida(conversaId: string): Promise<void> {
   try {
     const { supabase } = await cliente();
-    const { data } = await supabase.from("wa_conversas").update({ nao_lidas: 0 }).eq("id", conversaId).select("chat_id").single();
-    if (data) await marcarLida(await minhaConexao(), data.chat_id);
+    const { data } = await supabase.from("wa_conversas").update({ nao_lidas: 0 }).eq("id", conversaId).select("chat_id, canal, conexao_id").single();
+    if (data && (data.canal ?? "whatsapp") === "whatsapp") await marcarLida(await minhaConexao(data.conexao_id), data.chat_id);
   } catch { /* melhor esforço */ }
 }
 
@@ -258,9 +292,13 @@ export async function novaConversa(telefone: string, texto: string): Promise<{ o
     if (!empresa) return { ok: false, erro: "Empresa não encontrada." };
     const { data: conversa, error } = await supabase.from("wa_conversas")
       .upsert({ org_id: empresa.id, user_id: user.id, chat_id: chatId, telefone: chatId.split("@")[0], ia_ativa: false, atribuido_a: user.id }, { onConflict: "org_id,chat_id", ignoreDuplicates: false })
-      .select("id, chat_id, aguardando_desde").single();
+      .select("id, chat_id, aguardando_desde, conexao_id").single();
     if (error) throw error;
-    if (texto.trim()) await enviarERegistrar(supabase, await minhaConexao(), conversa, texto.trim(), "humano", user.id);
+    if (texto.trim()) {
+      const c = await minhaConexao(conversa.conexao_id);
+      if (!conversa.conexao_id) await supabase.from("wa_conversas").update({ conexao_id: c.id }).eq("id", conversa.id);
+      await enviarERegistrar(supabase, c, conversa, texto.trim(), "humano", user.id);
+    }
     return { ok: true, id: conversa.id };
   } catch (e) { return falha(e); }
 }

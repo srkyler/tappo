@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock, AlertTriangle, Target } from "lucide-react";
+import { ArrowLeft, Ban, Bot, Check, CheckCheck, Inbox, Loader2, Mail, MessageCirclePlus, Search, Send, Settings, Smartphone, UserPlus, UserRound, Users, Clock, AlertTriangle, Target } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
 import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
@@ -31,7 +31,31 @@ export type ConversaTela = {
   prioridade?: string;
   leads?: { nome: string; empresa: string; cod: string } | null;
 };
-type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string };
+type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string;
+  status?: string | null; apagada?: boolean };
+
+/** Foto, áudio e vídeo aparecem na própria bolha; o resto vira link. */
+function Midia({ m, url }: { m: Msg; url: string }) {
+  if (m.tipo === "imagem") {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="mt-1 block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt="Imagem recebida" loading="lazy" className="max-h-64 rounded-lg object-contain" />
+      </a>
+    );
+  }
+  if (m.tipo === "audio") return <audio controls preload="none" src={url} className="mt-1 h-9 max-w-full" />;
+  if (m.tipo === "video") return <video controls preload="none" src={url} className="mt-1 max-h-64 rounded-lg" />;
+  return <a href={url} target="_blank" rel="noreferrer" className="text-[12px] underline">abrir {m.tipo}</a>;
+}
+
+/** ✓ enviada · ✓✓ entregue · ✓✓ azul lida (ack do WhatsApp). */
+function Entrega({ status }: { status?: string | null }) {
+  if (status === "erro") return <span title="Não entregue" className="text-red-500"><AlertTriangle size={11} /></span>;
+  if (status === "lida") return <span title="Lida" className="text-sky-500"><CheckCheck size={11} /></span>;
+  if (status === "entregue") return <span title="Entregue"><CheckCheck size={11} /></span>;
+  return <span title="Enviada"><Check size={11} /></span>;
+}
 
 const FILTROS = [
   { id: "ativas", rotulo: "Ativas" },
@@ -112,7 +136,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
   useEffect(() => {
     if (!selId) return;
     let vivo = true;
-    sb.from("wa_mensagens").select("id, direcao, autor, tipo, corpo, midia_url, created_at").eq("conversa_id", selId).order("created_at", { ascending: false }).limit(200)
+    sb.from("wa_mensagens").select("id, direcao, autor, tipo, corpo, midia_url, created_at, status, apagada").eq("conversa_id", selId).order("created_at", { ascending: false }).limit(200)
       .then(({ data }) => { if (vivo) { setMsgs(((data ?? []) as Msg[]).reverse()); setCarregando(false); } });
     marcarComoLida(selId);
     const canal = sb.channel(`wa-msgs-${selId}`)
@@ -293,11 +317,12 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
                   <div key={m.id} className={cn("flex", m.direcao === "saida" ? "justify-end" : "justify-start")}>
                     <div className={cn("max-w-[80%] rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed", m.direcao === "saida" ? "rounded-br-md bg-white text-black" : "rounded-bl-md bg-gray-800 text-gray-100")}>
                       {m.corpo ? <p className="whitespace-pre-wrap break-words">{m.corpo}</p> : <p className="italic opacity-70">[{m.tipo}]</p>}
-                      {m.midia_url && <a href={m.midia_url} target="_blank" rel="noreferrer" className="text-[12px] underline">abrir {m.tipo}</a>}
+                      {m.midia_url && <Midia m={m} url={(sel.canal ?? "whatsapp") === "whatsapp" ? `/api/whatsapp/midia/${m.id}` : m.midia_url} />}
+                      {m.apagada && <p className="mt-0.5 flex items-center gap-1 text-[11px] italic opacity-60"><Ban size={10} /> apagada pelo contato</p>}
                       <p className={cn("mt-0.5 flex items-center justify-end gap-1 text-[10.5px]", m.direcao === "saida" ? "text-gray-500" : "text-gray-400")}>
                         {AUTOR[m.autor] && <span>{m.autor === "ia" && <Bot size={10} className="mr-0.5 inline" />}{AUTOR[m.autor]} ·</span>}
                         {hora(m.created_at)}
-                        {m.direcao === "saida" && <CheckCheck size={11} />}
+                        {m.direcao === "saida" && <Entrega status={m.status} />}
                       </p>
                     </div>
                   </div>

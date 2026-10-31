@@ -3,15 +3,19 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { conversaDo, responderComIA } from "@/lib/whatsapp/atendimento";
 import { dispararWebhooks } from "@/lib/webhooks/saida";
-import type { Conexao } from "@/lib/whatsapp/waha";
+import { idsEquivalentes, segredoHmac, telefoneDoChat, telefoneDoLid, type Conexao } from "@/lib/whatsapp/waha";
 
 /*
- * POST /api/v1/waha/<token> — webhook do WAHA (eventos message.any e session.status).
- * O token identifica a conexão (e o dono). Sem sessão; escreve pela service role.
- * Segurança (padrão DeskcommCRM): se WAHA_HMAC_SECRET estiver definido no .env
- * E o WAHA assinar (WHATSAPP_HOOK_HMAC_KEY), a assinatura SHA-512 do corpo bruto
- * é verificada em tempo constante; WAHA_WEBHOOK_REQUIRE_SIGNATURE=true torna
- * assinatura obrigatória (fail-closed).
+ * POST /api/v1/waha/<token> — webhook do WAHA (message.any, message.ack,
+ * message.revoked, session.status). O token identifica a conexão (e a empresa).
+ * Sem sessão de usuário: escreve pela service role, sempre filtrando org_id.
+ *
+ * Assinatura (padrão DeskcommCRM, fail-closed): a sessão é criada com
+ * `hmac.key = WAHA_HMAC_SECRET` (lib/whatsapp/waha.ts), então o WAHA assina cada
+ * entrega com HMAC-SHA512 do corpo bruto (header x-webhook-hmac).
+ *  1. Assinatura presente que não confere (ou sem segredo para conferir) → 401.
+ *  2. WAHA_WEBHOOK_REQUIRE_SIGNATURE=true → sem assinatura válida, 401.
+ *  3. Sem assinatura e sem exigência → aceita (instalação ainda sem segredo).
  */
 
 export const maxDuration = 60;
@@ -23,8 +27,13 @@ type MsgWaha = {
   fromMe?: boolean;
   body?: string | null;
   hasMedia?: boolean;
+  ack?: number | null;
   media?: { url?: string | null; mimetype?: string | null } | null;
-  _data?: { notifyName?: string; pushName?: string } | null;
+  _data?: {
+    notifyName?: string;
+    pushName?: string;
+    key?: { remoteJidAlt?: string | null } | null;
+  } | null;
 };
 type EventoWaha = { event?: string; session?: string; payload?: unknown; me?: { id?: string } | null };
 
@@ -36,12 +45,15 @@ function tipoDa(m: MsgWaha) {
   return mt.startsWith("image/") ? "imagem" : mt.startsWith("audio/") ? "audio" : mt.startsWith("video/") ? "video" : "arquivo";
 }
 
-/** Verifica o HMAC-SHA512 do corpo (header x-webhook-hmac). Sem segredo configurado, aceita. */
+/** ack do WhatsApp → status no Inbox. 4 (áudio reproduzido) conta como lida. */
+const STATUS_DO_ACK: Record<number, string> = { [-1]: "erro", 0: "pendente", 1: "enviada", 2: "entregue", 3: "lida", 4: "lida" };
+
 function assinaturaValida(req: Request, corpo: string): boolean {
-  const segredo = (process.env.WAHA_HMAC_SECRET ?? "").trim();
-  if (segredo.length < 16) return process.env.WAHA_WEBHOOK_REQUIRE_SIGNATURE !== "true";
+  const exigir = process.env.WAHA_WEBHOOK_REQUIRE_SIGNATURE === "true";
   const cab = req.headers.get("x-webhook-hmac");
-  if (!cab) return process.env.WAHA_WEBHOOK_REQUIRE_SIGNATURE !== "true";
+  if (!cab) return !exigir;
+  const segredo = segredoHmac();
+  if (!segredo) return false; // assinou, mas não temos como conferir: não confia
   const esperado = createHmac("sha512", segredo).update(corpo, "utf8").digest("hex");
   const recebido = cab.replace(/^sha512=/i, "").trim().toLowerCase();
   if (recebido.length !== esperado.length) return false;
@@ -68,18 +80,62 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (ev.event === "session.status") {
     const p = (ev.payload ?? {}) as { status?: string };
     const numero = ev.me?.id?.split("@")[0] ?? null;
-    await db.from("wa_conexoes").update({ status: p.status ?? "DESCONHECIDO", ...(numero ? { numero } : {}) }).eq("id", c.id);
+    await db.from("wa_conexoes").update({
+      status: p.status ?? "DESCONHECIDO",
+      status_em: new Date().toISOString(),
+      ...(numero ? { numero } : {}),
+      ...(p.status === "WORKING" ? { religadas: 0 } : {}),
+    }).eq("id", c.id);
+    return ok();
+  }
+
+  if (ev.event === "message.ack") {
+    const p = (ev.payload ?? {}) as MsgWaha;
+    const ack = typeof p.ack === "number" ? p.ack : null;
+    if (!p.id || ack === null || !(ack in STATUS_DO_ACK) || ack === 0) return ok();
+    // Monotônico: ack atrasado (entregue depois de lida) não rebaixa o status. Erro sempre vale.
+    let q = db.from("wa_mensagens").update({ ack, status: STATUS_DO_ACK[ack] })
+      .eq("org_id", c.org_id).in("waha_id", idsEquivalentes(p.id));
+    if (ack > 0) q = q.or(`ack.is.null,ack.lt.${ack}`);
+    await q;
+    return ok();
+  }
+
+  if (ev.event === "message.revoked") {
+    const p = (ev.payload ?? {}) as { revokedMessageId?: string; before?: MsgWaha | null };
+    const id = p.revokedMessageId ?? p.before?.id;
+    if (id) {
+      await db.from("wa_mensagens").update({ apagada: true })
+        .eq("org_id", c.org_id).in("waha_id", [...idsEquivalentes(id), ...(p.before?.id ? idsEquivalentes(p.before.id) : [])]);
+    }
     return ok();
   }
 
   if (ev.event !== "message" && ev.event !== "message.any") return ok();
   const m = (ev.payload ?? {}) as MsgWaha;
   const chatId = m.fromMe ? m.to : m.from;
-  // Ignora grupos, status e canais
+  // Ignora grupos, status e canais (o `ignore` da sessão já corta na fonte; isto é a 2ª barreira)
   if (!m.id || !chatId || !/@(c\.us|s\.whatsapp\.net|lid)$/.test(chatId)) return ok();
 
+  // Eco de mensagem que o próprio Tappo enviou: o envio pode ter gravado o id cru e o webhook traz o completo
+  if (m.fromMe) {
+    const { data: ja } = await db.from("wa_mensagens").select("id").eq("org_id", c.org_id).in("waha_id", idsEquivalentes(m.id)).limit(1);
+    if (ja?.length) return ok();
+  }
+
+  // Contato @lid (número protegido): o NOWEB traz o telefone real em _data.key.remoteJidAlt;
+  // sem ele, pergunta ao WAHA uma vez (até a conversa ter telefone)
+  let telefone: string | null = null;
+  if (chatId.endsWith("@lid")) {
+    telefone = m._data?.key?.remoteJidAlt ? telefoneDoChat(m._data.key.remoteJidAlt) : null;
+    if (!telefone) {
+      const { data: conv } = await db.from("wa_conversas").select("telefone").eq("org_id", c.org_id).eq("chat_id", chatId).maybeSingle();
+      if (!conv?.telefone) telefone = await telefoneDoLid(c, chatId);
+    }
+  }
+
   const nome = m.fromMe ? null : (m._data?.notifyName || m._data?.pushName || null);
-  const conversa = await conversaDo(db, c, chatId, nome);
+  const conversa = await conversaDo(db, c, chatId, nome, "whatsapp", telefone);
   const tipo = tipoDa(m);
   const corpo = m.body?.trim() || null;
 
@@ -93,12 +149,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     tipo,
     corpo,
     midia_url: m.media?.url ?? null,
+    midia_mime: m.media?.mimetype ?? null,
+    ...(m.fromMe && typeof m.ack === "number" && m.ack in STATUS_DO_ACK ? { ack: m.ack, status: STATUS_DO_ACK[m.ack] } : {}),
   }, { onConflict: "org_id,waha_id", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) {
     console.error("[waha]", error.message);
-    return Response.json({ ok: false }, { status: 500 });
+    return Response.json({ ok: false }, { status: 500 }); // o WAHA retenta (retries na config da sessão)
   }
-  if (!msg) return ok(); // duplicado (ex.: mensagem que o próprio Tappo enviou)
+  if (!msg) return ok(); // duplicado (retentativa do WAHA)
 
   if (!m.fromMe) {
     after(() => dispararWebhooks(db, c.org_id, "mensagem.nova", {
@@ -111,6 +169,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   await db.from("wa_conversas").update({
     ultima_mensagem: previa.replace(/\s+/g, " ").slice(0, 140),
     ultima_em: new Date().toISOString(),
+    conexao_id: c.id, // a resposta humana sai pelo número que recebeu
     // Fila: cliente falou e ninguém respondeu ainda → começa a contar o tempo de espera
     ...(m.fromMe
       ? { aguardando_desde: null }

@@ -1,4 +1,4 @@
-# Tappo na VPS: app + WAHA (WhatsApp) + Caddy (HTTPS automático)
+# Tappo na VPS: app + WAHA (WhatsApp) + agendador + Caddy (HTTPS automático)
 # Uso: cp .env.example .env && (edite) && docker compose up -d --build
 
 services:
@@ -29,7 +29,9 @@ services:
         max-file: "3"
 
   waha:
-    image: devlikeapro/waha:latest
+    # Fixe a versão em produção (WAHA_IMAGE=devlikeapro/waha:<versão> no .env): o
+    # :latest muda a API sem aviso e um `compose pull` pode derrubar o WhatsApp.
+    image: ${WAHA_IMAGE:-devlikeapro/waha:latest}
     restart: unless-stopped
     environment:
       WAHA_API_KEY: ${WAHA_API_KEY}
@@ -37,20 +39,60 @@ services:
       WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
       WHATSAPP_SWAGGER_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
       WHATSAPP_SWAGGER_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      # NOWEB: leve (~150 MB) e estável; WEBJS roda um Chrome por sessão e trava.
+      # O nome certo é WHATSAPP_DEFAULT_ENGINE (WAHA_DEFAULT_ENGINE não existe).
+      # Trocar de engine numa sessão já pareada exige ler o QR de novo.
       WHATSAPP_DEFAULT_ENGINE: ${WAHA_ENGINE:-WEBJS}
-      # Assinatura dos webhooks (o app verifica em /api/v1/waha/* — ver WAHA_HMAC_SECRET no .env)
+      # Assina o webhook GLOBAL; os webhooks por sessão recebem a mesma chave na
+      # config da sessão (lib/whatsapp/waha.ts). Nome exato da doc: com _KEY.
       WHATSAPP_HOOK_HMAC_KEY: ${WAHA_HMAC_SECRET:-}
+      # Container reiniciou (deploy, queda da VPS): retoma as sessões pareadas sem QR.
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+      # Mídia recebida: o padrão do WAHA apaga o arquivo em 180 s — o Inbox abria
+      # "arquivo não encontrado". 0 = guarda (volume waha_media).
+      WHATSAPP_DOWNLOAD_MEDIA: "true"
+      WHATSAPP_FILES_LIFETIME: ${WAHA_FILES_LIFETIME:-0}
       TZ: America/Sao_Paulo
     volumes:
       - waha_sessions:/app/.sessions
       - waha_media:/app/.media
     expose: ["3000"]
     networks: [tappo]
+    healthcheck:
+      # /ping é o endpoint sem autenticação do WAHA
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     deploy:
       resources:
         limits:
           memory: 1G
           cpus: "1.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Agendador: chama /api/v1/cron/tick a cada minuto pela rede interna (sem passar
+  # pelo Caddy). O tick decide o que rodar (vigia do WhatsApp a cada 5 min etc.).
+  agendador:
+    image: curlimages/curl:latest
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'while true; do sleep 60; [ -n "$$CRON_SECRET" ] && curl -fsS -m 290 -X POST -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/v1/cron/tick > /dev/null || true; done'
+    networks: [tappo]
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
 
   caddy:
     image: caddy:2-alpine

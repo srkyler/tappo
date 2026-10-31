@@ -41,13 +41,23 @@ export async function distribuir(db: SupabaseClient, c: ConexaoInbox): Promise<s
 }
 
 /** Busca ou cria a conversa do contato (service role). canal: 'whatsapp' (default) | 'telegram' | … */
-export async function conversaDo(db: SupabaseClient, c: ConexaoInbox, chatId: string, nome: string | null, canal: string = "whatsapp"): Promise<Conversa> {
+export async function conversaDo(
+  db: SupabaseClient, c: ConexaoInbox, chatId: string, nome: string | null, canal: string = "whatsapp",
+  telefoneConhecido: string | null = null,
+): Promise<Conversa> {
   const { data: atual } = await db.from("wa_conversas").select("*").eq("org_id", c.org_id).eq("chat_id", chatId).maybeSingle();
   if (atual) {
-    if (nome && !atual.nome) await db.from("wa_conversas").update({ nome }).eq("id", atual.id);
+    // Contato @lid: o telefone pode chegar depois (store do WAHA sincronizou) — completa e acha o lead
+    const completar = telefoneConhecido && !atual.telefone
+      ? { telefone: telefoneConhecido, ...(atual.lead_id ? {} : { lead_id: await acharLead(db, c.org_id, telefoneConhecido) }) }
+      : {};
+    if ((nome && !atual.nome) || Object.keys(completar).length) {
+      await db.from("wa_conversas").update({ ...(nome && !atual.nome ? { nome } : {}), ...completar }).eq("id", atual.id);
+      return { ...atual, ...(nome && !atual.nome ? { nome } : {}), ...completar } as Conversa;
+    }
     return atual as Conversa;
   }
-  const telefone = telefoneDoChat(chatId);
+  const telefone = telefoneConhecido ?? telefoneDoChat(chatId);
   // Com IA ligada, a conversa só vai para alguém quando a IA passar o bastão
   const atribuido_a = c.ia_ativa ? null : await distribuir(db, c);
   const { data, error } = await db.from("wa_conversas")
