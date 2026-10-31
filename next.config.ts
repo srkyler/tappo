@@ -15,6 +15,28 @@ const LEGADOS = [
   "tarefa-multi-lead", "tarefas", "tarefas-recorrentes", "templates-whatsapp", "whatsapp-config",
 ];
 
+/**
+ * Telas de fachada removidas na Fase 3 do plano de reforma (docs/PLANO-REFORMA.md):
+ * a funcionalidade mora na tela de destino. Links antigos continuam funcionando.
+ */
+const FUNDIDAS: Record<string, string> = {
+  cadencia: "/app/campanhas",
+  "gravacao-chamada": "/app",
+  assinaturas: "/app/empresa",
+  "assinatura-recorrente": "/app/empresa",
+  "templates-whatsapp": "/app/respostas",
+  "whatsapp-config": "/app/conexoes",
+  integracao: "/app/conexoes",
+  "boas-vindas-email": "/app/automacoes",
+  "checklist-tarefa": "/app/tarefas",
+  "tarefa-multi-lead": "/app/tarefas",
+  "proposta-aprovacao": "/app/propostas",
+  "previsao-ia": "/app/pipeline",
+  "funil-editor": "/app/pipeline",
+  enriquecimento: "/app/leads",
+  permissoes: "/app/empresa",
+};
+
 const nextConfig: NextConfig = {
   // Build enxuto para Docker (.next/standalone)
   output: "standalone",
@@ -22,6 +44,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   async redirects() {
     return [
+      ...Object.entries(FUNDIDAS).flatMap(([r, destino]) => [`/${r}`, `/app/${r}`].map((source) => ({ source, destination: destino, permanent: false }))),
       ...LEGADOS.map((r) => ({ source: `/${r}`, destination: `/app/${r}`, permanent: false })),
       ...LEGADOS.map((r) => ({ source: `/${r}/:path*`, destination: `/app/${r}/:path*`, permanent: false })),
     ];

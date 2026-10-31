@@ -88,12 +88,12 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 | Tela | Decisão | Onde fica | Tam. |
 |---|---|---|---|
 | Calendário *(menu)* ✅ | Implementado (mês) | visão mês/semana de tarefas e reuniões (`tarefas.vence_em` + Google Agenda da 2.3) | M |
-| Dashboard Executivo *(menu)* | Implementar | receita prevista, conversão por etapa, ciclo de venda, IA vs. humano | M |
-| Tarefas Recorrentes *(menu)* | Implementar | dentro de Tarefas, gerada pelo agendador (1.1) | M |
+| Dashboard Executivo *(menu)* ✅ | Implementado | receita prevista, conversão por etapa, ciclo de venda, IA vs. humano | M |
+| Tarefas Recorrentes *(menu)* ✅ | Implementado (agendador a cada 15 min) | dentro de Tarefas, gerada pelo agendador (1.1) | M |
 | Checklist de tarefa / Tarefa multi-lead | Fundir | dentro de Tarefas (tabelas `checklist_item`, `tarefa_lead_rel` já existem) | M |
 | Templates WhatsApp | Fundir | Respostas rápidas (canal WhatsApp) | P |
 | Config. avançada WhatsApp | Fundir | Conexões + Assistente IA (horário e distribuição já existem lá) | P |
-| Cadência | Apagar | Campanhas já tem cadência | P |
+| Cadência ✅ | Apagada → Campanhas | Campanhas já tem cadência | P |
 | Aprovação de proposta | Fundir | Propostas (fluxo de aprovação + link para o cliente aceitar) | M |
 | Previsão IA | Fundir | Pipeline: probabilidade por negócio + previsão do mês | M |
 | Funil (editor) | Fundir | Pipeline: editar etapas na própria tela | M |
@@ -102,8 +102,10 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 | Notificações | Implementar | sino no topo (tabela `notificacao`): conversa atribuída, tarefa vencendo, SLA estourado | M |
 | Integrações | Fundir | Conexões (Google Agenda, Meta Ads, webhooks) | P |
 | E-mail de boas-vindas | Fundir | Automações: gatilho "lead criado" → ação "enviar e-mail" | P |
-| Gravação de chamada | Apagar (por ora) | sem telefonia integrada não há o que gravar | P |
-| Assinaturas / Assinatura recorrente | Adiar | só faz sentido quando houver cobrança; esconder | P |
+| Gravação de chamada ✅ | Apagada | sem telefonia integrada não há o que gravar | P |
+| Assinaturas / Assinatura recorrente ✅ | Escondidas (redirecionam) | só faz sentido quando houver cobrança; esconder | P |
+
+> Fachadas fundidas (Templates WhatsApp, Config. avançada WhatsApp, Integrações, E-mail de boas-vindas, Checklist, Multi-lead, Aprovação de proposta, Previsão IA, Funil, Enriquecimento, Permissões) **saíram do app** e redirecionam para a tela de destino (`next.config.ts › FUNDIDAS`). O recurso de cada uma entra na tela de destino conforme a Fase 4.
 
 ## Fase 4 — CRM principal de primeira
 

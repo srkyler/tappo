@@ -230,8 +230,12 @@ export async function salvarTarefaRecorrente(f: FormData): Promise<{ ok: boolean
     const id = String(f.get("id") ?? "");
     const titulo = String(f.get("titulo") ?? "").trim();
     if (!titulo) return { ok: false, erro: "Título é obrigatório." };
-    const proxima_execucao = String(f.get("proxima_execucao") ?? "");
-    if (!proxima_execucao) return { ok: false, erro: "Data da próxima execução é obrigatória." };
+    const bruta = String(f.get("proxima_execucao") ?? "");
+    if (!bruta) return { ok: false, erro: "Data da próxima execução é obrigatória." };
+    // datetime-local vem sem fuso: é horário de Brasília (UTC-3), não UTC
+    const quando = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(bruta) ? bruta : `${bruta.length === 16 ? `${bruta}:00` : bruta}-03:00`);
+    if (Number.isNaN(quando.getTime())) return { ok: false, erro: "Data da próxima execução inválida." };
+    const proxima_execucao = quando.toISOString();
 
     const payload = {
       user_id: user.id,
@@ -247,7 +251,7 @@ export async function salvarTarefaRecorrente(f: FormData): Promise<{ ok: boolean
       ? await supabase.from("tarefas_recorrentes").update(payload).eq("id", id)
       : await supabase.from("tarefas_recorrentes").insert(payload);
     if (error) return { ok: false, erro: error.message };
-    revalidatePath("/app/tarefas-recorrentes");
+    revalidatePath("/app/tarefas-recorrentes"); revalidatePath("/app/tarefas");
     return { ok: true };
   } catch (e) { return erro(e); }
 }
@@ -257,7 +261,7 @@ export async function excluirTarefaRecorrente(id: string): Promise<{ ok: boolean
     const supabase = await createClient();
     const { error } = await supabase.from("tarefas_recorrentes").delete().eq("id", id);
     if (error) return { ok: false, erro: error.message };
-    revalidatePath("/app/tarefas-recorrentes");
+    revalidatePath("/app/tarefas-recorrentes"); revalidatePath("/app/tarefas");
     return { ok: true };
   } catch (e) { return erro(e); }
 }
@@ -284,6 +288,16 @@ export async function salvarPrioridadeConversa(conversaId: string, prioridade: s
     const { error } = await supabase.from("wa_conversas").update({ prioridade }).eq("id", conversaId);
     if (error) return { ok: false, erro: error.message };
     revalidatePath("/app/inbox");
+    return { ok: true };
+  } catch (e) { return erro(e); }
+}
+
+export async function alternarTarefaRecorrente(id: string, ativa: boolean): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from("tarefas_recorrentes").update({ ativa, atualizado_em: new Date().toISOString() }).eq("id", id);
+    if (error) return { ok: false, erro: error.message };
+    revalidatePath("/app/tarefas-recorrentes");
     return { ok: true };
   } catch (e) { return erro(e); }
 }

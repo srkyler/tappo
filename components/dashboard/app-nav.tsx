@@ -77,6 +77,7 @@ export const GRUPOS: { titulo?: string; itens: Item[] }[] = [
     titulo: "Gestão",
     itens: [
       { href: "/app/gestor", label: "Painel do gestor", Icone: BarChart3 },
+      { href: "/app/executivo", label: "Dashboard executivo", Icone: BarChart3 },
       { href: "/app/comissoes", label: "Comissões", Icone: CreditCard },
     ],
   },
