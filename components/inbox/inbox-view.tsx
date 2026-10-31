@@ -29,6 +29,7 @@ export type ConversaTela = {
   status: "aberta" | "pendente" | "resolvida"; ia_ativa: boolean; nao_lidas: number;
   ultima_mensagem: string | null; ultima_em: string; atribuido_a: string | null; canal?: CanalInbox;
   prioridade?: string;
+  resumo_ia?: string | null;
   leads?: { nome: string; empresa: string; cod: string } | null;
 };
 type Msg = { id: string; direcao: "entrada" | "saida"; autor: "contato" | "humano" | "ia" | "celular"; tipo: string; corpo: string | null; midia_url: string | null; created_at: string;
@@ -319,6 +320,12 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
               </header>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-5">
+                {sel.resumo_ia && !sel.ia_ativa && (
+                  <div className="mx-auto mb-3 max-w-[90%] rounded-xl border border-amber-500/25 bg-amber-500/5 px-3.5 py-2.5 text-[13px] text-gray-200">
+                    <p className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-amber-300"><Bot size={11} /> Resumo da IA para quem assume</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">{sel.resumo_ia}</p>
+                  </div>
+                )}
                 {carregando && <div className="flex justify-center py-6"><Loader2 size={16} className="animate-spin text-gray-500" /></div>}
                 {msgs.map((m) => (
                   <div key={m.id} className={cn("flex", m.direcao === "saida" ? "justify-end" : "justify-start")}>

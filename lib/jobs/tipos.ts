@@ -1,6 +1,7 @@
 import "server-only";
 import { registrarExecutor } from "./fila";
 import { descreverImagem, midiaConfig, transcrever } from "@/lib/ai/midia";
+import { resumirConversa } from "@/lib/ai/automacoes-ia";
 import { responderComIA } from "@/lib/whatsapp/atendimento";
 import { urlDaMidia, type Conexao } from "@/lib/whatsapp/waha";
 
@@ -46,4 +47,10 @@ registrarExecutor("midia_whatsapp", async (db, job) => {
     }
   }
   if (responder) await responderComIA(db, c, msg.conversa_id, msg.id);
+});
+
+/* resumo_transferencia: a IA passou para um humano → resumo no topo da conversa. */
+registrarExecutor("resumo_transferencia", async (db, job) => {
+  const { conversa_id, motivo } = job.payload as { conversa_id: string; motivo?: string | null };
+  if (job.org_id) await resumirConversa(db, job.org_id, conversa_id, motivo ?? null);
 });

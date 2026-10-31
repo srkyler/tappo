@@ -17,7 +17,7 @@ async function Conteudo() {
     supabase.from("telegram_conexoes").select("status, bot_username, ia_ativa, ia_instrucoes, distribuicao, bot_token_cifrada").maybeSingle(),
     supabase.from("email_conexoes").select("endereco_recebe, endereco_envia, ia_ativa, ia_instrucoes, webhook_secret").maybeSingle(),
     supabase.from("wa_conversas")
-      .select("id, chat_id, nome, telefone, lead_id, status, ia_ativa, nao_lidas, ultima_mensagem, ultima_em, atribuido_a, canal, leads(nome, empresa, cod)")
+      .select("id, chat_id, nome, telefone, lead_id, status, ia_ativa, nao_lidas, ultima_mensagem, ultima_em, atribuido_a, canal, resumo_ia, leads(nome, empresa, cod)")
       .order("ultima_em", { ascending: false }).limit(300),
     membrosDaEmpresa(),
     lerSlaConfig(),

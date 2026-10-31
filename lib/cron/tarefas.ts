@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { processarFila } from "@/lib/jobs/fila";
+import { rodarFollowups, sugerirFaqs } from "@/lib/ai/automacoes-ia";
 import "@/lib/jobs/tipos";
 import {
   ErroWaha, iniciarSessao, lerSessao, religarSessao, sessaoConfigurada, wahaServidorPronto, type Conexao,
@@ -76,5 +77,7 @@ async function limparExecucoes(db: SupabaseClient) {
 export const TAREFAS: Record<string, Tarefa> = {
   fila: { aCadaMin: 1, rodar: (db) => processarFila(db, 25) },
   "whatsapp-saude": { aCadaMin: 5, rodar: whatsappSaude },
+  "ia-followup": { aCadaMin: 30, rodar: rodarFollowups },
+  "ia-sugerir-faq": { aCadaMin: 1440, rodar: sugerirFaqs },
   "limpar-execucoes": { aCadaMin: 1440, rodar: limparExecucoes },
 };

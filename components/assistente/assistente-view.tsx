@@ -12,6 +12,7 @@ import { MemoriaIA } from "./memoria";
 import { TestarAssistente } from "./testar";
 import { Atividade } from "./atividade";
 import { Atendentes, type CanalAtendente } from "./atendentes";
+import { ImportarSite } from "./importar-site";
 
 type Aba = "empresa" | "atendentes" | "conhecimento" | "memoria" | "regras" | "testar" | "atividade";
 
@@ -109,6 +110,7 @@ export function AssistenteView(p: {
         ))}
       </nav>
 
+      {aba === "empresa" && p.gestor && <ImportarSite />}
       {aba === "empresa" && <FormPerfil perfil={p.perfil} nomeEmpresa={p.nomeEmpresa} gestor={p.gestor} />}
       {aba === "atendentes" && <Atendentes atendentes={p.atendentes} canais={p.canais} gestor={p.gestor} />}
       {aba === "conhecimento" && (

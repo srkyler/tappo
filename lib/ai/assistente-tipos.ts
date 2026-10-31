@@ -42,6 +42,10 @@ export type PerfilIA = {
   aprender_contatos: boolean;
   pode_criar_lead: boolean;
   pode_criar_tarefa: boolean;
+  /** Follow-up: a IA retoma com quem parou de responder há `followup_dias` (até `followup_max` vezes). */
+  followup_ativo: boolean;
+  followup_dias: number;
+  followup_max: number;
   updated_at: string | null;
 };
 
@@ -50,7 +54,8 @@ export function perfilPadrao(orgId: string): PerfilIA {
     org_id: orgId, nome_assistente: "Assistente", tom: "cordial", usar_emojis: false, saudacao: "",
     sobre: "", produtos: "", publico: "", diferenciais: "", politicas: "", contato: "",
     objetivo: "qualificar", regras: "", transferir_quando: "", horario: {}, fora_horario: "",
-    usar_qualificacao: true, aprender_contatos: true, pode_criar_lead: true, pode_criar_tarefa: true, updated_at: null,
+    usar_qualificacao: true, aprender_contatos: true, pode_criar_lead: true, pode_criar_tarefa: true,
+    followup_ativo: false, followup_dias: 2, followup_max: 2, updated_at: null,
   };
 }
 

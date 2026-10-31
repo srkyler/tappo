@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Agente } from "./agentes";
 import { agenteDoAtendente, atendenteQueResponde, colegasDe, perfilComAtendente } from "./atendentes";
 import { registrarErro } from "@/lib/erros";
+import { enfileirar } from "@/lib/jobs/fila";
 import { rodarAgente, type Evento, type Mensagem } from "./motor";
 import {
   buscarConhecimento, chaveDoContato, memoriasDoContexto, perfilDaEmpresa, perguntasQualificacao,
@@ -110,6 +111,8 @@ export async function gerarRespostaIA(db: SupabaseClient, p: {
   atendenteCanalId?: string | null;
   /** Teste: força um atendente específico. */
   atendenteId?: string | null;
+  /** Instrução do sistema para esta rodada (ex.: follow-up). Vai no fim do prompt, não no histórico. */
+  instrucaoExtra?: string;
 }): Promise<ResultadoIA | null> {
   const teste = !!p.teste;
   const atendente = await atendenteQueResponde(db, p.orgId, [p.atendenteId, p.conversa.atendente_id, p.atendenteCanalId]);
@@ -153,7 +156,10 @@ export async function gerarRespostaIA(db: SupabaseClient, p: {
     }),
     volatil: promptAtendimentoVolatil({
       perfil, nomeCliente: p.conversa.nome, clienteCadastrado: !!p.conversa.lead_id, memorias, trechos,
-    }),
+    }) + (p.instrucaoExtra ? `
+
+# Instrução para esta mensagem
+${p.instrucaoExtra}` : ""),
   };
 
   await p.antesDeRodar?.();
@@ -212,6 +218,14 @@ export async function gerarRespostaIA(db: SupabaseClient, p: {
   if (erro) {
     if (teste) throw new Error(erro);
     return null; // a conversa fica como está — sem resposta travada
+  }
+  // Passou para humano: resumo no topo da conversa (na fila, para não atrasar a resposta ao cliente)
+  if (transferir && !teste && p.conversa.id) {
+    await enfileirar(db, {
+      tipo: "resumo_transferencia", orgId: p.orgId, maxTentativas: 2,
+      chave: `resumo:${p.conversa.id}:${new Date().toISOString().slice(0, 16)}`,
+      payload: { conversa_id: p.conversa.id, motivo },
+    }).catch((e) => registrarErro("ia/resumo", e, { orgId: p.orgId }));
   }
   const fontes = [...new Set(registro.conhecimento.values())];
   p.emitir?.({ t: "meta", transferiu: transferir, motivo, fontes });

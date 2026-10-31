@@ -113,6 +113,22 @@ export function FormRegras({ perfil, gestor, perguntasQualificacao }: { perfil: 
             Edite as perguntas em <Link href="/app/chatbot-qualificacao" className="underline hover:text-gray-300">Chatbot de Qualificação</Link>. Ligue ou desligue a IA por conexão em <Link href="/app/conexoes" className="underline hover:text-gray-300">Conexões</Link>.
           </p>
         </section>
+
+        <section className="painel space-y-3 p-5">
+          <h3 className="text-[14px] font-semibold text-white">Follow-up automático</h3>
+          <Opcao nome="followup_ativo" marcado={perfil.followup_ativo} titulo="Retomar com quem parou de responder"
+            texto="No WhatsApp, a IA manda uma mensagem curta e personalizada (com base na conversa e na memória) para quem sumiu. Só dentro do horário de atendimento; para se o cliente encerrou o assunto." />
+          <div className="grid max-w-md grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="followup_dias" className="rotulo">Depois de quantos dias</label>
+              <input id="followup_dias" name="followup_dias" type="number" min={1} max={30} defaultValue={perfil.followup_dias} className="campo mt-1 w-full" />
+            </div>
+            <div>
+              <label htmlFor="followup_max" className="rotulo">Máximo de lembretes</label>
+              <input id="followup_max" name="followup_max" type="number" min={0} max={5} defaultValue={perfil.followup_max} className="campo mt-1 w-full" />
+            </div>
+          </div>
+        </section>
       </fieldset>
 
       {gestor && (

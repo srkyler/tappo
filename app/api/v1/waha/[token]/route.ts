@@ -178,6 +178,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       ? { aguardando_desde: null }
       : {
           nao_lidas: conversa.nao_lidas + 1,
+          followups: 0, // cliente voltou a falar: o ciclo de follow-up recomeça
           aguardando_desde: conversa.aguardando_desde ?? new Date().toISOString(),
           ...(conversa.status === "resolvida" ? { status: "aberta" } : {}),
         }),
