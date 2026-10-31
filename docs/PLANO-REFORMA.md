@@ -122,11 +122,11 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 
 | # | Item | Tam. | Pronto quando |
 |---|---|---|---|
-| 5.1 | Ferramentas que faltam: tarefas, propostas, campanhas, automações, conversas do Inbox | M | "crie tarefa de ligar para todos os leads parados há 7 dias" funciona |
-| 5.2 | **Plano + confirmação** antes de alterar vários registros (mostra o que vai mudar, usuário aprova) | M | ação em lote só roda depois do "sim" |
-| 5.3 | **Desfazer** a última ação do agente | M | botão desfazer reverte o lote |
-| 5.4 | Memória do usuário (preferências, metas, jeito de escrever) | P | agente lembra entre conversas |
-| 5.5 | Atalhos de comando (`/relatorio`, `/followup`, `/limpar-duplicados`) | P | comandos aparecem ao digitar `/` |
+| 5.1 ✅ | Ferramentas que faltam: tarefas, propostas, campanhas, automações, conversas do Inbox | M | "crie tarefa de ligar para todos os leads parados há 7 dias" funciona |
+| 5.2 ✅ | **Plano + confirmação** antes de alterar vários registros (mostra o que vai mudar, usuário aprova) | M | ação em lote só roda depois do "sim" |
+| 5.3 ✅ | **Desfazer** a última ação do agente | M | botão desfazer reverte o lote |
+| 5.4 ✅ | Memória do usuário (preferências, metas, jeito de escrever) | P | agente lembra entre conversas |
+| 5.5 ✅ | Atalhos de comando (`/relatorio`, `/followup`, `/limpar-duplicados`) | P | comandos aparecem ao digitar `/` |
 
 ---
 

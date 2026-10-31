@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ACTIVITY_TIPO, LEAD_ORIGEM, LEAD_STATUS } from "@/lib/data/types";
 import { hojeISO } from "@/lib/data/format";
 import { buscarConhecimento } from "./assistente";
+import { AcaoLote, MAX_ACOES_LOTE, descreverAcao, nomesDoLote } from "./lotes";
 
 /*
  * Ferramentas do Agente Tappo. Todas rodam com o cliente Supabase DO USUÁRIO,
@@ -59,10 +60,25 @@ const SCHEMAS = {
     lead_id: z.string().uuid().optional(),
   }),
   buscar_conhecimento: z.object({ consulta: z.string().min(2).max(300) }),
+  listar_tarefas: z.object({ filtro: z.enum(["pendentes", "atrasadas", "hoje", "concluidas"]).optional(), limite: z.number().int().min(1).max(100).optional() }),
+  criar_tarefa: z.object({
+    titulo: z.string().min(3).max(140), descricao: z.string().max(800).optional(), lead_id: z.string().uuid().optional(),
+    quando: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).optional(),
+    tipo: z.enum(["ligacao", "whatsapp", "email", "reuniao", "visita", "outro"]).optional(),
+    prioridade: z.enum(["baixa", "media", "alta"]).optional(),
+  }),
+  concluir_tarefa: z.object({ tarefa_id: z.string().uuid() }),
+  leads_parados: z.object({ dias: z.number().int().min(1).max(365).optional(), limite: z.number().int().min(1).max(200).optional() }),
+  listar_conversas: z.object({ filtro: z.enum(["nao_lidas", "aguardando", "sem_dono", "minhas"]).optional() }),
+  listar_propostas: z.object({ status: z.enum(["rascunho", "enviado", "visualizado", "aceito", "rejeitado", "expirado"]).optional() }),
+  listar_automacoes: z.object({}),
+  propor_lote: z.object({ descricao: z.string().min(5).max(300), acoes: z.array(AcaoLote).min(1).max(MAX_ACOES_LOTE) }),
+  lembrar_preferencia: z.object({ fato: z.string().min(3).max(300) }),
+  esquecer_preferencia: z.object({ trecho: z.string().min(3).max(100) }),
 } as const;
 
 type Nome = keyof typeof SCHEMAS;
-const ESCRITA: Nome[] = ["criar_lead", "atualizar_lead", "criar_negocio", "mover_negocio", "registrar_atividade"];
+const ESCRITA: Nome[] = ["criar_lead", "atualizar_lead", "criar_negocio", "mover_negocio", "registrar_atividade", "criar_tarefa", "concluir_tarefa", "propor_lote"];
 
 const DEFINICOES: Record<Nome, { description: string; input_schema: Record<string, unknown> }> = {
   buscar_leads: {
@@ -153,6 +169,79 @@ const DEFINICOES: Record<Nome, { description: string; input_schema: Record<strin
     description: "Busca na base de conhecimento da empresa (FAQs e documentos cadastrados em Assistente IA: produtos, preços, políticas, argumentos de venda). Use ao redigir mensagens ou responder dúvidas sobre a empresa.",
     input_schema: { type: "object", properties: { consulta: { type: "string", description: "Palavras-chave ou pergunta" } }, required: ["consulta"] },
   },
+  listar_tarefas: {
+    description: "Tarefas do usuário (responsável). Filtros: pendentes (padrão), atrasadas, hoje, concluidas.",
+    input_schema: { type: "object", properties: { filtro: { type: "string", enum: ["pendentes", "atrasadas", "hoje", "concluidas"] }, limite: { type: "integer", minimum: 1, maximum: 100 } } },
+  },
+  criar_tarefa: {
+    description: "Cria UMA tarefa para o usuário (opcionalmente ligada a um lead). Para várias tarefas use propor_lote.",
+    input_schema: {
+      type: "object",
+      properties: {
+        titulo: { type: "string" }, descricao: { type: "string" }, lead_id: { type: "string" },
+        quando: { type: "string", description: "AAAA-MM-DD ou AAAA-MM-DDTHH:MM (Brasília)" },
+        tipo: { type: "string", enum: ["ligacao", "whatsapp", "email", "reuniao", "visita", "outro"] },
+        prioridade: { type: "string", enum: ["baixa", "media", "alta"] },
+      },
+      required: ["titulo"],
+    },
+  },
+  concluir_tarefa: {
+    description: "Marca UMA tarefa como concluída (pegue o id em listar_tarefas).",
+    input_schema: { type: "object", properties: { tarefa_id: { type: "string" } }, required: ["tarefa_id"] },
+  },
+  leads_parados: {
+    description: "Leads ativos (não perdidos) sem nenhuma atividade nem alteração há N dias (padrão 7). Ótimo para follow-up em lote.",
+    input_schema: { type: "object", properties: { dias: { type: "integer", minimum: 1, maximum: 365 }, limite: { type: "integer", minimum: 1, maximum: 200 } } },
+  },
+  listar_conversas: {
+    description: "Conversas do Inbox (WhatsApp/Telegram/e-mail): nao_lidas, aguardando (cliente esperando resposta), sem_dono, minhas.",
+    input_schema: { type: "object", properties: { filtro: { type: "string", enum: ["nao_lidas", "aguardando", "sem_dono", "minhas"] } } },
+  },
+  listar_propostas: {
+    description: "Propostas comerciais com status e valor.",
+    input_schema: { type: "object", properties: { status: { type: "string", enum: ["rascunho", "enviado", "visualizado", "aceito", "rejeitado", "expirado"] } } },
+  },
+  listar_automacoes: {
+    description: "Automações da empresa (gatilho → ação) e se estão ativas.",
+    input_schema: { type: "object", properties: {} },
+  },
+  propor_lote: {
+    description: "PROPÕE um conjunto de alterações (até 200) para o usuário aprovar — nada é gravado até ele clicar em Aprovar, e depois dá para desfazer. Use sempre que for alterar mais de um registro.",
+    input_schema: {
+      type: "object",
+      properties: {
+        descricao: { type: "string", description: "Resumo do lote em uma frase (ex.: 'Tarefa de ligação para 12 leads parados há 7 dias')" },
+        acoes: { type: "array", items: {
+          type: "object",
+          properties: {
+            tipo: { type: "string", enum: ["criar_tarefa", "atualizar_lead", "mover_negocio", "concluir_tarefa"] },
+            titulo: { type: "string", description: "criar_tarefa" },
+            descricao: { type: "string", description: "criar_tarefa" },
+            lead_id: { type: "string", description: "criar_tarefa (opcional) / atualizar_lead" },
+            quando: { type: "string", description: "criar_tarefa: AAAA-MM-DD ou AAAA-MM-DDTHH:MM (Brasília)" },
+            tipo_tarefa: { type: "string", enum: ["ligacao", "whatsapp", "email", "reuniao", "visita", "outro"] },
+            prioridade: { type: "string", enum: ["baixa", "media", "alta"] },
+            status: { type: "string", enum: [...LEAD_STATUS], description: "atualizar_lead" },
+            proximo_contato_em: { type: ["string", "null"], description: "atualizar_lead: AAAA-MM-DD" },
+            negocio_id: { type: "string", description: "mover_negocio" },
+            etapa: { type: "string", description: "mover_negocio: nome da etapa" },
+            tarefa_id: { type: "string", description: "concluir_tarefa" },
+          },
+          required: ["tipo"],
+        } },
+      },
+      required: ["descricao", "acoes"],
+    },
+  },
+  lembrar_preferencia: {
+    description: "Guarda uma preferência, meta ou jeito de trabalhar do usuário para as próximas conversas (ex.: 'Meta: 20 reuniões no mês', 'Prefere mensagens curtas e informais').",
+    input_schema: { type: "object", properties: { fato: { type: "string" } }, required: ["fato"] },
+  },
+  esquecer_preferencia: {
+    description: "Apaga da memória do usuário as preferências que contêm o trecho informado.",
+    input_schema: { type: "object", properties: { trecho: { type: "string" } }, required: ["trecho"] },
+  },
 };
 
 export const ROTULO_FERRAMENTA: Record<string, string> = {
@@ -169,6 +258,16 @@ export const ROTULO_FERRAMENTA: Record<string, string> = {
   listar_respostas: "Lendo respostas rápidas",
   registrar_atividade: "Registrando atividade",
   buscar_conhecimento: "Consultando a base de conhecimento",
+  listar_tarefas: "Lendo tarefas",
+  criar_tarefa: "Criando tarefa",
+  concluir_tarefa: "Concluindo tarefa",
+  leads_parados: "Procurando leads parados",
+  listar_conversas: "Lendo o Inbox",
+  listar_propostas: "Lendo propostas",
+  listar_automacoes: "Lendo automações",
+  propor_lote: "Montando o plano para você aprovar",
+  lembrar_preferencia: "Guardando na memória",
+  esquecer_preferencia: "Apagando da memória",
 };
 
 export function definirFerramentas(podeEditar: boolean): FerramentaNeutra[] {
@@ -303,6 +402,103 @@ export async function executarFerramenta(sb: SupabaseClient, nome: string, entra
       const { error } = await sb.from("activities").insert(i);
       if (error) throw error;
       return ok({ registrado: true });
+    }
+    case "listar_tarefas": {
+      const f = (i.filtro as string) ?? "pendentes";
+      const { data: { user } } = await sb.auth.getUser();
+      const fimHoje = new Date(Math.ceil((Date.now() - 3 * 3_600_000) / 86_400_000) * 86_400_000 + 3 * 3_600_000).toISOString();
+      let q = sb.from("tarefas").select("id, titulo, tipo, prioridade, vence_em, concluida_em, lead:leads(nome, empresa)").eq("responsavel_id", user!.id);
+      if (f === "concluidas") q = q.not("concluida_em", "is", null).order("concluida_em", { ascending: false });
+      else {
+        q = q.is("concluida_em", null).order("vence_em", { ascending: true, nullsFirst: false });
+        if (f === "atrasadas") q = q.lt("vence_em", new Date().toISOString());
+        if (f === "hoje") q = q.lt("vence_em", fimHoje);
+      }
+      const { data, error } = await q.limit((i.limite as number) ?? 30);
+      if (error) throw error;
+      return ok({ filtro: f, total: data.length, tarefas: data });
+    }
+    case "criar_tarefa": {
+      const { data: orgId } = await sb.rpc("org_atual");
+      const q = i.quando as string | undefined;
+      const { data, error } = await sb.from("tarefas").insert({
+        org_id: orgId, titulo: i.titulo, descricao: i.descricao ?? null, lead_id: i.lead_id ?? null,
+        tipo: i.tipo ?? "outro", prioridade: i.prioridade ?? "media",
+        vence_em: q ? new Date(`${q.length === 10 ? `${q}T09:00` : q}:00-03:00`).toISOString() : null,
+      }).select("id, titulo, vence_em").single();
+      if (error) throw error;
+      return ok({ criada: data });
+    }
+    case "concluir_tarefa": {
+      const { data, error } = await sb.from("tarefas").update({ concluida_em: new Date().toISOString() }).eq("id", i.tarefa_id).select("id, titulo").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Tarefa não encontrada.");
+      return ok({ concluida: data });
+    }
+    case "leads_parados": {
+      const dias = (i.dias as number) ?? 7;
+      const corte = new Date(Date.now() - dias * 86_400_000).toISOString();
+      const { data: leads, error } = await sb.from("leads").select("id, nome, empresa, status, updated_at, proximo_contato_em")
+        .neq("status", "Perdido").lt("updated_at", corte).order("updated_at").limit(Math.min(500, ((i.limite as number) ?? 50) * 3));
+      if (error) throw error;
+      const ids = (leads ?? []).map((l) => l.id);
+      const { data: recentes } = ids.length
+        ? await sb.from("activities").select("lead_id").in("lead_id", ids).gte("ocorreu_em", corte)
+        : { data: [] as { lead_id: string }[] };
+      const ativos = new Set((recentes ?? []).map((a) => a.lead_id));
+      const parados = (leads ?? []).filter((l) => !ativos.has(l.id)).slice(0, (i.limite as number) ?? 50)
+        .map(({ updated_at, ...l }) => ({ ...l, dias_parado: Math.floor((Date.now() - Date.parse(updated_at)) / 86_400_000) }));
+      return ok({ dias, total: parados.length, leads: parados });
+    }
+    case "listar_conversas": {
+      const f = (i.filtro as string) ?? "aguardando";
+      const { data: { user } } = await sb.auth.getUser();
+      let q = sb.from("wa_conversas").select("id, nome, telefone, canal, status, nao_lidas, ia_ativa, atribuido_a, aguardando_desde, ultima_mensagem, ultima_em")
+        .neq("status", "resolvida").order("ultima_em", { ascending: false }).limit(30);
+      if (f === "nao_lidas") q = q.gt("nao_lidas", 0);
+      if (f === "aguardando") q = q.not("aguardando_desde", "is", null);
+      if (f === "sem_dono") q = q.is("atribuido_a", null);
+      if (f === "minhas") q = q.eq("atribuido_a", user!.id);
+      const { data, error } = await q;
+      if (error) throw error;
+      return ok({ filtro: f, total: data.length, conversas: data.map(({ atribuido_a, ...c }) => ({ ...c, minha: atribuido_a === user!.id, sem_dono: !atribuido_a })) });
+    }
+    case "listar_propostas": {
+      let q = sb.from("propostas").select("id, titulo, valor, status, created_at").order("created_at", { ascending: false }).limit(30);
+      if (i.status) q = q.eq("status", i.status);
+      const { data, error } = await q;
+      if (error) throw error;
+      return ok(data ?? []);
+    }
+    case "listar_automacoes": {
+      const { data, error } = await sb.from("automacoes").select("*").limit(50);
+      if (error) throw error;
+      return ok(data ?? []);
+    }
+    case "propor_lote": {
+      const acoes = i.acoes as AcaoLote[];
+      const nomes = await nomesDoLote(sb, acoes);
+      const { data, error } = await sb.from("agente_lotes").insert({ descricao: i.descricao, acoes }).select("id").single();
+      if (error) throw error;
+      // Não executa: o usuário aprova no cartão do chat. O motor transforma isto em evento "lote".
+      return JSON.stringify({
+        lote_id: data.id, descricao: i.descricao, total: acoes.length,
+        itens: acoes.slice(0, 50).map((a) => descreverAcao(a, nomes)),
+        aviso: "Lote PROPOSTO, ainda não executado. Peça ao usuário para revisar e clicar em Aprovar no cartão.",
+      });
+    }
+    case "lembrar_preferencia": {
+      const { count } = await sb.from("agente_memoria_usuario").select("id", { count: "exact", head: true });
+      if ((count ?? 0) >= 50) throw new Error("Memória cheia (50 itens). Peça ao usuário para apagar algo antigo.");
+      const { error } = await sb.from("agente_memoria_usuario").insert({ fato: i.fato });
+      if (error) throw error;
+      return ok({ guardado: true });
+    }
+    case "esquecer_preferencia": {
+      const t = String(i.trecho).replace(/[%_,()*]/g, " ").trim();
+      const { data, error } = await sb.from("agente_memoria_usuario").delete().ilike("fato", `%${t}%`).select("fato");
+      if (error) throw error;
+      return ok({ apagados: (data ?? []).map((d) => d.fato) });
     }
     case "buscar_conhecimento": {
       // org null = empresa da sessão; o RLS garante que só a base da própria empresa aparece

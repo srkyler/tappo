@@ -67,6 +67,8 @@ export async function POST(req: Request) {
   }
 
   const { data: perfil } = await supabase.from("profiles").select("nome_completo").eq("id", user.id).maybeSingle();
+  // Memória do usuário (5.4): sem a migration do agente, segue sem memória
+  const { data: memoria } = await supabase.from("agente_memoria_usuario").select("fato").order("created_at", { ascending: false }).limit(50);
 
   const enc = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
           sb: supabase,
           mensagens: corpo.data.mensagens,
           nomeUsuario: perfil?.nome_completo?.split(" ")[0] ?? null,
+          memoriaUsuario: (memoria ?? []).map((m) => m.fato),
           emitir,
           sinal: req.signal,
         });

@@ -25,6 +25,8 @@ export type Evento =
   | { t: "ferramenta"; nome: string; rotulo: string }
   | { t: "erro"; d: string }
   | { t: "meta"; transferiu: boolean; motivo: string | null; fontes: string[] }
+  /** Agente do CRM propôs um lote de alterações: o chat mostra Aprovar/Cancelar. */
+  | { t: "lote"; id: string; descricao: string; itens: string[]; total: number }
   | { t: "fim"; uso: Uso };
 export type Uso = { entrada: number; cache: number; saida: number; ferramentas: number };
 
@@ -33,6 +35,8 @@ type Contexto = {
   sb: SupabaseClient | null; // null = teste sem ferramentas
   mensagens: Mensagem[];
   nomeUsuario?: string | null;
+  /** Preferências/metas do usuário que o agente do CRM lembra entre conversas. */
+  memoriaUsuario?: string[];
   emitir: (e: Evento) => void;
   sinal?: AbortSignal;
   /** "jarvis" = configura o Tappo (sem ferramentas de dados do CRM). Atendimento usa `sistema` + `ferramentas`. */
@@ -47,7 +51,7 @@ type Contexto = {
   };
 };
 
-const MAX_ITERACOES = 6;
+const MAX_ITERACOES = 10; // agente do CRM encadeia buscas antes de agir
 const MAX_CHARS_MENSAGEM = 4000;
 
 function prepararHistorico(msgs: Mensagem[], max: number): Mensagem[] {
@@ -73,20 +77,26 @@ function promptSistema(a: Agente, comFerramentas: boolean, ctx?: Pick<Contexto, 
     `Você é "${a.nome}", agente de IA do Tappo (CRM de prospecção B2B).`,
     "Responda em português do Brasil, breve e objetivo. Markdown simples (listas, **negrito**).",
     comFerramentas
-      ? "Use as ferramentas para consultar e alterar os dados reais do usuário; nunca invente números, nomes ou registros. Para alterar um registro, busque-o antes para ter o id. Não mostre ids ao usuário."
+      ? [
+        "Use as ferramentas para consultar e alterar os dados reais do usuário; nunca invente números, nomes ou registros. Para alterar um registro, busque-o antes para ter o id. Não mostre ids ao usuário.",
+        "Trabalhe como um agente: entenda o pedido, consulte o que precisar, e só então aja.",
+        "Para alterar MAIS DE UM registro (ex.: criar tarefa para vários leads, mover vários negócios), NÃO altere um por um: monte tudo e chame propor_lote UMA vez. O usuário vê o plano e aprova; diga em uma frase o que o lote faz e peça para ele revisar e aprovar no cartão.",
+        "Quando o usuário disser uma preferência, meta ou jeito de trabalhar que valha para as próximas conversas, guarde com lembrar_preferencia.",
+      ].join("\n")
       : "Você não tem acesso a ferramentas nesta conversa.",
     comFerramentas && !a.pode_editar_dados ? "Você é somente leitura: sugira ações, mas não altere dados." : "",
     a.instrucoes.trim() ? `\nInstruções do administrador:\n${a.instrucoes.trim()}` : "",
   ].filter(Boolean).join("\n");
 }
 
-function contextoVolatil(nome?: string | null) {
-  return `Hoje: ${hojeISO()} (America/Sao_Paulo).${nome ? ` Usuário: ${nome}.` : ""}`;
+function contextoVolatil(nome?: string | null, memoria?: string[]) {
+  return `Hoje: ${hojeISO()} (America/Sao_Paulo).${nome ? ` Usuário: ${nome}.` : ""}`
+    + (memoria?.length ? `\n\nO que você sabe deste usuário (memória):\n${memoria.map((m) => `- ${m}`).join("\n")}` : "");
 }
 
 /** Prompt de sistema em duas partes: estável (cacheável) e volátil. */
 function sistemaDo(ctx: Contexto, comFerramentas: boolean) {
-  return ctx.sistema ?? { estavel: promptSistema(ctx.agente, comFerramentas, ctx), volatil: contextoVolatil(ctx.nomeUsuario) };
+  return ctx.sistema ?? { estavel: promptSistema(ctx.agente, comFerramentas, ctx), volatil: contextoVolatil(ctx.nomeUsuario, ctx.modo === "jarvis" ? undefined : ctx.memoriaUsuario) };
 }
 
 function chaveDo(a: Agente): string | null {
@@ -102,6 +112,12 @@ async function rodarFerramenta(ctx: Contexto, nome: string, entrada: unknown): P
       : ctx.modo === "jarvis"
         ? await executarFerramentaJarvis(ctx.sb!, nome, entrada)
         : await executarFerramenta(ctx.sb!, nome, entrada, ctx.agente.pode_editar_dados);
+    if (nome === "propor_lote") {
+      try {
+        const l = JSON.parse(resultado) as { lote_id: string; descricao: string; itens: string[]; total: number };
+        ctx.emitir({ t: "lote", id: l.lote_id, descricao: l.descricao, itens: l.itens, total: l.total });
+      } catch { /* resultado não é um lote (erro já tratado) */ }
+    }
     return { conteudo: resultado, erro: false };
   } catch (e) {
     const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String(e.message) : "falha";
