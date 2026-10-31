@@ -114,8 +114,8 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 | 4.1 | **Ficha 360 do lead**: uma linha do tempo com conversas, tarefas, propostas, negócios e o que a IA lembra | M | tudo sobre o cliente numa tela |
 | 4.2 | **Importação** de leads por CSV/planilha com mapeamento de colunas e detecção de duplicados | M | importar 1.000 linhas sem erro, duplicados apontados |
 | 4.3 ✅ | **Busca global** (leads, empresas, conversas, negócios) na paleta de comandos | P | Ctrl+K acha qualquer registro |
-| 4.4 | Pipeline com arrastar e soltar, filtros salvos e valores por etapa | M | gestor move e filtra sem recarregar |
-| 4.5 | **Alertas de SLA** reais (usa 1.1 + notificações) | P | conversa parada além do SLA notifica o responsável e o gestor |
+| 4.4 ✅ | Pipeline com arrastar e soltar, filtros salvos e valores por etapa | M | gestor move e filtra sem recarregar |
+| 4.5 ✅ | **Alertas de SLA** reais (usa 1.1 + notificações) | P | conversa parada além do SLA notifica o responsável e o gestor |
 | 4.6 | Revisão mobile das telas principais (Inbox, Leads, Pipeline, Tarefas) | M | uso completo pelo celular |
 
 ## Fase 5 — Agente do CRM "tipo Claude Code"

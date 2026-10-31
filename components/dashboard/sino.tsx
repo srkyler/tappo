@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, CheckSquare, MessageCircle, UserRoundCheck } from "lucide-react";
+import { AlarmClock, Bell, CheckSquare, MessageCircle, UserRoundCheck } from "lucide-react";
 import { minhasPendencias } from "@/app/app/notificacoes/actions";
 import type { Pendencia } from "@/lib/notificacoes-tipos";
 
-const ICONE = { mensagem: MessageCircle, transferida: UserRoundCheck, tarefa: CheckSquare } as const;
+const ICONE = { mensagem: MessageCircle, transferida: UserRoundCheck, tarefa: CheckSquare, sla: AlarmClock } as const;
 
 /** Sino do topo: o que precisa de você agora. Atualiza a cada minuto com a aba visível. */
 export function Sino({ compacto }: { compacto?: boolean }) {

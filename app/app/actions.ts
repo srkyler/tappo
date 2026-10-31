@@ -552,6 +552,65 @@ export async function excluirPipeline(id: string): Promise<ActionResult> {
   } catch (e) { return falha(e); }
 }
 
+/* ---------------- Etapas do funil (editar na própria tela do Pipeline) ---------------- */
+
+export async function salvarEtapa(id: string | null, pipelineId: string, e: { nome: string; probabilidade: number; tipo: "aberto" | "ganho" | "perdido"; sla_dias: number | null }): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const nome = e.nome.trim().slice(0, 60);
+    if (!nome) return { ok: false, erro: "Informe o nome da etapa." };
+    if (!["aberto", "ganho", "perdido"].includes(e.tipo)) return { ok: false, erro: "Tipo de etapa inválido." };
+    const dados = {
+      nome, tipo: e.tipo,
+      probabilidade: Math.min(100, Math.max(0, Math.round(Number(e.probabilidade) || 0))),
+      sla_dias: e.sla_dias && e.sla_dias > 0 ? Math.min(365, Math.round(e.sla_dias)) : null,
+    };
+    if (id) {
+      const { error } = await supabase.from("pipeline_stages").update(dados).eq("id", id);
+      if (error) return falha(error);
+    } else {
+      const { data: ultima } = await supabase.from("pipeline_stages").select("ordem").eq("pipeline_id", pipelineId).order("ordem", { ascending: false }).limit(1).maybeSingle();
+      const { error } = await supabase.from("pipeline_stages").insert({ ...dados, pipeline_id: pipelineId, ordem: (ultima?.ordem ?? 0) + 1 });
+      if (error) return falha(error);
+    }
+    revalidar("/app/pipeline");
+    return { ok: true };
+  } catch (err) { return falha(err); }
+}
+
+export async function excluirEtapa(id: string): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const { count } = await supabase.from("deals").select("id", { count: "exact", head: true }).eq("stage_id", id);
+    if ((count ?? 0) > 0) return { ok: false, erro: "Essa etapa tem negócios. Mova-os antes de excluir." };
+    const { data: etapa } = await supabase.from("pipeline_stages").select("pipeline_id").eq("id", id).single();
+    const { count: total } = await supabase.from("pipeline_stages").select("id", { count: "exact", head: true }).eq("pipeline_id", etapa?.pipeline_id ?? "");
+    if ((total ?? 0) <= 2) return { ok: false, erro: "O funil precisa de pelo menos 2 etapas." };
+    const { error } = await supabase.from("pipeline_stages").delete().eq("id", id);
+    if (error) return falha(error);
+    revalidar("/app/pipeline");
+    return { ok: true };
+  } catch (err) { return falha(err); }
+}
+
+/** Troca a etapa de lugar com a vizinha (ordem é única por funil: passa por um valor temporário). */
+export async function moverEtapa(id: string, direcao: -1 | 1): Promise<ActionResult> {
+  try {
+    const { supabase } = await cliente();
+    const { data: a } = await supabase.from("pipeline_stages").select("id, ordem, pipeline_id").eq("id", id).single();
+    if (!a) return { ok: false, erro: "Etapa não encontrada." };
+    const q = supabase.from("pipeline_stages").select("id, ordem").eq("pipeline_id", a.pipeline_id);
+    const { data: b } = await (direcao < 0 ? q.lt("ordem", a.ordem).order("ordem", { ascending: false }) : q.gt("ordem", a.ordem).order("ordem")).limit(1).maybeSingle();
+    if (!b) return { ok: true };
+    for (const [alvo, ordem] of [[a.id, 100000 + a.ordem], [b.id, a.ordem], [a.id, b.ordem]] as const) {
+      const { error } = await supabase.from("pipeline_stages").update({ ordem }).eq("id", alvo);
+      if (error) return falha(error);
+    }
+    revalidar("/app/pipeline");
+    return { ok: true };
+  } catch (err) { return falha(err); }
+}
+
 /* ---------------- Perfil ---------------- */
 
 export async function salvarPerfil(fd: FormData): Promise<ActionResult> {

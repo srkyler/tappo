@@ -404,6 +404,7 @@ export type SlaConfig = {
   org_id: string;
   tempo_resposta_min: number;
   ativo: boolean;
+  alertar_email?: boolean;
   criado_em: string;
 };
 

@@ -214,7 +214,9 @@ export async function salvarSlaConfig(f: FormData): Promise<{ ok: boolean; erro?
     const ativo = f.get("ativo") === "on";
     if (tempo_resposta_min <= 0) return { ok: false, erro: "Tempo de resposta precisa ser maior que zero." };
 
-    const { error: e } = await supabase.from("sla_config").upsert({ tempo_resposta_min, ativo }, { onConflict: "org_id" });
+    let { error: e } = await supabase.from("sla_config").upsert({ tempo_resposta_min, ativo, alertar_email: f.get("alertar_email") === "on" }, { onConflict: "org_id" });
+    // Banco sem a migration 20261103000000: salva o resto
+    if (e && /alertar_email/.test(e.message)) ({ error: e } = await supabase.from("sla_config").upsert({ tempo_resposta_min, ativo }, { onConflict: "org_id" }));
     if (e) return { ok: false, erro: e.message };
     revalidatePath("/app/sla");
     return { ok: true };

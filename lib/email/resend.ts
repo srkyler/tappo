@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Todo envio é registrado em public.email_log (service role).
  */
 
-type TipoEmail = "confirmacao" | "boas_vindas" | "recuperar_senha" | "convite";
+type TipoEmail = "confirmacao" | "boas_vindas" | "recuperar_senha" | "convite" | "alerta_sla";
 
 const FROM = process.env.RESEND_FROM ?? "Tappo <onboarding@resend.dev>";
 
@@ -30,7 +30,11 @@ function layout(titulo: string, corpo: string, cta?: { texto: string; url: strin
   </td></tr></table></body></html>`;
 }
 
-const templates: Record<TipoEmail, (p: { nome?: string; url?: string }) => { subject: string; html: string }> = {
+const templates: Record<TipoEmail, (p: { nome?: string; url?: string; texto?: string }) => { subject: string; html: string }> = {
+  alerta_sla: ({ nome, url, texto }) => ({
+    subject: `Cliente esperando resposta${nome ? `: ${nome}` : ""}`,
+    html: layout("Atendimento fora do SLA", esc(texto ?? "Uma conversa passou do tempo de resposta combinado."), { texto: "Abrir a conversa", url: url! }),
+  }),
   confirmacao: ({ nome, url }) => ({
     subject: "Confirme seu e-mail no Tappo",
     html: layout(
@@ -68,7 +72,7 @@ const templates: Record<TipoEmail, (p: { nome?: string; url?: string }) => { sub
 export async function enviarEmail(
   tipo: TipoEmail,
   para: string,
-  dados: { nome?: string; url?: string; userId?: string } = {}
+  dados: { nome?: string; url?: string; texto?: string; userId?: string } = {}
 ) {
   const { subject, html } = templates[tipo](dados);
   const admin = createAdminClient();

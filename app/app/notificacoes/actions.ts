@@ -17,7 +17,11 @@ export async function minhasPendencias(): Promise<Pendencia[]> {
   const fimDoDia = new Date(Math.ceil((Date.now() - 3 * 3_600_000) / 86_400_000) * 86_400_000 + 3 * 3_600_000).toISOString(); // meia-noite de Brasília
   const agora = Date.now();
 
-  const [minhas, transferidas, tarefas] = await Promise.all([
+  const { data: sla } = await supabase.from("sla_config").select("tempo_resposta_min, ativo").maybeSingle();
+  const limiteMin = sla?.ativo ? sla.tempo_resposta_min : 15;
+  const corteSla = new Date(agora - limiteMin * 60_000).toISOString();
+
+  const [minhas, transferidas, tarefas, atrasadas] = await Promise.all([
     supabase.from("wa_conversas").select("id, nome, telefone, canal, nao_lidas, ultima_em, ultima_mensagem")
       .eq("atribuido_a", user.id).neq("status", "resolvida").gt("nao_lidas", 0).order("ultima_em", { ascending: false }).limit(15),
     supabase.from("wa_conversas").select("id, nome, telefone, canal, ultima_em, aguardando_desde")
@@ -25,18 +29,28 @@ export async function minhasPendencias(): Promise<Pendencia[]> {
       .order("aguardando_desde").limit(10),
     supabase.from("tarefas").select("id, titulo, vence_em")
       .eq("responsavel_id", user.id).is("concluida_em", null).lt("vence_em", fimDoDia).order("vence_em").limit(15),
+    // Minhas conversas com cliente esperando além do SLA
+    supabase.from("wa_conversas").select("id, nome, telefone, canal, aguardando_desde")
+      .eq("atribuido_a", user.id).neq("status", "resolvida").eq("ia_ativa", false)
+      .not("aguardando_desde", "is", null).lt("aguardando_desde", corteSla).order("aguardando_desde").limit(10),
   ]);
 
   const nome = (c: { nome: string | null; telefone: string | null }) => c.nome || (c.telefone ? `+${c.telefone}` : "Contato");
+  const min = (iso: string) => Math.round((agora - Date.parse(iso)) / 60_000);
+  const foraDoSla = new Set((atrasadas.data ?? []).map((c) => c.id));
   const itens: Pendencia[] = [
-    ...(minhas.data ?? []).map((c) => ({
+    ...(atrasadas.data ?? []).map((c) => ({
+      id: `s-${c.id}`, tipo: "sla" as const, titulo: `${nome(c)} esperando há ${min(c.aguardando_desde!)} min`,
+      detalhe: `Passou do SLA de ${limiteMin} min — responda agora.`, href: `/app/inbox?c=${c.id}`, em: c.aguardando_desde!, urgente: true,
+    })),
+    ...(minhas.data ?? []).filter((c) => !foraDoSla.has(c.id)).map((c) => ({
       id: `m-${c.id}`, tipo: "mensagem" as const, titulo: `${nome(c)} (${c.nao_lidas})`,
       detalhe: (c.ultima_mensagem ?? "Nova mensagem").slice(0, 90), href: `/app/inbox?c=${c.id}`, em: c.ultima_em, urgente: false,
     })),
     ...(transferidas.data ?? []).map((c) => ({
       id: `t-${c.id}`, tipo: "transferida" as const, titulo: `${nome(c)} aguarda um atendente`,
       detalhe: "A IA passou a conversa para a equipe e ninguém assumiu.", href: `/app/inbox?c=${c.id}`, em: c.aguardando_desde!,
-      urgente: agora - Date.parse(c.aguardando_desde!) > 15 * 60_000,
+      urgente: agora - Date.parse(c.aguardando_desde!) > limiteMin * 60_000,
     })),
     ...(tarefas.data ?? []).map((t) => {
       const vencida = Date.parse(t.vence_em!) < agora;

@@ -7,6 +7,7 @@ export const metadata = { title: "Notificações — Tappo" };
 
 const fmt = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 const GRUPOS = [
+  { tipo: "sla", titulo: "Fora do SLA de resposta" },
   { tipo: "transferida", titulo: "Aguardando atendente" },
   { tipo: "mensagem", titulo: "Mensagens não lidas nas suas conversas" },
   { tipo: "tarefa", titulo: "Suas tarefas vencidas ou para hoje" },

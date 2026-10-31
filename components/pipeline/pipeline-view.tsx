@@ -1,9 +1,10 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GripVertical, Pencil, Plus, Settings, Trash2 } from "lucide-react";
+import { AlertTriangle, GripVertical, Pencil, Plus, Search, Settings, Trash2, X } from "lucide-react";
+import { EditorEtapas } from "./editor-etapas";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Rotulo, cn } from "@/components/ui/base";
 import { criarPipeline, excluirDeal, excluirPipeline, moverDeal, renomearPipeline, salvarDeal } from "@/app/app/actions";
@@ -30,6 +31,33 @@ export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads 
   const [editando, setEditando] = useState<Deal | null>(null);
   const [novoEm, setNovoEm] = useState<string | null>(null);
   const [perdendo, setPerdendo] = useState<{ id: string; stage: string; titulo: string } | null>(null);
+  const [filtro, setFiltro] = useState<Filtro>(FILTRO_VAZIO);
+
+  // Filtros salvos por funil neste navegador
+  const chave = `tappo:pipeline-filtro:${pipelineAtualId ?? "padrao"}`;
+  useEffect(() => {
+    try {
+      const salvo = localStorage.getItem(chave);
+      setFiltro(salvo ? { ...FILTRO_VAZIO, ...JSON.parse(salvo) } : FILTRO_VAZIO);
+    } catch { /* storage bloqueado */ }
+  }, [chave]);
+  const mudarFiltro = (f: Partial<Filtro>) => setFiltro((atual) => {
+    const novo = { ...atual, ...f };
+    try { localStorage.setItem(chave, JSON.stringify(novo)); } catch { /* storage bloqueado */ }
+    return novo;
+  });
+  const parado = (d: Deal) => {
+    const sla = etapas.find((e) => e.id === d.stage_id)?.sla_dias;
+    return !!sla && etapas.find((e) => e.id === d.stage_id)?.tipo === "aberto" && diasDesde(d.etapa_entrada_em) > sla;
+  };
+  const fimMes = (() => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth() + 1, 1).toISOString().slice(0, 10); })();
+  const t = filtro.texto.trim().toLowerCase();
+  const visiveis = otimista.filter((d) =>
+    (!t || `${d.titulo} ${d.empresa} ${d.contato ?? ""}`.toLowerCase().includes(t))
+    && (!filtro.minimo || d.valor >= filtro.minimo)
+    && (!filtro.parados || parado(d))
+    && (!filtro.esteMes || (!!d.data_fechamento_previsto && d.data_fechamento_previsto < fimMes)));
+  const filtrando = JSON.stringify(filtro) !== JSON.stringify(FILTRO_VAZIO);
 
   function soltar(stage: string, id: string) {
     const d = otimista.find((x) => x.id === id);
@@ -54,7 +82,7 @@ export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads 
     });
   }
 
-  const abertos = otimista.filter((d) => etapas.find((e) => e.id === d.stage_id)?.tipo === "aberto");
+  const abertos = visiveis.filter((d) => etapas.find((e) => e.id === d.stage_id)?.tipo === "aberto");
   const ponderado = abertos.reduce((s, d) => s + d.valor * ((etapas.find((e) => e.id === d.stage_id)?.probabilidade ?? 0) / 100), 0);
 
   return (
@@ -91,10 +119,22 @@ export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads 
         <button onClick={() => setNovoEm(etapas[0]?.id ?? null)} disabled={!etapas.length} className="btn btn-primario btn-sm"><Plus size={15} /> Novo negócio</button>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input value={filtro.texto} onChange={(e) => mudarFiltro({ texto: e.target.value })} placeholder="Filtrar negócio, empresa, contato" className="campo !h-9 w-full pl-9" />
+        </div>
+        <input type="number" min={0} value={filtro.minimo || ""} onChange={(e) => mudarFiltro({ minimo: Number(e.target.value) || 0 })} placeholder="Valor mín. R$" className="campo !h-9 w-[8.5rem]" aria-label="Valor mínimo" />
+        <button onClick={() => mudarFiltro({ parados: !filtro.parados })} className={cn("rounded-full border px-3 py-1.5 text-[12.5px]", filtro.parados ? "border-white bg-white text-black" : "border-gray-800 text-gray-400 hover:text-white")}>Parados além do SLA</button>
+        <button onClick={() => mudarFiltro({ esteMes: !filtro.esteMes })} className={cn("rounded-full border px-3 py-1.5 text-[12.5px]", filtro.esteMes ? "border-white bg-white text-black" : "border-gray-800 text-gray-400 hover:text-white")}>Fecham este mês</button>
+        {filtrando && <button onClick={() => mudarFiltro(FILTRO_VAZIO)} className="btn btn-fantasma btn-sm"><X size={13} /> Limpar</button>}
+      </div>
+
       <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
         {etapas.map((e) => {
-          const lista = otimista.filter((d) => d.stage_id === e.id);
+          const lista = visiveis.filter((d) => d.stage_id === e.id);
           const total = lista.reduce((s, d) => s + d.valor, 0);
+          const ponderadoEtapa = total * (e.probabilidade / 100);
           return (
             <section
               key={e.id}
@@ -109,7 +149,7 @@ export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads 
               <header className="flex items-center justify-between gap-2 border-b border-gray-800 px-4 py-3">
                 <div className="min-w-0">
                   <h2 className={cn("truncate text-[13.5px] font-medium", e.tipo === "perdido" ? "text-gray-500" : "text-white")}>{e.nome}</h2>
-                  <p className="text-[11.5px] text-gray-500 tabular">{lista.length} · {formatBRL(total)}</p>
+                  <p className="text-[11.5px] text-gray-500 tabular" title={`Ponderado: ${formatBRL(ponderadoEtapa)}`}>{lista.length} · {formatBRL(total)}{e.tipo === "aberto" && total > 0 ? ` · pond. ${formatBRL(ponderadoEtapa)}` : ""}</p>
                 </div>
                 <span className="shrink-0 rounded-full border border-gray-800 px-2 py-0.5 font-mono text-[10.5px] text-gray-400">{e.probabilidade}%</span>
               </header>
@@ -133,7 +173,9 @@ export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads 
                       <p className={cn("mt-0.5 truncate text-[12px]", e.tipo === "ganho" ? "text-gray-600" : "text-gray-500")}>{d.empresa}</p>
                       <div className="mt-3 flex items-end justify-between">
                         <span className="text-[14px] font-semibold tabular">{formatBRL(d.valor)}</span>
-                        <span className={cn("text-[11px]", e.tipo === "ganho" ? "text-gray-600" : "text-gray-600")}>{diasDesde(d.etapa_entrada_em)}d na etapa</span>
+                        <span className={cn("flex items-center gap-1 text-[11px]", parado(d) ? "text-amber-400" : "text-gray-600")} title={parado(d) ? "Parado além do SLA da etapa" : undefined}>
+                          {parado(d) && <AlertTriangle size={11} />}{diasDesde(d.etapa_entrada_em)}d na etapa
+                        </span>
                       </div>
                       {e.tipo === "perdido" && d.motivo_perda && (
                         <p className="mt-1.5 truncate text-[11px] text-gray-600">Motivo: {d.motivo_perda}</p>
@@ -196,11 +238,15 @@ export function PipelineView({ pipelines, pipelineAtualId, etapas, deals, leads 
             aoSalvar={() => setGerenciando(false)}
             aoExcluir={() => { setGerenciando(false); router.push("/app/pipeline"); }}
           />
+          <div className="mt-6 border-t border-gray-800 pt-5"><EditorEtapas pipelineId={pipelineAtual.id} etapas={etapas} /></div>
         </Dialogo>
       )}
     </>
   );
 }
+
+type Filtro = { texto: string; minimo: number; parados: boolean; esteMes: boolean };
+const FILTRO_VAZIO: Filtro = { texto: "", minimo: 0, parados: false, esteMes: false };
 
 function FormNovoPipeline({ aoCriar, aoCancelar }: { aoCriar: (id: string) => void; aoCancelar: () => void }) {
   const [nome, setNome] = useState("");
