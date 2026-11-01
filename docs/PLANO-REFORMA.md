@@ -64,7 +64,7 @@ Comparado item a item com o DeskcommCRM (`lib/waha/*`, `lib/channels/*`, `docker
 |---|---|---|---|
 | 1.1 | ✅ **Agendador**: rota `/api/v1/cron/[tarefa]` protegida por `CRON_SECRET` + serviço `agendador` no `docker-compose` (tick a cada minuto, histórico em `cron_execucoes`) | M | feito — primeira tarefa: vigia do WhatsApp |
 | 1.2 | ✅ **Fila de jobs** (`jobs`: tipo, payload, executar_em, tentativas, erro) com retentativa — o agendador consome | M | job que falha é retentado e o erro fica visível |
-| 1.3 | 🟡 **Testes**: Vitest em `tests/` (WAHA, mídia, horário, atendentes, CSV) rodando no CI antes do deploy. Falta: Playwright para o roteiro da 0.6 | M | `npm test` no CI do GitHub Actions, bloqueando deploy se falhar |
+| 1.3 | ✅ **Testes**: Vitest em `tests/` rodando no CI antes do deploy + Playwright em `e2e/` (`npm run e2e`: parte pública sempre; parte logada com `E2E_EMAIL`/`E2E_SENHA` de conta de teste) | M | `npm test` no CI do GitHub Actions, bloqueando deploy se falhar |
 | 1.4 | ✅ **Registro de erros** (`erros_app`, painel Falhas recentes no /admin) (tabela `erros_app` ou Sentry) em Server Actions e webhooks | P | erro em produção aparece com rota, empresa e mensagem |
 | 1.5 | ✅ Checagem de saúde `/api/health` (banco, WAHA, IA) + aviso no `/admin` | P | admin vê na hora o que está fora do ar |
 

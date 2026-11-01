@@ -3,6 +3,11 @@
 Rodar no app real (VPS ou `npm run dev` apontando para um Supabase de teste), com um
 celular de teste com WhatsApp. Marque cada passo; parou num passo = não faz merge.
 
+**Automático primeiro:** `npm run e2e` (Playwright) cobre o que não precisa de celular —
+telas públicas, bloqueios, webhooks, importação de CSV, telas principais e o assistente.
+Para a parte logada: `E2E_EMAIL=... E2E_SENHA=... npm run e2e` com uma conta de **teste**.
+Contra a VPS: `E2E_URL=https://seu-dominio npm run e2e`.
+
 ## 1. Conta e empresa
 - [ ] Criar conta em `/signup`, confirmar o e-mail, entrar.
 - [ ] Onboarding cria a empresa; `/app` abre sem erro.
@@ -38,3 +43,10 @@ celular de teste com WhatsApp. Marque cada passo; parou num passo = não faz mer
 ## 6. Admin
 - [ ] `/admin` (e-mail admin): agente ativo, teste do agente responde, limites por empresa salvam.
 - [ ] Usuário comum abrindo `/admin` é barrado.
+
+## 7. Novidades desta versão
+- [ ] Propostas: criar → "Gerar link" → abrir o link numa janela anônima → aceitar com nome → aparece "aceita por…" e uma tarefa no sino do dono.
+- [ ] Empresa e equipe › Permissões: desmarcar "Pipeline" para Atendente → entrar como atendente: some do menu e `/app/pipeline` volta para o início com aviso.
+- [ ] Automações: "Lead foi criado" → "Enviar e-mail ao lead" (com canal de e-mail configurado) → criar lead com e-mail → e-mail chega e aparece no Inbox.
+- [ ] Tarefas: clicar numa tarefa → adicionar item de checklist e um lead extra.
+- [ ] (se usar) WhatsApp oficial: Conexões › WhatsApp oficial → salvar IDs/token/secret → "Conectado"; colar URL e token de verificação no painel da Meta; mensagem do celular chega no Inbox; resposta chega no celular.
