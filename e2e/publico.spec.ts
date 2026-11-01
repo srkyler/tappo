@@ -29,6 +29,10 @@ test("webhooks públicos recusam token/assinatura inválidos", async ({ request 
   expect((await request.post("/api/v1/whatsapp-cloud/" + "a".repeat(64), { data: {} })).status()).toBe(404);
 });
 
+test("página de captação com token inválido dá 404", async ({ request }) => {
+  expect((await request.get("/captar/" + "0".repeat(64))).status()).toBe(404);
+});
+
 test("health responde", async ({ request }) => {
   const r = await request.get("/api/health");
   expect([200, 503]).toContain(r.status());

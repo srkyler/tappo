@@ -1,74 +1,35 @@
-import { Suspense } from "react";
-import { Cabecalho, Pagina, Painel, Vazio } from "@/components/ui/base";
-import { bancoPronto, usuarioAtual } from "@/lib/data/queries";
+import { notFound } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { FormCaptacao } from "./form";
 
-async function Conteudo({ params }: { params: Promise<{ token: string }> }) {
-  if (!(await bancoPronto())) {
-    return (
-      <Pagina>
-        <div className="painel p-10 text-center">
-          <h1 className="text-[24px] font-bold text-white mb-4">Tappo — Captação de Leads</h1>
-          <p className="text-[14px] text-gray-400">Banco de dados não configurado. Aplique a migração no Supabase.</p>
-        </div>
-      </Pagina>
-    );
-  }
-  const { supabase } = await usuarioAtual();
-  const { token } = await params;
+/*
+ * Página pública de captação (/captar/<token>). Sem sessão: lê a fonte pela
+ * service role, só pelo token e só se estiver ativa. O envio vai para
+ * /api/v1/webhooks/in/<token> — o mesmo caminho de landing pages e Zapier
+ * (rate limit, duplicados, automações e webhooks de saída num lugar só).
+ */
 
-  const [{ data: fonte }] = await Promise.all([
-    supabase.from("lead_sources").select("*, organizacoes(nome)").eq("token", token).eq("ativo", true).maybeSingle(),
-  ]);
-
-  if (!fonte) {
-    return (
-      <Pagina>
-        <div className="painel p-10 text-center">
-          <h1 className="text-[24px] font-bold text-white mb-4">Página não encontrada</h1>
-          <p className="text-[14px] text-gray-400">Esta página de captação não existe ou está inativa.</p>
-        </div>
-      </Pagina>
-    );
-  }
-
-  return (
-    <Pagina>
-      <Cabecalho rotulo="Captação" titulo={fonte.nome} descricao="Preencha seus dados e entraremos em contato em breve." />
-      <div className="painel p-8 max-w-md mx-auto">
-        <form className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Seu nome</label>
-            <input name="nome" placeholder="Nome completo" className="campo w-full" required />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">E-mail</label>
-            <input name="email" type="email" placeholder="seu@empresa.com" className="campo w-full" required />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Telefone</label>
-            <input name="telefone" type="tel" placeholder="(11) 99999-8888" className="campo w-full" required />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Empresa</label>
-            <input name="empresa" placeholder="Nome da empresa" className="campo w-full" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-gray-300">Mensagem</label>
-            <textarea name="mensagem" rows={3} placeholder="Como podemos ajudar?" className="campo w-full" />
-          </div>
-          <button className="btn btn-primario w-full">Enviar</button>
-        </form>
-      </div>
-    </Pagina>
-  );
-}
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Fale com a gente", robots: { index: false, follow: false } };
 
 export default async function CaptarPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  if (!/^[a-f0-9]{32,80}$/.test(token)) notFound();
+  const db = createAdminClient();
+  const { data: fonte } = await db.from("lead_sources").select("nome, org_id, ativo").eq("token", token).maybeSingle();
+  if (!fonte?.ativo) notFound();
+  const { data: org } = await db.from("organizacoes").select("nome").eq("id", fonte.org_id).maybeSingle();
+
   return (
-    <Pagina>
-      <Suspense fallback={<div className="esqueleto h-[60vh]" />}>
-        <Conteudo params={params} />
-      </Suspense>
-    </Pagina>
+    <main className="min-h-screen bg-[#070707] px-4 py-12 text-gray-200">
+      <div className="mx-auto max-w-md space-y-6">
+        <header className="text-center">
+          {org?.nome && <p className="text-[12px] uppercase tracking-wide text-gray-500">{org.nome}</p>}
+          <h1 className="mt-1 text-[24px] font-semibold text-white">{fonte.nome}</h1>
+          <p className="mt-1 text-[14px] text-gray-400">Preencha seus dados e entraremos em contato em breve.</p>
+        </header>
+        <FormCaptacao token={token} />
+      </div>
+    </main>
   );
 }
