@@ -90,18 +90,18 @@ Regra: **implementar, fundir em outra tela, ou apagar** — nenhuma fica como es
 | Calendário *(menu)* ✅ | Implementado (mês) | visão mês/semana de tarefas e reuniões (`tarefas.vence_em` + Google Agenda da 2.3) | M |
 | Dashboard Executivo *(menu)* ✅ | Implementado | receita prevista, conversão por etapa, ciclo de venda, IA vs. humano | M |
 | Tarefas Recorrentes *(menu)* ✅ | Implementado (agendador a cada 15 min) | dentro de Tarefas, gerada pelo agendador (1.1) | M |
-| Checklist de tarefa / Tarefa multi-lead | Fundir | dentro de Tarefas (tabelas `checklist_item`, `tarefa_lead_rel` já existem) | M |
+| Checklist de tarefa / Tarefa multi-lead ✅ | Fundido (linha da tarefa abre checklist e leads) | dentro de Tarefas (tabelas `checklist_item`, `tarefa_lead_rel` já existem) | M |
 | Templates WhatsApp | Fundir | Respostas rápidas (canal WhatsApp) | P |
 | Config. avançada WhatsApp | Fundir | Conexões + Assistente IA (horário e distribuição já existem lá) | P |
 | Cadência ✅ | Apagada → Campanhas | Campanhas já tem cadência | P |
-| Aprovação de proposta | Fundir | Propostas (fluxo de aprovação + link para o cliente aceitar) | M |
+| Aprovação de proposta ✅ | Fundido (link /p/<token>: cliente aceita/recusa, dono avisado no sino) | Propostas (fluxo de aprovação + link para o cliente aceitar) | M |
 | Previsão IA | Fundir | Pipeline: probabilidade por negócio + previsão do mês | M |
 | Funil (editor) | Fundir | Pipeline: editar etapas na própria tela | M |
 | Enriquecimento ✅ | Fundido (botão Buscar CNPJ em Contas) | ficha do lead: botão "buscar CNPJ" (BrasilAPI, gratuita) | M |
-| Permissões | Fundir | Empresa e equipe (tabela `permissao_tela`), aplicada no menu e no servidor | M |
+| Permissões ✅ | Fundido (matriz tela × papel; menu + bloqueio no middleware via `tela_bloqueada`) | Empresa e equipe (tabela `permissao_tela`), aplicada no menu e no servidor | M |
 | Notificações ✅ | Implementado (sino + página, calculado na hora) | sino no topo (tabela `notificacao`): conversa atribuída, tarefa vencendo, SLA estourado | M |
 | Integrações ✅ | Fundido (Google Agenda em Assistente IA; resto em Conexões) | Conexões (Google Agenda, Meta Ads, webhooks) | P |
-| E-mail de boas-vindas | Fundir | Automações: gatilho "lead criado" → ação "enviar e-mail" | P |
+| E-mail de boas-vindas ✅ | Fundido (gatilho "Lead foi criado" → "Enviar e-mail ao lead") | Automações: gatilho "lead criado" → ação "enviar e-mail" | P |
 | Gravação de chamada ✅ | Apagada | sem telefonia integrada não há o que gravar | P |
 | Assinaturas / Assinatura recorrente ✅ | Escondidas (redirecionam) | só faz sentido quando houver cobrança; esconder | P |
 

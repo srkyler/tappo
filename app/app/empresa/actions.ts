@@ -7,6 +7,7 @@ import { empresaAtual } from "@/lib/data/empresa";
 import { enviarEmail } from "@/lib/email/resend";
 import { SEGMENTOS, ehGestor, type Papel } from "@/lib/segmentos";
 import type { ActionResult } from "@/lib/data/types";
+import { PAPEIS_CONFIGURAVEIS, telaConfiguravel } from "@/lib/telas";
 
 /* Empresa, equipe e convites. Escritas sensíveis passam pela service role após checar o papel. */
 
@@ -223,6 +224,28 @@ export async function salvarMetas(f: FormData): Promise<ActionResult> {
       if (error) throw error;
     }
     revalidatePath("/app/gestor");
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
+/* ---------------- Permissões por tela (antiga tela "Permissões") ---------------- */
+
+/** Mostra/esconde uma tela para um papel. O dono nunca é bloqueado. */
+export async function salvarPermissaoTela(papel: string, modulo: string, podeVer: boolean): Promise<ActionResult> {
+  try {
+    const { supabase, empresa } = await gestor();
+    if (!(PAPEIS_CONFIGURAVEIS as readonly string[]).includes(papel)) return { ok: false, erro: "Papel inválido." };
+    if (!telaConfiguravel(modulo)) return { ok: false, erro: "Tela inválida." };
+    // Gestor não pode tirar do próprio papel o acesso a Empresa e equipe (se trancaria fora)
+    if (empresa.papel === "gestor" && papel === "gestor" && modulo === "/app/empresa" && !podeVer) {
+      return { ok: false, erro: "Só o dono pode esconder Empresa e equipe dos gestores." };
+    }
+    const { error } = await supabase.from("permissao_tela").upsert(
+      { org_id: empresa.id, papel, modulo, pode_ver: podeVer, pode_editar: podeVer, pode_excluir: podeVer },
+      { onConflict: "org_id,papel,modulo" },
+    );
+    if (error) throw error;
+    revalidar();
     return { ok: true };
   } catch (e) { return falha(e); }
 }

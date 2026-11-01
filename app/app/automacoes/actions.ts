@@ -19,12 +19,19 @@ export async function salvarAutomacao(f: FormData): Promise<ActionResult> {
     if (!nome) return { ok: false, erro: "Informe o nome da automação." };
     if (!(GATILHOS_AUTOMACAO as readonly string[]).includes(gatilho)) return { ok: false, erro: "Gatilho inválido." };
     if (!(ACOES_AUTOMACAO as readonly string[]).includes(acao)) return { ok: false, erro: "Ação inválida." };
+    let acaoValor = String(f.get("acao_valor") ?? "").trim() || null;
+    if (acao === "enviar_email") {
+      const assunto = String(f.get("email_assunto") ?? "").trim().slice(0, 200);
+      const texto = String(f.get("email_texto") ?? "").trim().slice(0, 10000);
+      if (!assunto || !texto) return { ok: false, erro: "Preencha o assunto e o texto do e-mail." };
+      acaoValor = JSON.stringify({ assunto, texto });
+    }
     const payload = {
       nome,
       gatilho,
       acao,
       gatilho_valor: String(f.get("gatilho_valor") ?? "").trim() || null,
-      acao_valor: String(f.get("acao_valor") ?? "").trim() || null,
+      acao_valor: acaoValor,
     };
     const { error } = id
       ? await supabase.from("automacoes").update({ ...payload, atualizado_em: new Date().toISOString() }).eq("id", id)

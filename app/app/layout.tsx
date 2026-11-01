@@ -10,6 +10,7 @@ import { NavInferior, NavLateral, PaletaComandos } from "@/components/dashboard/
 import { Logo } from "@/components/ui/base";
 import { AvatarUsuario } from "@/components/perfil/avatar-usuario";
 import { corTextoContraste } from "@/lib/data/cor";
+import { telasOcultas } from "@/lib/data/permissoes";
 
 /* Tappo — layout do app autenticado */
 
@@ -71,7 +72,7 @@ function UsuarioCarregando() {
 export default async function AppLayout({ children }: LayoutProps<"/app">) {
   await requireAuth();
   const { user } = await perfilBasico();
-  const admin = user ? await ehAdmin(user) : false;
+  const [admin, ocultas] = await Promise.all([user ? ehAdmin(user) : false, telasOcultas()]);
 
   return (
     <div className="flex h-[100svh] overflow-hidden bg-black">
@@ -83,7 +84,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         </div>
 
         {/* usePathname é dado de runtime: fora de Suspense o prerender quebra (Next 16) */}
-        <Suspense fallback={<div className="flex-1" />}><NavLateral admin={admin} /></Suspense>
+        <Suspense fallback={<div className="flex-1" />}><NavLateral admin={admin} ocultas={ocultas} /></Suspense>
         <Suspense fallback={null}><LinkAdmin /></Suspense>
 
         <div className="border-t border-gray-800 p-3">
@@ -117,8 +118,8 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">{children}</main>
       </div>
 
-      <Suspense fallback={null}><NavInferior /></Suspense>
-      <PaletaComandos admin={admin} />
+      <Suspense fallback={null}><NavInferior ocultas={ocultas} /></Suspense>
+      <PaletaComandos admin={admin} ocultas={ocultas} />
     </div>
   );
 }

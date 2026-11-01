@@ -4,19 +4,21 @@ import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { Rotulo, cn } from "@/components/ui/base";
 import { alternarAutomacao, excluirAutomacao, salvarAutomacao } from "@/app/app/automacoes/actions";
-import type { Automacao, GatilhoAutomacao, AcaoAutomacao, PipelineStage, LeadTag } from "@/lib/data/types";
+import { LEAD_ORIGEM, type Automacao, type GatilhoAutomacao, type AcaoAutomacao, type PipelineStage, type LeadTag } from "@/lib/data/types";
 
 const GATILHO_ROTULO: Record<GatilhoAutomacao, string> = {
   lead_mudou_status: "Lead mudou de status",
   lead_entrou_campanha: "Lead entrou em campanha",
   deal_mudou_etapa: "Negócio mudou de etapa",
   tag_adicionada: "Lead recebeu uma tag",
+  lead_criado: "Lead foi criado",
 };
 const ACAO_ROTULO: Record<AcaoAutomacao, string> = {
   mover_etapa: "Mover negócio para etapa",
   adicionar_tag: "Adicionar tag ao lead",
   atribuir_responsavel: "Criar tarefa para responsável",
   criar_tarefa: "Criar tarefa",
+  enviar_email: "Enviar e-mail ao lead",
 };
 
 type Campanha = { id: string; nome: string };
@@ -53,6 +55,12 @@ export function AutomacoesView({ automacoes, etapas, tags, campanhas, membros }:
         {campanhas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
       </select>
     );
+    if (gatilho === "lead_criado") return (
+      <select name="gatilho_valor" className="campo" defaultValue="">
+        <option value="">Qualquer origem</option>
+        {LEAD_ORIGEM.map((o) => <option key={o} value={o}>Origem: {o}</option>)}
+      </select>
+    );
     return <input name="gatilho_valor" className="campo" placeholder="Ex.: Qualificado (vazio = qualquer status)" />;
   }
 
@@ -74,6 +82,13 @@ export function AutomacoesView({ automacoes, etapas, tags, campanhas, membros }:
         <option value="" disabled>Escolha o responsável…</option>
         {membros.map((m) => <option key={m.user_id} value={m.user_id}>{m.nome}</option>)}
       </select>
+    );
+    if (acao === "enviar_email") return (
+      <div className="space-y-2">
+        <input name="email_assunto" className="campo" placeholder="Assunto — ex.: Bem-vindo, {{primeiro_nome}}!" required maxLength={200} />
+        <textarea name="email_texto" rows={6} className="campo" required maxLength={10000} placeholder={"Olá {{primeiro_nome}},\n\nObrigado pelo contato! …"} />
+        <p className="text-[11.5px] text-gray-500">Variáveis: {"{{nome}}"}, {"{{primeiro_nome}}"}, {"{{empresa}}"}. Sai pelo endereço do canal de e-mail (Conexões) e fica na conversa do lead no Inbox. Lead sem e-mail é ignorado.</p>
+      </div>
     );
     return <input name="acao_valor" className="campo" placeholder="Título da tarefa" required />;
   }

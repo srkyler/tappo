@@ -255,8 +255,8 @@ export type ChatbotQualificacao = {
   atualizado_em: string;
 };
 
-export const GATILHOS_AUTOMACAO = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada"] as const;
-export const ACOES_AUTOMACAO = ["mover_etapa", "adicionar_tag", "atribuir_responsavel", "criar_tarefa"] as const;
+export const GATILHOS_AUTOMACAO = ["lead_mudou_status", "lead_entrou_campanha", "deal_mudou_etapa", "tag_adicionada", "lead_criado"] as const;
+export const ACOES_AUTOMACAO = ["mover_etapa", "adicionar_tag", "atribuir_responsavel", "criar_tarefa", "enviar_email"] as const;
 export type GatilhoAutomacao = (typeof GATILHOS_AUTOMACAO)[number];
 export type AcaoAutomacao = (typeof ACOES_AUTOMACAO)[number];
 

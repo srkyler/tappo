@@ -78,6 +78,7 @@ export async function salvarLead(id: string | null, fd: FormData): Promise<Actio
         id: resultado.id, nome: dados.nome, empresa: dados.empresa, email: dados.email,
         telefone: dados.telefone, origem: dados.origem, status: dados.status,
       }));
+      await dispararAutomacoes(supabase, "lead_criado", String(dados.origem ?? "") || null, { leadId: resultado.id });
     }
 
     // Registrar duplicados encontrados (org_id tem DEFAULT public.org_atual())

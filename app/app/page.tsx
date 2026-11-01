@@ -170,9 +170,16 @@ function Carregando() {
   );
 }
 
-export default function InicioPage() {
+async function AvisoSemAcesso({ busca }: { busca: Promise<Record<string, string | string[] | undefined>> }) {
+  const q = await busca;
+  if (q.sem_acesso !== "1") return null;
+  return <p role="alert" className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-[13px] text-amber-200">Você não tem acesso a essa tela. Fale com o dono ou gestor da empresa.</p>;
+}
+
+export default function InicioPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   return (
     <Pagina>
+      <Suspense fallback={null}><AvisoSemAcesso busca={searchParams} /></Suspense>
       <Suspense fallback={<Carregando />}>
         <Conteudo />
       </Suspense>

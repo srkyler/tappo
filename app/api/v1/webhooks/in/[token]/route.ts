@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LEAD_ORIGEM, type LeadOrigem } from "@/lib/data/types";
 import { dispararWebhooks } from "@/lib/webhooks/saida";
+import { dispararAutomacoes } from "@/lib/automacoes";
 
 /*
  * POST /api/v1/webhooks/in/<token> — recebe um lead de landing page, formulário, Zapier, n8n…
@@ -138,6 +139,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     id: lead.id, cod: lead.cod, nome, empresa, email, telefone: pegar(dados, "telefone", 40),
     origem: origem ?? fonte.origem, status: fonte.status_inicial,
   }));
+  // Service role: filtro por empresa e dono explícitos
+  after(() => dispararAutomacoes(db, "lead_criado", String(origem ?? fonte.origem ?? "") || null, { leadId: lead.id, orgId: fonte.org_id, userId: fonte.user_id }));
   await registrar(true, `Lead criado: ${lead.cod}`);
   return resposta(201, { ok: true, cod: lead.cod });
 }

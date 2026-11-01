@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/components/ui/base";
 import { buscarGlobal, type ResultadoBusca } from "@/app/app/busca/actions";
+import { bloqueada } from "@/lib/telas";
 
 type Item = { href: string; label: string; Icone: LucideIcon };
 
@@ -17,9 +18,11 @@ type Item = { href: string; label: string; Icone: LucideIcon };
 const ITEM_ADMIN: Item = { href: "/app/agentes", label: "Agentes (admin)", Icone: Brain };
 
 /** Grupos da navegação; `admin` acrescenta o item da área de administração. */
-export function gruposNav(admin: boolean): { titulo?: string; itens: Item[] }[] {
-  if (!admin) return GRUPOS;
-  return GRUPOS.map((g, i) => (i === 0 ? { ...g, itens: [...g.itens, ITEM_ADMIN] } : g));
+export function gruposNav(admin: boolean, ocultas: readonly string[] = []): { titulo?: string; itens: Item[] }[] {
+  const base = admin ? GRUPOS.map((g, i) => (i === 0 ? { ...g, itens: [...g.itens, ITEM_ADMIN] } : g)) : GRUPOS;
+  if (!ocultas.length) return base;
+  // Permissões por tela: some do menu o que o papel não pode ver
+  return base.map((g) => ({ ...g, itens: g.itens.filter((i) => !bloqueada(i.href, ocultas)) })).filter((g) => g.itens.length);
 }
 
 // Grupos pequenos e coerentes em vez de uma lista única — cada um recolhe
@@ -117,11 +120,11 @@ function lerRecolhidos(): Set<string> {
 }
 
 /** Navegação lateral (desktop). Cada categoria com título recolhe/expande. */
-export function NavLateral({ admin = false }: { admin?: boolean }) {
+export function NavLateral({ admin = false, ocultas = [] }: { admin?: boolean; ocultas?: string[] }) {
   const path = usePathname();
   const [recolhidos, setRecolhidos] = useState<Set<string>>(() => (typeof window === "undefined" ? new Set() : lerRecolhidos()));
 
-  const grupos = gruposNav(admin);
+  const grupos = gruposNav(admin, ocultas);
 
   // A categoria da página atual nunca fica escondida, mesmo se o usuário a
   // recolheu antes — calculado no render (não em efeito: é derivado, não é
@@ -206,9 +209,9 @@ function BotaoBusca() {
 }
 
 /** Barra inferior (mobile). */
-export function NavInferior() {
+export function NavInferior({ ocultas = [] }: { ocultas?: string[] }) {
   const path = usePathname();
-  const itens = TODOS.filter((i) => MOBILE.includes(i.href));
+  const itens = TODOS.filter((i) => MOBILE.includes(i.href) && !bloqueada(i.href, ocultas));
   const maisAtivo = !itens.some((i) => ativo(path, i.href));
   return (
     <nav
@@ -240,7 +243,7 @@ const ICONE_BUSCA: Record<ResultadoBusca["tipo"], LucideIcon> = { lead: Users, c
 type Comando = { id: string; label: string; dica?: string; Icone: LucideIcon; acao: () => void };
 
 /** Paleta de comandos (Ctrl/⌘ + K): navegar, criar e perguntar ao agente. */
-export function PaletaComandos({ admin = false }: { admin?: boolean }) {
+export function PaletaComandos({ admin = false, ocultas = [] }: { admin?: boolean; ocultas?: string[] }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [q, setQ] = useState("");
@@ -273,7 +276,7 @@ export function PaletaComandos({ admin = false }: { admin?: boolean }) {
   const comandos = useMemo<Comando[]>(() => {
     const base: Comando[] = [
       { id: "novo-lead", label: "Novo lead", Icone: Plus, acao: ir("/app/leads?novo=1") },
-      ...gruposNav(admin).flatMap((g) => g.itens).map((i) => ({ id: i.href, label: i.label, dica: "Ir para", Icone: i.Icone, acao: ir(i.href) })),
+      ...gruposNav(admin, ocultas).flatMap((g) => g.itens).map((i) => ({ id: i.href, label: i.label, dica: "Ir para", Icone: i.Icone, acao: ir(i.href) })),
       { id: "conta", label: "Conta e senha", dica: "Ir para", Icone: Settings, acao: ir("/app/perfil") },
     ];
     const t = q.trim().toLowerCase();
