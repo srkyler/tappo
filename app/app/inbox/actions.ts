@@ -7,6 +7,7 @@ import { enviarERegistrar } from "@/lib/whatsapp/atendimento";
 import { dispararWebhooks } from "@/lib/webhooks/saida";
 import { apagarSessao, chatDoTelefone, codigoDePareamento, desconectar, iniciarSessao, lerQr, lerSessao, marcarLida, type Conexao } from "@/lib/whatsapp/waha";
 import type { ActionResult } from "@/lib/data/types";
+import { ehCloud, enviarTemplateCloud, marcarLidaCloud } from "@/lib/whatsapp/cloud";
 import { empresaAtual } from "@/lib/data/empresa";
 import { ehGestor } from "@/lib/segmentos";
 
@@ -182,6 +183,8 @@ export async function desconectarWhatsApp(conexaoId?: string): Promise<ActionRes
 
 export async function excluirConexao(id: string): Promise<ActionResult> {
   try {
+    const empresa = await empresaAtual();
+    if (!empresa || !ehGestor(empresa.papel)) return { ok: false, erro: "Só o dono ou um gestor pode excluir uma conexão." };
     const supabase = await createClient();
     const c = await conexaoPorId(id);
     if (!c) return { ok: false, erro: "Conexão não encontrada." };
@@ -213,11 +216,42 @@ export async function enviarMensagem(conversaId: string, texto: string): Promise
   } catch (e) { return falha(e); }
 }
 
+/**
+ * WhatsApp oficial fora da janela de 24h: envia um modelo (template) aprovado na
+ * Meta. Parâmetros do corpo em ordem ({{1}}, {{2}}…).
+ */
+export async function enviarModeloWhatsApp(conversaId: string, nome: string, idioma: string, parametros: string[]): Promise<ActionResult> {
+  try {
+    const { supabase, user } = await cliente();
+    const { data: conversa } = await supabase.from("wa_conversas").select("id, org_id, chat_id, conexao_id").eq("id", conversaId).single();
+    if (!conversa) return { ok: false, erro: "Conversa não encontrada." };
+    const c = await minhaConexao(conversa.conexao_id);
+    if (!ehCloud(c)) return { ok: false, erro: "Modelos só existem no WhatsApp oficial (Cloud API)." };
+    const nomeLimpo = nome.trim();
+    const ps = (Array.isArray(parametros) ? parametros : []).map((p) => String(p ?? "").trim()).filter(Boolean).slice(0, 20);
+    const r = await enviarTemplateCloud(c, conversa.chat_id, nomeLimpo, idioma.trim() || "pt_BR", ps);
+    const corpo = `[modelo ${nomeLimpo}]${ps.length ? ` ${ps.join(" · ")}` : ""}`;
+    await supabase.from("wa_mensagens").insert({
+      org_id: conversa.org_id, user_id: user.id, conversa_id: conversa.id, waha_id: r.id, direcao: "saida", autor: "humano",
+      corpo, status: "enviada", enviado_por: user.id,
+    });
+    await supabase.from("wa_conversas").update({ ultima_mensagem: corpo.slice(0, 140), ultima_em: new Date().toISOString(), aguardando_desde: null }).eq("id", conversa.id);
+    return { ok: true };
+  } catch (e) { return falha(e); }
+}
+
 export async function marcarComoLida(conversaId: string): Promise<void> {
   try {
     const { supabase } = await cliente();
     const { data } = await supabase.from("wa_conversas").update({ nao_lidas: 0 }).eq("id", conversaId).select("chat_id, canal, conexao_id").single();
-    if (data && (data.canal ?? "whatsapp") === "whatsapp") await marcarLida(await minhaConexao(data.conexao_id), data.chat_id);
+    if (data && (data.canal ?? "whatsapp") === "whatsapp") {
+      const c = await minhaConexao(data.conexao_id);
+      if (ehCloud(c)) {
+        // Oficial: confirma a leitura da última mensagem recebida
+        const { data: ult } = await supabase.from("wa_mensagens").select("waha_id").eq("conversa_id", conversaId).eq("direcao", "entrada").not("waha_id", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (ult?.waha_id) await marcarLidaCloud(c, ult.waha_id);
+      } else await marcarLida(c, data.chat_id);
+    }
   } catch { /* melhor esforço */ }
 }
 

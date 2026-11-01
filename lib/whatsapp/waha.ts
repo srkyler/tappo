@@ -1,5 +1,6 @@
 import "server-only";
 import { decifrar } from "@/lib/ai/cofre";
+import { ehCloud, enviarTextoCloud, lerSessaoCloud } from "./cloud";
 
 /*
  * Cliente do WAHA (WhatsApp HTTP API — https://waha.devlike.pro).
@@ -23,6 +24,13 @@ export type Conexao = {
   ia_instrucoes: string;
   /** Atendente de IA deste número (null = o padrão da empresa). */
   atendente_id?: string | null;
+  /** 'waha' (padrão) ou 'cloud' (WhatsApp oficial da Meta — lib/whatsapp/cloud.ts). */
+  provedor?: "waha" | "cloud";
+  cloud_phone_number_id?: string | null;
+  cloud_waba_id?: string | null;
+  cloud_token_cifrado?: string | null;
+  cloud_app_secret_cifrado?: string | null;
+  cloud_verify_token?: string | null;
 };
 
 /** message.ack = enviada/entregue/lida; message.revoked = apagada pelo contato. */
@@ -92,7 +100,7 @@ export type Sessao = {
   config?: Record<string, unknown> | null;
 };
 
-export const lerSessao = (c: Conexao) => chamar<Sessao>(c, "GET", `/api/sessions/${sessaoUrl(c)}`);
+export const lerSessao = (c: Conexao) => (ehCloud(c) ? lerSessaoCloud(c) : chamar<Sessao>(c, "GET", `/api/sessions/${sessaoUrl(c)}`));
 
 /** Webhook do Tappo para esta conexão: assinado (HMAC SHA-512) e com retentativa exponencial. */
 function webhookDoTappo(c: Conexao) {
@@ -132,6 +140,11 @@ function configDesejada(c: Conexao, atual: Sessao | null) {
 
 /** Cria (ou reconfigura) a sessão com o webhook do Tappo e inicia. */
 export async function iniciarSessao(c: Conexao) {
+  if (ehCloud(c)) { // oficial: não há sessão — só valida o número/token
+    const s = await lerSessaoCloud(c);
+    if (s.status !== "WORKING") throw new Error(String(s.config?.erro ?? "Não consegui validar o número na Meta."));
+    return;
+  }
   let atual: Sessao | null = null;
   try { atual = await lerSessao(c); } catch (e) { if (!(e instanceof ErroWaha && e.status === 404)) throw e; }
   if (!atual) {
@@ -145,10 +158,11 @@ export async function iniciarSessao(c: Conexao) {
 }
 
 /** Inicia uma sessão parada (sem mexer na config). Usado pelo vigia de saúde. */
-export const religarSessao = (c: Conexao) => chamar(c, "POST", `/api/sessions/${sessaoUrl(c)}/start`);
+export const religarSessao = async (c: Conexao) => (ehCloud(c) ? null : chamar(c, "POST", `/api/sessions/${sessaoUrl(c)}/start`));
 
 /** A sessão já está com o webhook do Tappo, os eventos certos e (se houver segredo) assinatura? */
 export function sessaoConfigurada(c: Conexao, s: Sessao): boolean {
+  if (ehCloud(c)) return true; // o webhook é configurado no painel da Meta
   const ws = Array.isArray(s.config?.webhooks)
     ? s.config.webhooks as { url?: string; events?: string[]; hmac?: { key?: string } | null }[]
     : [];
@@ -160,37 +174,43 @@ export function sessaoConfigurada(c: Conexao, s: Sessao): boolean {
 
 /** QR code como data URL (só quando status = SCAN_QR_CODE). */
 export async function lerQr(c: Conexao): Promise<string | null> {
+  if (ehCloud(c)) return null;
   const r = await chamar<{ mimetype?: string; data?: string }>(c, "GET", `/api/${sessaoUrl(c)}/auth/qr?format=image`);
   return r?.data ? `data:${r.mimetype ?? "image/png"};base64,${r.data}` : null;
 }
 
 /** Código de 8 caracteres para vincular sem QR (WhatsApp → Aparelhos conectados → Conectar com número). */
 export async function codigoDePareamento(c: Conexao, telefone: string): Promise<string | null> {
+  if (ehCloud(c)) throw new Error("O WhatsApp oficial não usa código de pareamento.");
   const r = await chamar<{ code?: string }>(c, "POST", `/api/${sessaoUrl(c)}/auth/request-code`, { phoneNumber: telefone });
   return r?.code ?? null;
 }
 
-export const desconectar = (c: Conexao) => chamar(c, "POST", `/api/sessions/${sessaoUrl(c)}/logout`);
+export const desconectar = async (c: Conexao) => (ehCloud(c) ? null : chamar(c, "POST", `/api/sessions/${sessaoUrl(c)}/logout`));
 
 /** Apaga a sessão no WAHA (ao excluir a conexão) — senão ela segue viva mandando webhook para um token morto. */
 export async function apagarSessao(c: Conexao) {
+  if (ehCloud(c)) return;
   try { await chamar(c, "DELETE", `/api/sessions/${sessaoUrl(c)}`); }
   catch (e) { if (!(e instanceof ErroWaha && e.status === 404)) throw e; }
 }
 
-export async function enviarTexto(c: Conexao, chatId: string, texto: string) {
+export async function enviarTexto(c: Conexao, chatId: string, texto: string): Promise<{ id?: string | { _serialized?: string } | null }> {
+  if (ehCloud(c)) return enviarTextoCloud(c, chatId, texto);
   return chamar<{ id?: string | { _serialized?: string } }>(c, "POST", "/api/sendText", { session: c.sessao, chatId, text: texto });
 }
 
 export async function marcarLida(c: Conexao, chatId: string) {
+  if (ehCloud(c)) return; // a Cloud API marca por mensagem (marcarLidaCloud), não por chat
   await chamar(c, "POST", "/api/sendSeen", { session: c.sessao, chatId }).catch(() => null);
 }
 
 export async function digitando(c: Conexao, chatId: string, ligado: boolean) {
+  if (ehCloud(c)) return;
   await chamar(c, "POST", ligado ? "/api/startTyping" : "/api/stopTyping", { session: c.sessao, chatId }).catch(() => null);
 }
 
-export function idDaMensagem(r: { id?: string | { _serialized?: string } } | null | undefined): string | null {
+export function idDaMensagem(r: { id?: string | { _serialized?: string } | null } | null | undefined): string | null {
   if (!r?.id) return null;
   return typeof r.id === "string" ? r.id : r.id._serialized ?? null;
 }
@@ -216,7 +236,7 @@ export function telefoneDoChat(chatId: string): string | null {
  * Precisa do store ligado (NOWEB) ou de WEBJS/GOWS recentes; falha → null.
  */
 export async function telefoneDoLid(c: Conexao, chatId: string): Promise<string | null> {
-  if (!chatId.endsWith("@lid")) return null;
+  if (!chatId.endsWith("@lid") || ehCloud(c)) return null;
   try {
     const r = await chamar<{ pn?: string | null }>(c, "GET", `/api/${sessaoUrl(c)}/lids/${encodeURIComponent(chatId)}`, undefined, 8_000);
     return r?.pn ? telefoneDoChat(r.pn) : null;

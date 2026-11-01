@@ -8,6 +8,7 @@ import { createBrowserClient } from "@/lib/supabase/browser";
 import { Vazio, cn } from "@/components/ui/base";
 import { atualizarConversa, atribuirConversa, criarLeadDaConversa, enviarMensagem, marcarComoLida, novaConversa } from "@/app/app/inbox/actions";
 import { enviarMensagemTelegram } from "@/app/app/inbox/telegram-actions";
+import { EnviarModelo } from "@/components/inbox/enviar-modelo";
 import { responderEmail } from "@/app/app/inbox/email-actions";
 import { ConexaoTelegram } from "./conexao-telegram";
 import { ConexaoEmail, type EmailConexaoTela } from "./conexao-email";
@@ -353,6 +354,7 @@ export function InboxView({ userId, conexoes, conexaoTelegram, emailConexao, con
 
               <form onSubmit={enviar} className="border-t border-gray-800 p-3">
                 {erro && <p role="alert" className="mb-2 text-[12.5px] text-red-400">{erro}</p>}
+                {erro?.includes("modelo (template)") && <EnviarModelo key={sel.id} conversaId={sel.id} aoEnviar={() => setErro(null)} />}
                 <div className="flex items-end gap-2">
                   {templates.length > 0 && (
                     <select

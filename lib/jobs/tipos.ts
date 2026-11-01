@@ -3,7 +3,8 @@ import { registrarExecutor } from "./fila";
 import { descreverImagem, midiaConfig, transcrever } from "@/lib/ai/midia";
 import { resumirConversa } from "@/lib/ai/automacoes-ia";
 import { responderComIA } from "@/lib/whatsapp/atendimento";
-import { urlDaMidia, type Conexao } from "@/lib/whatsapp/waha";
+import type { Conexao } from "@/lib/whatsapp/waha";
+import { buscarMidia } from "@/lib/whatsapp/midia";
 
 /*
  * Tipos de job do Tappo. Importe este arquivo (e não só fila.ts) em quem processa
@@ -32,10 +33,8 @@ registrarExecutor("midia_whatsapp", async (db, job) => {
   const ultima = job.tentativas >= job.max_tentativas;
   if (cfg && ligado && msg.midia_url && !msg.transcricao) {
     try {
-      const alvo = urlDaMidia(c, msg.midia_url);
-      if (!alvo) throw new Error("URL de mídia fora do WAHA");
-      const res = await fetch(alvo.url, { headers: alvo.chave ? { "X-Api-Key": alvo.chave } : {}, signal: AbortSignal.timeout(60_000) });
-      if (!res.ok) throw new Error(`WAHA devolveu ${res.status} ao baixar a mídia`);
+      const res = await buscarMidia(c, msg.midia_url, 60_000);
+      if (!res) throw new Error("Não consegui baixar a mídia do WhatsApp");
       const bytes = await res.arrayBuffer();
       if (bytes.byteLength > TETO_MIDIA) throw new Error("Mídia grande demais para a IA");
       const mime = msg.midia_mime || res.headers.get("content-type") || "";

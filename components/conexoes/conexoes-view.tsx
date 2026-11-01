@@ -276,7 +276,8 @@ function CartaoWhats({ wahaPronto, conexoes }: { wahaPronto: boolean; conexoes: 
 }
 
 /* ---------------- Página ---------------- */
-export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds }: {
+export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds, extra }: {
+  extra?: React.ReactNode;
   wahaPronto: boolean;
   conexoesWa: ConexaoWaTela[];
   telegram: { status: string; username: string | null } | null;
@@ -299,6 +300,7 @@ export function ConexoesView({ wahaPronto, conexoesWa, telegram, email, metaAds 
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-2">
         <CartaoWhats wahaPronto={wahaPronto} conexoes={conexoesWa} />
+        {extra}
 
         {/* ---------- Meta Ads ---------- */}
         <Cartao

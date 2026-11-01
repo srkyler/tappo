@@ -79,7 +79,7 @@ Comparado item a item com o DeskcommCRM (`lib/waha/*`, `lib/channels/*`, `docker
 | 2.5 | ✅ **Follow-up automático** (usa 1.1): lead sem resposta há X dias recebe mensagem personalizada com base na memória | M | regra configurável em `/app/assistente`, respeitando horário e limite anti-flood |
 | 2.6 | ✅ **Sugestão automática de FAQ**: perguntas repetidas sem resposta viram sugestões (status `sugerido`) para aprovar | P | aba Conhecimento › Sugestões se preenche sozinha |
 | 2.7 | ✅ **Importar do site**: cola a URL e a IA preenche o perfil da empresa e as FAQs (cliente revisa antes de salvar) | M | perfil sai de 0% para mais de 60% com um clique |
-| 2.8 | **WhatsApp oficial (Cloud API da Meta)** como alternativa ao WAHA, por conexão | G | empresa conecta número oficial; envio, recebimento e IA funcionam igual |
+| 2.8 | ✅ **WhatsApp oficial (Cloud API da Meta)** como alternativa ao WAHA, por conexão (cartão em Conexões, webhook assinado `/api/v1/whatsapp-cloud/<token>`, mídia, status, modelo fora de 24h) | G | empresa conecta número oficial; envio, recebimento e IA funcionam igual |
 
 ## Fase 3 — Acabar com as 19 telas de fachada
 

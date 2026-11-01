@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { urlDaMidia } from "@/lib/whatsapp/waha";
+import type { Conexao } from "@/lib/whatsapp/waha";
+import { buscarMidia } from "@/lib/whatsapp/midia";
 
 /*
  * GET /api/whatsapp/midia/<mensagem_id> — entrega a foto/áudio/arquivo de uma
@@ -22,27 +23,31 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (!user) return new Response("Faça login", { status: 401 });
 
   const { data: msg } = await supabase.from("wa_mensagens")
-    .select("org_id, midia_url, midia_mime, canal").eq("id", id).maybeSingle();
+    .select("org_id, conversa_id, midia_url, midia_mime, canal").eq("id", id).maybeSingle();
   if (!msg?.midia_url || msg.canal !== "whatsapp") return new Response("Não encontrada", { status: 404 });
 
-  const { data: conexao } = await supabase.from("wa_conexoes")
-    .select("base_url, api_key_cifrada").eq("org_id", msg.org_id).limit(1).maybeSingle();
+  // Conexão que recebeu a conversa; sem ela, uma do mesmo provedor da mídia
+  const { data: conv } = await supabase.from("wa_conversas").select("conexao_id").eq("id", msg.conversa_id).maybeSingle();
+  let conexao: Conexao | null = null;
+  if (conv?.conexao_id) {
+    const { data } = await supabase.from("wa_conexoes").select("*").eq("id", conv.conexao_id).maybeSingle();
+    conexao = (data as Conexao | null) ?? null;
+  }
+  if (!conexao) {
+    const { data } = await supabase.from("wa_conexoes").select("*").eq("org_id", msg.org_id)
+      .eq("provedor", msg.midia_url.startsWith("cloud:") ? "cloud" : "waha").limit(1).maybeSingle();
+    conexao = (data as Conexao | null) ?? null;
+  }
+  if (!conexao) return new Response("Mídia indisponível", { status: 404 });
 
-  let alvo: ReturnType<typeof urlDaMidia>;
+  let res: Response | null;
   try {
-    alvo = urlDaMidia(conexao ?? { base_url: "", api_key_cifrada: null }, msg.midia_url);
+    res = await buscarMidia(conexao, msg.midia_url);
   } catch {
     return new Response("WhatsApp não configurado no servidor", { status: 503 });
   }
-  if (!alvo) return new Response("Mídia indisponível", { status: 404 });
-
-  const res = await fetch(alvo.url, {
-    headers: alvo.chave ? { "X-Api-Key": alvo.chave } : {},
-    signal: AbortSignal.timeout(30_000),
-    cache: "no-store",
-  }).catch(() => null);
-  // 404 aqui = o WAHA já apagou o arquivo (WHATSAPP_FILES_LIFETIME) ou a mídia não baixou
-  if (!res?.ok || !res.body) return new Response("Mídia expirada ou indisponível no WhatsApp", { status: 404 });
+  // null = o provedor já apagou o arquivo (WHATSAPP_FILES_LIFETIME / 30 dias na Meta) ou a mídia não baixou
+  if (!res?.body) return new Response("Mídia expirada ou indisponível no WhatsApp", { status: 404 });
   const tamanho = Number(res.headers.get("content-length") ?? 0);
   if (tamanho > TETO_BYTES) return new Response("Arquivo grande demais", { status: 413 });
 

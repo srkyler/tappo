@@ -29,9 +29,11 @@ const MAX_RELIGADAS = 3;
  *  - SCAN_QR_CODE → só registra: precisa de alguém com o celular.
  */
 async function whatsappSaude(db: SupabaseClient) {
-  if (!wahaServidorPronto()) return { pulada: "WAHA não configurado" };
-  const { data, error } = await db.from("wa_conexoes").select("*");
+  const { data: todas, error } = await db.from("wa_conexoes").select("*");
   if (error) throw error;
+  // Sem WAHA no servidor, ainda vigia os números oficiais (Cloud API)
+  const data = wahaServidorPronto() ? todas : (todas ?? []).filter((c) => c.provedor === "cloud");
+  if (!data?.length && !wahaServidorPronto()) return { pulada: "WAHA não configurado" };
   const resumo = { total: data?.length ?? 0, conectadas: 0, reconfiguradas: 0, religadas: 0, aguardando_qr: 0, erros: 0 };
 
   for (const linha of data ?? []) {

@@ -1,11 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { conversaDo, responderComIA } from "@/lib/whatsapp/atendimento";
-import { dispararWebhooks } from "@/lib/webhooks/saida";
-import { registrarErro } from "@/lib/erros";
-import { enfileirar, processarFila } from "@/lib/jobs/fila";
-import "@/lib/jobs/tipos";
+import { STATUS_DO_ACK, registrarEntrada } from "@/lib/whatsapp/entrada";
 import { idsEquivalentes, segredoHmac, telefoneDoChat, telefoneDoLid, type Conexao } from "@/lib/whatsapp/waha";
 
 /*
@@ -42,14 +37,12 @@ type EventoWaha = { event?: string; session?: string; payload?: unknown; me?: { 
 
 const ok = () => Response.json({ ok: true });
 
-function tipoDa(m: MsgWaha) {
+function tipoDa(m: MsgWaha): "texto" | "imagem" | "audio" | "video" | "arquivo" {
   if (!m.hasMedia) return "texto";
   const mt = m.media?.mimetype ?? "";
   return mt.startsWith("image/") ? "imagem" : mt.startsWith("audio/") ? "audio" : mt.startsWith("video/") ? "video" : "arquivo";
 }
 
-/** ack do WhatsApp → status no Inbox. 4 (áudio reproduzido) conta como lida. */
-const STATUS_DO_ACK: Record<number, string> = { [-1]: "erro", 0: "pendente", 1: "enviada", 2: "entregue", 3: "lida", 4: "lida" };
 
 function assinaturaValida(req: Request, corpo: string): boolean {
   const exigir = process.env.WAHA_WEBHOOK_REQUIRE_SIGNATURE === "true";
@@ -75,6 +68,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const { data: conexao } = await db.from("wa_conexoes").select("*").eq("token", token).maybeSingle();
   if (!conexao) return Response.json({ ok: false }, { status: 404 });
   const c = conexao as Conexao;
+  if (c.provedor === "cloud") return Response.json({ ok: false }, { status: 404 }); // número oficial usa /api/v1/whatsapp-cloud
 
   let ev: EventoWaha;
   try { ev = JSON.parse(bruto); } catch { return Response.json({ ok: false }, { status: 400 }); }
@@ -138,71 +132,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
 
   const nome = m.fromMe ? null : (m._data?.notifyName || m._data?.pushName || null);
-  const conversa = await conversaDo(db, c, chatId, nome, "whatsapp", telefone);
-  const tipo = tipoDa(m);
-  const corpo = m.body?.trim() || null;
-
-  const { data: msg, error } = await db.from("wa_mensagens").upsert({
-    org_id: c.org_id,
-    user_id: c.user_id,
-    conversa_id: conversa.id,
-    waha_id: m.id,
-    direcao: m.fromMe ? "saida" : "entrada",
-    autor: m.fromMe ? "celular" : "contato",
-    tipo,
-    corpo,
-    midia_url: m.media?.url ?? null,
-    midia_mime: m.media?.mimetype ?? null,
-    ...(m.fromMe && typeof m.ack === "number" && m.ack in STATUS_DO_ACK ? { ack: m.ack, status: STATUS_DO_ACK[m.ack] } : {}),
-  }, { onConflict: "org_id,waha_id", ignoreDuplicates: true }).select("id").maybeSingle();
-  if (error) {
-    console.error("[waha]", error.message);
-    return Response.json({ ok: false }, { status: 500 }); // o WAHA retenta (retries na config da sessão)
-  }
-  if (!msg) return ok(); // duplicado (retentativa do WAHA)
-
-  if (!m.fromMe) {
-    after(() => dispararWebhooks(db, c.org_id, "mensagem.nova", {
-      conversa_id: conversa.id, mensagem_id: msg.id, canal: "whatsapp",
-      chat_id: chatId, nome: conversa.nome, tipo, corpo,
-    }).catch((e) => console.error("[waha:webhook]", e instanceof Error ? e.message : e)));
-  }
-
-  const previa = corpo ?? `[${tipo}]`;
-  await db.from("wa_conversas").update({
-    ultima_mensagem: previa.replace(/\s+/g, " ").slice(0, 140),
-    ultima_em: new Date().toISOString(),
-    conexao_id: c.id, // a resposta humana sai pelo número que recebeu
-    // Fila: cliente falou e ninguém respondeu ainda → começa a contar o tempo de espera
-    ...(m.fromMe
-      ? { aguardando_desde: null }
-      : {
-          nao_lidas: conversa.nao_lidas + 1,
-          followups: 0, // cliente voltou a falar: o ciclo de follow-up recomeça
-          aguardando_desde: conversa.aguardando_desde ?? new Date().toISOString(),
-          ...(conversa.status === "resolvida" ? { status: "aberta" } : {}),
-        }),
-  }).eq("id", conversa.id);
-
-  const iaAtende = !m.fromMe && c.ia_ativa && conversa.ia_ativa;
-  if (iaAtende && tipo === "texto" && corpo) {
-    after(() => responderComIA(db, c, conversa.id, msg.id).catch((e) => registrarErro("waha:ia", e, { orgId: c.org_id })));
-  } else if (!m.fromMe && tipo !== "texto" && (iaAtende || tipo === "audio")) {
-    // Áudio/imagem: transcreve ou descreve na fila (com retentativa) e só então a IA responde.
-    // Áudio é transcrito mesmo sem IA, para o atendente ler no Inbox.
-    after(async () => {
-      try {
-        await enfileirar(db, {
-          tipo: "midia_whatsapp", orgId: c.org_id, chave: `midia:${msg.id}`, maxTentativas: 3,
-          payload: { mensagem_id: msg.id, conexao_id: c.id, responder: iaAtende },
-        });
-        await processarFila(db, 3);
-      } catch (e) {
-        // Fila indisponível (migration pendente): a IA responde assim mesmo e pede texto
-        await registrarErro("waha:midia", e, { orgId: c.org_id });
-        if (iaAtende) await responderComIA(db, c, conversa.id, msg.id).catch(() => null);
-      }
-    });
-  }
+  const r = await registrarEntrada(db, c, {
+    id: m.id, chatId, fromMe: !!m.fromMe, nome, tipo: tipoDa(m), corpo: m.body?.trim() || null,
+    midiaUrl: m.media?.url ?? null, midiaMime: m.media?.mimetype ?? null, telefone, ack: m.ack ?? null, origem: "waha",
+  });
+  if (r === "erro") return Response.json({ ok: false }, { status: 500 }); // o WAHA retenta (retries na config da sessão)
   return ok();
 }
